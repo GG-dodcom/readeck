@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.22.3] - 2026-04-16
 ### Improved
 - New internal data exchange format (CBOR)
 - Default to UTF-8 when loading page without character set information, by [@mislav](https://codeberg.org/mislav)
