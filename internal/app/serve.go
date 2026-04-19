@@ -28,7 +28,6 @@ import (
 	"golang.org/x/net/http2/h2c"
 
 	"codeberg.org/readeck/readeck/configs"
-	"codeberg.org/readeck/readeck/docs"
 	"codeberg.org/readeck/readeck/internal/admin"
 	"codeberg.org/readeck/readeck/internal/assets"
 	"codeberg.org/readeck/readeck/internal/auth/oauth2"
@@ -38,6 +37,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/bus"
 	"codeberg.org/readeck/readeck/internal/cookbook"
 	"codeberg.org/readeck/readeck/internal/dashboard"
+	"codeberg.org/readeck/readeck/internal/docs"
 	"codeberg.org/readeck/readeck/internal/metrics"
 	"codeberg.org/readeck/readeck/internal/opds"
 	"codeberg.org/readeck/readeck/internal/profile"
@@ -163,7 +163,7 @@ func runServer(_ context.Context, args []string) error { // nolint:gocognit,gocy
 				fatal("failed to listen on "+host, err)
 			}
 
-			mode := fs.FileMode(0666) // nolint:gofumpt
+			mode := fs.FileMode(0o666)
 			if m, err := strconv.ParseUint(socketURL.Query().Get("mode"), 0, 32); err == nil {
 				mode = fs.FileMode(m)
 			}

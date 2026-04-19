@@ -1,0 +1,240 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package docs
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	. "codeberg.org/readeck/readeck/components"
+	"codeberg.org/readeck/readeck/pkg/utils"
+)
+
+type aboutInfo struct {
+	version     string
+	buildTime   time.Time
+	buildInfo   *strings.Builder
+	licenses    []licenseInfo
+	os          string
+	arch        string
+	goVersion   string
+	dbConnector string
+	dbVersion   string
+	dbSize      uint64
+	diskUsage   uint64
+}
+
+func sysInfo(info aboutInfo) string {
+	return strings.TrimSpace(fmt.Sprintf(`
+Version:            %s
+Build Date:         %s
+Platform:           %s / %s
+Go Version:         %s
+Database Connector: %s
+Database Version:   %s
+
+Build Info:
+%s
+  `,
+		info.version,
+		info.buildTime.Format("2006-01-02 15:04:05 MST"),
+		info.os, info.arch,
+		info.goVersion,
+		info.dbConnector,
+		info.dbVersion,
+		info.buildInfo.String(),
+	))
+}
+
+templ (v Views) about(toc [][2]string, lang string, info aboutInfo) {
+	{{ title := L(ctx).Gettext("About Readeck") }}
+	@v.base(title, toc, lang) {
+		<div class="text-center my-4">
+			<h1 class="title text-h1">{ title }</h1>
+			<p class="my-1"><strong>{ L(ctx).Gettext("Version:") }</strong><br/>{ info.version }</p>
+			<p class="my-1"><strong>{ L(ctx).Gettext("Build Date:") }</strong><br/>{ Strftime(ctx, info.buildTime, "%A, %e %B %Y %H:%M:%S %Z") }</p>
+		</div>
+		<h2 class="title text-h2">{ L(ctx).Gettext("System Information") }</h2>
+		<div class="my-4" data-controller="clipboard">
+			<p>{ L(ctx).Gettext("Here are your current system information. Please include them if you report a bug.") }</p>
+			<pre class="mt-4 p-2 text-sm bg-gray-100 border border-gray-200 rounded overflow-x-auto whitespace-pre-wrap">
+				{ sysInfo(info) }
+			</pre>
+			<p class="mt-1">
+				<button type="button" class="link" data-action="clipboard#copy">
+					@Icon("o-copy")
+					{ L(ctx).Gettext("copy to clipboard") }
+				</button>
+			</p>
+			<textarea hidden data-clipboard-target="content">```&#10;{ sysInfo(info) }&#10;```</textarea>
+		</div>
+		<h3 class="title text-h3">{ L(ctx).Gettext("Storage") }</h3>
+		<table class="my-4">
+			<tbody>
+				<tr>
+					<th class="text-left">{ L(ctx).Gettext("Database Size:") }</th>
+					<td class="pl-4 text-right">{ utils.FormatBytes(info.dbSize) }</td>
+				</tr>
+				<tr>
+					<th class="text-left">{ L(ctx).Gettext("Bookmarks Disk Usage:") }</th>
+					<td class="pl-4 text-right">{ utils.FormatBytes(info.diskUsage) }</td>
+				</tr>
+			</tbody>
+		</table>
+		<h2 class="title text-h2">{ L(ctx).Gettext("Project") }</h2>
+		<table class="my-4 border-separate">
+			<tr>
+				<td class="pr-4">{ L(ctx).Gettext("Main website:") }</td>
+				<td><a target="_blank" class="link font-semibold" href="https://readeck.org/en/">https://readeck.org/</a></td>
+			</tr>
+			<tr>
+				<td class="pr-4">{ L(ctx).Gettext("Sources and issues:") }</td>
+				<td><a target="_blank" class="link" href="https://codeberg.org/readeck/readeck">https://codeberg.org/readeck/readeck</a></td>
+			</tr>
+			<tr>
+				<td class="pr-4">{ L(ctx).Gettext("How to contribute:") }</td>
+				<td><a target="_blank" class="link" href="https://readeck.org/en/contribute">https://readeck.org/en/contribute</a></td>
+			</tr>
+			<tr>
+				<td class="pr-4">{ L(ctx).Gettext("Community Forum:") }</td>
+				<td><a target="_blank" class="link" href="https://community.readeck.org/">https://community.readeck.org/</a></td>
+			</tr>
+			<tr>
+				<td class="pr-4">{ L(ctx).Gettext("Matrix Chat:") }</td>
+				<td><a target="_blank" class="link" href="https://matrix.to/#/#readeck:matrix.org">https://matrix.to/#/#readeck:matrix.org</a></td>
+			</tr>
+		</table>
+		<h2 class="title text-h2">{ L(ctx).Gettext("License") }</h2>
+		<p>
+			@templ.Raw(L(ctx).Gettext(
+				`Readeck is distributed under the terms of the license "%s"`,
+				`<a href="https://www.gnu.org/licenses/agpl-3.0.html" class="link">GNU Affero General Public License v3.0.</a>`,
+			))
+			<br/>
+			{ L(ctx).Gettext("Here's a short summary of the license conditions:") }
+		</p>
+		<table class="my-4 w-full table-fixed" lang="en-US">
+			<thead>
+				<tr>
+					<th class="text-left">{ L(ctx).Gettext("Permissions") }</th>
+					<th class="text-left">{ L(ctx).Gettext("Conditions") }</th>
+					<th class="text-left">{ L(ctx).Gettext("Limitations") }</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td class="align-baseline">
+						<ul>
+							<li title="The licensed material and derivatives may be used for commercial purposes.">
+								@Icon("o-circle", WithIconClass("svgicon text-green-700"))
+								{ L(ctx).Gettext("Commercial use") }
+							</li>
+							<li title="The licensed material may be distributed.">
+								@Icon("o-circle", WithIconClass("svgicon text-green-700"))
+								{ L(ctx).Gettext("Distribution") }
+							</li>
+							<li title="The licensed material may be modified.">
+								@Icon("o-circle", WithIconClass("svgicon text-green-700"))
+								{ L(ctx).Gettext("Modification") }
+							</li>
+							<li title="This license provides an express grant of patent rights from contributors.">
+								@Icon("o-circle", WithIconClass("svgicon text-green-700"))
+								{ L(ctx).Gettext("Patent use") }
+							</li>
+							<li title="The licensed material may be used and modified in private.">
+								@Icon("o-circle", WithIconClass("svgicon text-green-700"))
+								{ L(ctx).Gettext("Private use") }
+							</li>
+						</ul>
+					</td>
+					<td class="align-baseline">
+						<ul>
+							<li title="Source code must be made available when the licensed material is distributed.">
+								@Icon("o-circle", WithIconClass("svgicon text-blue-700"))
+								{ L(ctx).Gettext("Disclose source") }
+							</li>
+							<li title="A copy of the license and copyright notice must be included with the licensed material.">
+								@Icon("o-circle", WithIconClass("svgicon text-blue-700"))
+								{ L(ctx).Gettext("License and copyright notice") }
+							</li>
+							<li title="Users who interact with the licensed material via network are given the right to receive a copy of the source code.">
+								@Icon("o-circle", WithIconClass("svgicon text-blue-700"))
+								{ L(ctx).Gettext("Network use is distribution") }
+							</li>
+							<li title="Modifications must be released under the same license when distributing the licensed material. In some cases a similar or related license may be used.">
+								@Icon("o-circle", WithIconClass("svgicon text-blue-700"))
+								{ L(ctx).Gettext("Same license") }
+							</li>
+							<li title="Changes made to the licensed material must be documented.">
+								@Icon("o-circle", WithIconClass("svgicon text-blue-700"))
+								{ L(ctx).Gettext("State changes") }
+							</li>
+						</ul>
+					</td>
+					<td class="align-baseline">
+						<ul>
+							<li title="This license includes a limitation of liability.">
+								@Icon("o-circle", WithIconClass("svgicon text-red-700"))
+								{ L(ctx).Gettext("Liability") }
+							</li>
+							<li title="This license explicitly states that it does NOT provide any warranty.">
+								@Icon("o-circle", WithIconClass("svgicon text-red-700"))
+								{ L(ctx).Gettext("Warranty") }
+							</li>
+						</ul>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+		<div class="my-4 prose border border-gray-200 bg-gray-100 rounded pt-4 px-4">
+			<p>
+				Readeck
+				<br/>
+				Copyright &copy; 2020 Olivier Meunier
+			</p>
+			<p>
+				This program is free software: you can redistribute it and/or modify
+				it under the terms of the GNU Affero General Public License as published
+				by the Free Software Foundation, either version 3 of the License, or
+				(at your option) any later version.
+			</p>
+			<p>
+				This program is distributed in the hope that it will be useful,
+				but WITHOUT ANY WARRANTY; without even the implied warranty of
+				MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+				GNU Affero General Public License for more details.
+			</p>
+			<p>
+				You should have received a copy of the GNU Affero General Public License
+				along with this program.
+				If not, see <a href="https://www.gnu.org/licenses/" class="link">https://www.gnu.org/licenses/</a>
+			</p>
+		</div>
+		<h2 class="title text-h2">{ L(ctx).Gettext("Third-Party Licenses") }</h2>
+		<p class="my-4">{ L(ctx).Gettext("Readeck includes and/or uses the following open source assets:") }</p>
+		for _, x := range info.licenses {
+			<h3 class="font-bold mt-4 mb-2">{ x.Name }</h3>
+			<ul>
+				<li title="Author" class="flex gap-2 mb-1">
+					@Icon("o-pen")
+					{ x.Author }
+				</li>
+				<li title="License" class="flex gap-2 mb-1">
+					@Icon("o-license")
+					<a href="https://spdx.org/licenses/{{ .License }}.html" class="link" rel="nofollow noopener noreferrer">{ x.License }</a>
+				</li>
+				<li title="URL" class="flex gap-2 mb-1">
+					@Icon("o-link")
+					<a href="{{ .URL}}" class="link" rel="nofollow noopener noreferrer">{ x.URL }</a>
+				</li>
+				<li title="Copyright" class="flex gap-2 mb-1">
+					@Icon("o-copyright")
+					<pre class="text-sm">{ x.Copyright }</pre>
+				</li>
+			</ul>
+		}
+	}
+}

@@ -13,8 +13,10 @@ import (
 	"net/http"
 )
 
+// Assets is the [embed.FS] with documentation assets.
+//
 //go:embed assets assets/* licenses/*
-var assets embed.FS
+var Assets embed.FS
 
 // Files contains all the generated help files as an http.FS instance.
 var Files http.FileSystem
@@ -36,13 +38,14 @@ type Section struct {
 	TOC   [][2]string      `json:"toc"`
 }
 
-// Manifest is the documentation files manifest.
-type Manifest struct {
+// ManifestFile is the documentation files manifest.
+type ManifestFile struct {
 	Files    map[string]*File    `json:"files"`
 	Sections map[string]*Section `json:"sections"`
 }
 
-var manifest *Manifest
+// Manifest is the documentation manifest contents.
+var Manifest *ManifestFile
 
 // UpdateEtag implements the [server.Etagger] interface.
 func (f *File) UpdateEtag(h hash.Hash) {
@@ -50,20 +53,20 @@ func (f *File) UpdateEtag(h hash.Hash) {
 }
 
 func init() {
-	sub, err := fs.Sub(assets, "assets")
+	sub, err := fs.Sub(Assets, "assets")
 	if err != nil {
 		panic(err)
 	}
 	Files = http.FS(sub)
 
 	// Load manifest
-	fd, err := assets.Open("assets/manifest.json")
+	fd, err := Assets.Open("assets/manifest.json")
 	if err != nil {
 		panic(err)
 	}
 
 	dec := json.NewDecoder(fd)
-	err = dec.Decode(&manifest)
+	err = dec.Decode(&Manifest)
 	if err != nil {
 		panic(err)
 	}

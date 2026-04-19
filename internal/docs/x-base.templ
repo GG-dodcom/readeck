@@ -1,0 +1,67 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package docs
+
+import (
+	"io"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+type Views struct{}
+
+templ (_ Views) menu(toc [][2]string, lang string) {
+	@SideMenuTitle() {
+		{ L(ctx).Gettext("Readeck Help") }
+	}
+	if toc != nil {
+		<menu class="my-4" lang={ lang }>
+			for _, x := range toc {
+				<li>
+					<a href={ URL(ctx, "/docs", x[0]) } data-current={ PathIs(ctx, "/docs/"+x[0]) }>
+						{ x[1] }
+					</a>
+				</li>
+			}
+		</menu>
+		<hr class="w-[25%] border-gray-200 mx-auto"/>
+	}
+	<menu class="mt-4">
+		<li>
+			<a data-current={ PathIs(ctx, "/docs/api") } href={ URL(ctx, "/docs/api") }>
+				{ L(ctx).Gettext("API Documentation") }
+			</a>
+		</li>
+	</menu>
+	if HasPermission(ctx, "system", "read") {
+		<hr class="w-[25%] border-gray-200 mx-auto"/>
+		<menu class="my-4">
+			<li>
+				<a data-current={ PathIs(ctx, "/docs/about") } href={ URL(ctx, "/docs/about") }>
+					{ L(ctx).Gettext("About Readeck") }
+				</a>
+			</li>
+			<li>
+				<a data-current={ PathIs(ctx, "/docs/changelog") } href={ URL(ctx, "/docs/changelog") }>
+					{ L(ctx).Gettext("Changelog") }
+				</a>
+			</li>
+		</menu>
+	}
+}
+
+templ (v Views) base(title string, toc [][2]string, lang string) {
+	@SideMenuStdLayout(title, v.menu(toc, lang)) {
+		{ children... }
+	}
+}
+
+templ (v Views) document(title string, toc [][2]string, lang string, html io.Reader) {
+	@v.base(title, toc, lang) {
+		<div class="text-base leading-normal prose docs" lang={ lang }>
+			@HTML(html)
+		</div>
+	}
+}

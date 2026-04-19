@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// Package docs contains routes to the documentation.
 package docs
 
 import (
@@ -20,7 +21,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/komkom/toml"
 
+	"codeberg.org/readeck/readeck/components"
 	"codeberg.org/readeck/readeck/configs"
+	"codeberg.org/readeck/readeck/docs"
 	"codeberg.org/readeck/readeck/internal/auth"
 	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/db"
@@ -59,7 +62,7 @@ func SetupRoutes(s *server.Server) {
 	}
 
 	// File routes
-	for _, f := range manifest.Files {
+	for _, f := range docs.Manifest.Files {
 		if f.IsDocument {
 			continue
 		}
@@ -69,7 +72,7 @@ func SetupRoutes(s *server.Server) {
 	// Document routes
 	// docHandler serves the document and requires authentication
 	docHandler := handler.With(server.AuthenticatedRouter(server.WithRedirectLogin).Middlewares()...)
-	for tag, section := range manifest.Sections {
+	for tag, section := range docs.Manifest.Sections {
 		for _, f := range section.Files {
 			// Document
 			docHandler.With(
@@ -88,7 +91,7 @@ func SetupRoutes(s *server.Server) {
 	}
 
 	// Changelog route
-	f := manifest.Files["changelog"]
+	f := docs.Manifest.Files["changelog"]
 	docHandler.With(
 		server.WithPermission("system", "read"),
 		handler.withFile(f),
@@ -114,7 +117,7 @@ func SetupRoutes(s *server.Server) {
 	s.AddRoute(routePrefix, handler)
 }
 
-func (h *helpHandlers) withFile(f *File) func(next http.Handler) http.Handler {
+func (h *helpHandlers) withFile(f *docs.File) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if f == nil {
@@ -130,7 +133,7 @@ func (h *helpHandlers) withFile(f *File) func(next http.Handler) http.Handler {
 	}
 }
 
-func (h *helpHandlers) withSection(tag string, section *Section) func(next http.Handler) http.Handler {
+func (h *helpHandlers) withSection(tag string, section *docs.Section) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := context.WithValue(r.Context(), ctxSectionKey{}, section)
@@ -140,22 +143,22 @@ func (h *helpHandlers) withSection(tag string, section *Section) func(next http.
 	}
 }
 
-func (h *helpHandlers) getSection(r *http.Request) (*Section, string) {
-	if section, ok := r.Context().Value(ctxSectionKey{}).(*Section); ok {
+func (h *helpHandlers) getSection(r *http.Request) (*docs.Section, string) {
+	if section, ok := r.Context().Value(ctxSectionKey{}).(*docs.Section); ok {
 		return section, r.Context().Value(ctxLanguageKey{}).(string)
 	}
 
 	tag := server.Locale(r).Tag.String()
-	if _, ok := manifest.Sections[tag]; !ok {
+	if _, ok := docs.Manifest.Sections[tag]; !ok {
 		tag = "en"
 	}
-	return manifest.Sections[tag], tag
+	return docs.Manifest.Sections[tag], tag
 }
 
 func (h *helpHandlers) serveDocument(w http.ResponseWriter, r *http.Request) {
-	f, _ := r.Context().Value(ctxFileKey{}).(*File)
+	f, _ := r.Context().Value(ctxFileKey{}).(*docs.File)
 
-	fd, err := Files.Open(f.File)
+	fd, err := docs.Files.Open(f.File)
 	if err != nil {
 		server.Err(w, r, err)
 		return
@@ -172,23 +175,22 @@ func (h *helpHandlers) serveDocument(w http.ResponseWriter, r *http.Request) {
 
 	section, tag := h.getSection(r)
 	tr := locales.LoadTranslation(tag)
-	ctx := server.TC{
-		"TOC":      section.TOC,
-		"Language": tag,
-		"Title":    f.Title,
-		"HTML":     buf,
-	}
-	ctx.SetBreadcrumbs([][2]string{
-		{tr.Gettext("Documentation"), urls.AbsoluteURL(r, "/docs", tag, "/").String()},
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
+		{tr.Gettext("Documentation"), urls.PathOnly(urls.AbsoluteURL(r, "/docs", tag, "/"))},
 		{f.Title},
 	})
 
-	server.RenderTemplate(w, r, http.StatusOK, "docs/index", ctx)
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.document(
+		f.Title,
+		section.TOC,
+		tag,
+		buf,
+	))
 }
 
 func (h *helpHandlers) serveStatic(w http.ResponseWriter, r *http.Request) {
-	f, _ := r.Context().Value(ctxFileKey{}).(*File)
-	fd, err := Files.Open(f.File)
+	f, _ := r.Context().Value(ctxFileKey{}).(*docs.File)
+	fd, err := docs.Files.Open(f.File)
 	if err != nil {
 		server.Err(w, r, err)
 		return
@@ -200,7 +202,7 @@ func (h *helpHandlers) serveStatic(w http.ResponseWriter, r *http.Request) {
 
 func (h *helpHandlers) localeRedirect(w http.ResponseWriter, r *http.Request) {
 	tag := server.Locale(r).Tag.String()
-	if _, ok := manifest.Sections[tag]; !ok {
+	if _, ok := docs.Manifest.Sections[tag]; !ok {
 		tag = "en"
 	}
 
@@ -214,7 +216,7 @@ func (h *helpHandlers) serveRedirect(to string) http.HandlerFunc {
 }
 
 func (h *helpHandlers) serveAbout(w http.ResponseWriter, r *http.Request) {
-	fp, err := assets.Open("licenses/licenses.toml")
+	fp, err := docs.Assets.Open("licenses/licenses.toml")
 	if err != nil {
 		server.Err(w, r, err)
 		return
@@ -250,31 +252,31 @@ func (h *helpHandlers) serveAbout(w http.ResponseWriter, r *http.Request) {
 
 	section, tag := h.getSection(r)
 	tr := locales.LoadTranslation(tag)
-	ctx := server.TC{
-		"TOC":         section.TOC,
-		"Language":    tag,
-		"Version":     configs.Version(),
-		"BuildTime":   configs.BuildTime(),
-		"BuildInfo":   buildInfo,
-		"Licenses":    licenses["licenses"],
-		"OS":          runtime.GOOS,
-		"Arch":        runtime.GOARCH,
-		"GoVersion":   runtime.Version(),
-		"DBConnecter": db.Driver().Name(),
-		"DBVersion":   db.Driver().Version(),
-		"DBSize":      dbUsageVal,
-		"DiskUsage":   diskUsageVal,
-	}
-	ctx.SetBreadcrumbs([][2]string{
-		{tr.Gettext("Documentation"), urls.AbsoluteURL(r, "/docs", tag, "/").String()},
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
+		{tr.Gettext("Documentation"), urls.PathOnly(urls.AbsoluteURL(r, "/docs", tag, "/"))},
 		{tr.Gettext("About Readeck")},
 	})
 
-	server.RenderTemplate(w, r, http.StatusOK, "docs/about", ctx)
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.about(
+		section.TOC, tag,
+		aboutInfo{
+			version:     configs.Version(),
+			buildTime:   configs.BuildTime(),
+			buildInfo:   buildInfo,
+			licenses:    licenses["licenses"],
+			os:          runtime.GOOS,
+			arch:        runtime.GOARCH,
+			goVersion:   runtime.Version(),
+			dbConnector: db.Driver().Name(),
+			dbVersion:   db.Driver().Version(),
+			dbSize:      dbUsageVal,
+			diskUsage:   diskUsageVal,
+		},
+	))
 }
 
 func (h *helpHandlers) serveAPISchema(w http.ResponseWriter, r *http.Request) {
-	fd, err := Files.Open("api.json")
+	fd, err := docs.Files.Open("api.json")
 	if err != nil {
 		server.Err(w, r, err)
 		return
@@ -301,11 +303,8 @@ func (h *helpHandlers) serveAPIDocs(w http.ResponseWriter, r *http.Request) {
 	policy.Write(w.Header())
 
 	tr := server.Locale(r)
-	tc := server.TC{
-		"Schema": urls.AbsoluteURL(r, "/docs/api.json"),
-	}
-	tc.SetBreadcrumbs([][2]string{
-		{tr.Gettext("Documentation"), urls.AbsoluteURL(r, "/docs", tr.Tag.String(), "/").String()},
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
+		{tr.Gettext("Documentation"), urls.PathOnly(urls.AbsoluteURL(r, "/docs", tr.Tag.String(), "/"))},
 		{"API"},
 	})
 
@@ -313,7 +312,9 @@ func (h *helpHandlers) serveAPIDocs(w http.ResponseWriter, r *http.Request) {
 	if !auth.GetRequestUser(r).HasPermission("api:cookbook", "read") {
 		hideBadges = append(hideBadges, "admin only")
 	}
-	tc["HideBadges"] = strings.Join(hideBadges, ",")
 
-	server.RenderTemplate(w, r, http.StatusOK, "docs/api-docs", tc)
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.api(
+		urls.PathOnly(urls.AbsoluteURL(r, "/docs/api.json")),
+		hideBadges,
+	))
 }
