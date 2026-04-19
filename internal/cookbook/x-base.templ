@@ -1,0 +1,27 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package cookbook
+
+import . "codeberg.org/readeck/readeck/components"
+
+type Views struct{}
+
+templ (_ Views) menu() {
+	@SideMenuTitle() {
+		Cookbook
+	}
+	<menu class="mt-4">
+		<li><a data-current={ PathIs(ctx, "/cookbook") } href={ URL(ctx, "/cookbook") }>Typography</a></li>
+		<li><a data-current={ PathIs(ctx, "/cookbook/colors") } href={ URL(ctx, "/cookbook/colors") }>Colors</a></li>
+		<li><a data-current={ PathIs(ctx, "/cookbook/ui") } href={ URL(ctx, "/cookbook/ui") }>User Interface</a></li>
+		<li><a data-current={ PathIs(ctx, "/cookbook/extract") } href={ URL(ctx, "/cookbook/extract") }>Extract</a></li>
+	</menu>
+}
+
+templ (v Views) base(title string) {
+	@SideMenuLayout(title, v.menu()) {
+		{ children... }
+	}
+}

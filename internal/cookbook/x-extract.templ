@@ -1,0 +1,159 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package cookbook
+
+import (
+	"io"
+	"time"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+templ (v Views) extract(f *extractForm, res *extractResult, html io.Reader) {
+	@v.base("Extract") {
+		<form action="" method="get" class="mb-4">
+			<div class="flex p-1 form-input rounded-full border">
+				<input
+					type="text"
+					name="url"
+					size="15"
+					class="leading-tight w-full rounded-full px-4 py-2 bg-gray-light focus-visible:bg-gray-light text-gray-dark ring-0 ring-offset-0"
+					value={ f.Get(`url`).String() }
+					placeholder="https://"
+				/>
+				<button type="submit" class="whitespace-nowrap btn btn-primary rounded-full pl-3 py-0 inline-flex gap-1 items-center leading-none">
+					<span>Extract Link</span>
+				</button>
+			</div>
+			if f.Get("url").String() != "" && len(f.Get("url").Errors()) > 0 {
+				<ul class="mt-1 list-disc list-inside text-red-800">
+					for _, err := range f.Errors() {
+						<li>{ err.Error() }</li>
+					}
+				</ul>
+			}
+		</form>
+		if res != nil {
+			<div class="tabs" data-controller="tabs" data-tabs-hidden-class="js:hidden">
+				<div
+					role="tablist"
+					class="nojs:hidden flex py-2 gap-2 sticky top-0 z-20 bg-app-bg border-b"
+				>
+					<button
+						class="p-2 rounded font-semibold hf:bg-gray-200 aria-selected:bg-gray-500 aria-selected:text-app-bg"
+						data-action="tabs#toggle"
+						id="tab-article"
+						type="button"
+						role="tab"
+						aria-selected="true"
+					>Article</button>
+					<button
+						class="p-2 rounded font-semibold hf:bg-gray-200 aria-selected:bg-gray-500 aria-selected:text-app-bg"
+						data-action="tabs#toggle"
+						id="tab-logs"
+						type="button"
+						role="tab"
+					>Logs</button>
+					<button
+						class="p-2 rounded font-semibold hf:bg-gray-200 aria-selected:bg-gray-500 aria-selected:text-app-bg"
+						data-action="tabs#toggle"
+						id="tab-props"
+						type="button"
+						role="tab"
+					>Properties</button>
+				</div>
+				<div role="tabpanel" tabindex="0" aria-labelledby="tab-article" class="my-4">
+					<h3 class="title text-h3">Info</h3>
+					<div class="flex gap-4 mt-4 mb-8">
+						<div class="grow">
+							<table class="data-table">
+								<tr><th>DocumentType</th><td>{ res.DocumentType }</td></tr>
+								<tr><th>Title</th><td class="w-full">{ res.Title }</td></tr>
+								<tr><th>Description</th><td>{ res.Description }</td></tr>
+								<tr>
+									<th>Authors</th>
+									<td>
+										if len(res.Authors) > 0 {
+											<ul>
+												for _, x := range res.Authors {
+													<li>{ x }</li>
+												}
+											</ul>
+										}
+									</td>
+								</tr>
+								<tr><th>Lang</th><td>{ res.Lang }</td></tr>
+								<tr><th>TextDirection</th><td>{ res.TextDirection }</td></tr>
+								<tr>
+									<th>Date</th>
+									<td>
+										if res.Date != nil {
+											{ res.Date.Format(time.RFC3339) }
+										}
+									</td>
+								</tr>
+								<tr><th>SiteName</th><td>{ res.SiteName }</td></tr>
+								<tr><th>Site</th><td>{ res.Site }</td></tr>
+								<tr><th>Domain</th><td>{ res.Domain }</td></tr>
+							</table>
+						</div>
+						<div class="max-w-xs">
+							if tm, ok := res.Images["thumbnail"]; ok {
+								<img src={ tm.Encoded } width={ tm.Size[0] } height={ tm.Size[1] } alt=""/>
+							}
+						</div>
+					</div>
+					if img, ok := res.Images["image"]; ok && res.DocumentType == "photo" {
+						<p>
+							<img src={ img.Encoded } width={ img.Size[0] } height={ img.Size[1] } alt=""/>
+						</p>
+					}
+					<div class="prose" lang={ res.Lang } dir={ res.TextDirection }>
+						@HTML(html)
+					</div>
+				</div>
+				<div role="tabpanel" tabindex="0" aria-labelledby="tab-logs" class="js:hidden my-4">
+					for _, line := range res.Logs {
+						<code class="block py-1 leading-relaxed text-xs wrap-anywhere even:bg-gray-200/80">{ line }</code>
+					}
+				</div>
+				<div role="tabpanel" tabindex="0" aria-labelledby="tab-props" class="js:hidden my-4">
+					if len(res.Errors) > 0 {
+						<h3 class="title text-h3">Errors</h3>
+						<table class="data-table my-4">
+							for _, x := range res.Errors {
+								<tr>
+									<td><code>{ x }</code></td>
+								</tr>
+							}
+						</table>
+					}
+					<h3 class="title text-h3">Meta</h3>
+					<table class="data-table my-4">
+						for k, v := range orderedMap(res.Meta) {
+							<tr>
+								<th>{ k }</th>
+								<td class="text-xs font-mono wrap-anywhere">{ JSON(v, false) }</td>
+							</tr>
+						}
+					</table>
+					<h3 class="title text-h3">Properties</h3>
+					<table class="data-table my-4">
+						for k, v := range orderedMap(res.Properties) {
+							<tr>
+								<th class="whitespace-nowrap">{ k }</th>
+								<td class="text-xs font-mono wrap-anywhere">
+									<pre class="whitespace-pre-wrap">
+										{ JSON(v, true) }
+									</pre>
+								</td>
+							</tr>
+						}
+					</table>
+				</div>
+			</div>
+		}
+	}
+}
