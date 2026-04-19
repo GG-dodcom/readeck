@@ -306,7 +306,7 @@ func (f *totpForm) Validate() {
 	}
 }
 
-// generate returns creates a new [totp.Code] an sets the secret field.
+// generate creates a new [totp.Code] an sets the secret field.
 func (f *totpForm) generate() {
 	f.code = totp.Generate()
 	f.code.Issuer = "Readeck"

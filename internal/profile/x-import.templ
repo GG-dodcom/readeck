@@ -1,0 +1,58 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package profile
+
+import (
+	. "codeberg.org/readeck/readeck/components"
+	F "codeberg.org/readeck/readeck/components/forms"
+)
+
+templ (v Views) importProfile(f *importForm) {
+	{{ title := L(ctx).Gettext("Import") }}
+	@v.base(title) {
+		<h1 class="title text-h2">{ title }</h1>
+		<h2 class="title text-h3">{ L(ctx).Gettext("Import a Readeck Profile") }</h2>
+		<p>{ L(ctx).Gettext("Import a file obtained through a previous profile export.") }</p>
+		<form class="my-8" action={ URL(ctx) } method="post" enctype="multipart/form-data">
+			@F.Errors(f)
+			@F.FiledDropField(f.Get("data"),
+				F.Label(L(ctx).Gettext("File")),
+				F.Required(true),
+				F.Classes("field-h"),
+			)
+			@F.TextField(f.Get("check"),
+				F.Label(L(ctx).Gettext("Confirm your user name")),
+				F.Required(true),
+				F.Classes("field-h"),
+			)
+			<div class="btn-block bg-red-100 border-red-800 items-center">
+				<div class="grow">
+					<h3 class="font-bold">{ L(ctx).Gettext("Attention") }</h3>
+					<p class="mt-1">
+						{ L(ctx).Gettext(`
+              This will empty your current profile and all its data will be
+              replaced with the file's content.
+            `) }
+					</p>
+				</div>
+				<p>
+					<button class="btn btn-danger" type="submit">{ L(ctx).Gettext("Import") }</button>
+				</p>
+			</div>
+		</form>
+		if HasPermission(ctx, "bookmarks", "import") {
+			<h2 class="title text-h3">{ L(ctx).Gettext("Import bookmarks from other services") }</h2>
+			<div class="prose">
+				<p>
+					@templ.Raw(L(ctx).Gettext(`
+            If you have bookmarks from another service you can import them in the
+            <a href="%s">dedicated section</a>.
+            `, templ.EscapeString(URL(ctx, "/bookmarks/import")),
+					))
+				</p>
+			</div>
+		}
+	}
+}

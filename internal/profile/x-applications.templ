@@ -1,0 +1,118 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package profile
+
+import . "codeberg.org/readeck/readeck/components"
+
+templ (v Views) applicationList(tokenList *tokenItemList) {
+	{{ title := L(ctx).Gettext("Applications") }}
+	@v.base(title) {
+		<h1 class="title text-h2">{ title }</h1>
+		<div class="prose mb-4">
+			<p>
+				{ L(ctx).Gettext(`
+          Applications are registered clients that have permissions to access your Readeck account.
+          If there are applications you do not recognize here, or an application is misbehaving,
+          you can revoke its access.
+        `) }
+			</p>
+		</div>
+		if (len(tokenList.Items) == 0) {
+			<p>{ L(ctx).Gettext("You have no registered application at the moment.") }</p>
+		} else {
+			@Pagination(&tokenList.Pagination)
+			<turbo-frame
+				id="token-list"
+				data-controller="turbo-refresh"
+				data-turbo-refresh-interval-value="10"
+				data-turbo-refresh-on-value="[data-token-deleted='true']"
+			>
+				@List() {
+					for _, app := range tokenList.Items {
+						@ListItem("flex gap-2 items-start hfw:bg-gray-100 max-md:block") {
+							<div class="pl-4 pt-4">
+								if app.ClientLogo != "" {
+									<img class="max-w-8 max-h-8" src={ app.ClientLogo } alt=""/>
+								} else {
+									@Icon("o-applications", WithIconClass("text-gray-700"), WithIconSvgClass("w-8 h-8"))
+								}
+							</div>
+							<div class="py-4 max-md:pl-4 grow">
+								<h2 class="title text-lg mb-0">{ app.ClientName }</h2>
+								<p><a class="link" href={ app.ClientURI } target="_blank">{ app.ClientURI }</a></p>
+								<p class="mt-1 text-sm">
+									{ L(ctx).Gettext("Authorized on: %s",
+                      Strftime(ctx, app.Created, L(ctx).Pgettext("datetime", "%e %B %Y")),
+                  ) }
+									if app.LastUsed != nil {
+										<br/>
+										<strong class="font-semibold">
+											{ L(ctx).Gettext("Last used on: %s", Strftime(ctx, *app.LastUsed, "%c")) }
+										</strong>
+									}
+								</p>
+								<h3 class="my-2 text-lg">{ L(ctx).Gettext("Permissions") }</h3>
+								<ul>
+									for _, role := range app.RoleNames {
+										<li class="mb-1">
+											@Icon("o-check-on", WithIconClass("svgicon text-green-700"))
+											{ "" }
+											{ role }
+										</li>
+									}
+								</ul>
+							</div>
+							if app.IsDeleted {
+								<div
+									class="flex items-center max-w-xs m-4 max-md:mt-0"
+									data-token-deleted="true"
+								>
+									<span class="text-red-700 text-xs font-semibold">
+										{ L(ctx).Gettext("This client will be revoked in a few seconds.") }
+									</span>
+									<form action={ URL(ctx, ".", "../tokens", app.ID, "delete") } method="post">
+										<input type="hidden" name="cancel" value="1"/>
+										<input type="hidden" name="_to" value={ CurrentPath(ctx) }/>
+										<button
+											type="submit"
+											class="btn btn-primary whitespace-nowrap text-sm py-1 ml-2"
+										>
+											@Icon("o-undo")
+											{ "" }
+											{ L(ctx).Gettext("Cancel") }
+										</button>
+									</form>
+								</div>
+							} else {
+								<form class="m-4" method="POST" action={ URL(ctx, ".", "../tokens", app.ID, "delete") }>
+									<input type="hidden" name="_to" value={ CurrentPath(ctx) }/>
+									<button class="btn btn-outlined btn-danger text-sm whitespace-nowrap">
+										@Icon("o-trash")
+										{ "" }
+										{ L(ctx).Gettext("Revoke application") }
+									</button>
+								</form>
+							}
+						}
+					}
+				}
+			</turbo-frame>
+			@Pagination(&tokenList.Pagination)
+			@Message() {
+				<details class="text-sm">
+					<summary>{ L(ctx).Gettext("Developer information") }</summary>
+					<p class="prose">
+						@templ.Raw(L(ctx).Gettext(`
+                If you plan to build an application, please refer to the
+                <a href="%s">API Documentation</a>.
+              `,
+							templ.EscapeString(URL(ctx, "/docs/api")+"#overview--authentication-with-oauth"),
+						))
+					</p>
+				</details>
+			}
+		}
+	}
+}

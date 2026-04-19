@@ -1,0 +1,109 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package profile
+
+import (
+	"codeberg.org/readeck/readeck/configs"
+	"codeberg.org/readeck/readeck/internal/server"
+
+	. "codeberg.org/readeck/readeck/components"
+	F "codeberg.org/readeck/readeck/components/forms"
+)
+
+templ (v Views) userProfile(f *profileForm) {
+	{{
+		title := L(ctx).Gettext("My profile")
+		user := server.GetUser(ctx)
+	}}
+	@v.base(title) {
+		<h1 class="title text-h2">{  title }</h1>
+		if !user.Locked() || user.RequiresMFA() {
+			<form action={ URL(ctx, "/logout") } method="post" class="my-8">
+				<p class="btn-block items-center">
+					<span class="grow">
+						@templ.Raw(L(ctx).Gettext("You are connected as <strong>%s</strong>",
+							templ.EscapeString(user.Username)),
+						)
+					</span>
+					<button type="submit" class="btn-outlined btn-danger">
+						@Icon("o-logout")
+						<span>{ L(ctx).Gettext("Sign out") }</span>
+					</button>
+				</p>
+			</form>
+		}
+		<form action={ URL(ctx) } method="post">
+			@F.Errors(f)
+			<fieldset class="mb-6">
+				<legend class="title text-h3">{ L(ctx).Gettext("Base settings") }</legend>
+				@F.TextField(f.Get("username"),
+					F.Label(L(ctx).Gettext("Username")),
+					F.Required(true),
+					F.Classes("field-h"),
+					F.InputAttr("disabled", user.Locked()),
+				)
+				@F.TextField(f.Get("email"),
+					F.InputType("email"),
+					F.Label(L(ctx).Gettext("Email Address")),
+					F.Required(true),
+					F.Classes("field-h"),
+					F.InputAttr("disabled", user.Locked()),
+				)
+				@F.SelectField[string](f.Get("settings_lang"),
+					F.Label(L(ctx).Gettext("Language")),
+					F.Required(true),
+					F.Classes("field-h"),
+				)
+				<div class="field-h">
+					<span class="field--spacer"></span>
+					@Message(WithMessageClass("my-0")) {
+						<details>
+							<summary class="title my-0 hf:text-app-fg">Translate Readeck</summary>
+							<p class="mt-2">You couldn't find your own language or you'd like to improve an existing translation?</p>
+							<p>You can help with <a class="link" target="_blank" href="https://readeck.org/en/contribute#translations">translating Readeck.</a></p>
+						</details>
+					}
+				</div>
+			</fieldset>
+			if HasPermission(ctx, "email", "send") {
+				<fieldset class="mb-6">
+					<legend class="title text-h3">{ L(ctx).Gettext("Email settings") }</legend>
+					@F.TextField(f.Get("settings_email_reply_to"),
+						F.InputType("email"),
+						F.Label(L(ctx).Gettext("Reply To")),
+						F.Classes("field-h"),
+						F.Help(L(ctx).Gettext("Add this email address in your outgoing emails so recipients can reply.")),
+					)
+					@F.TextField(f.Get("settings_email_epub_to"),
+						F.InputType("email"),
+						F.Label(L(ctx).Gettext("Send EPUB to")),
+						F.Classes("field-h"),
+						F.Help(L(ctx).Gettext("This address is used to prefill the recipient when you send an e-book by email.")),
+					)
+					<div class="field-h">
+						<span class="field--spacer"></span>
+						@Message(WithMessageClass("my-0")) {
+							<details>
+								<summary class="title my-0 hf:text-app-fg">
+									{ L(ctx).Gettext("Sending e-books to an Amazon Kindle") }
+								</summary>
+								<p class="mt-2">
+									{ L(ctx).Gettext(`
+                  If you plan to send e-books to a Kindle device, you must approve the
+                  following email address within your Kindle Account:
+                `) }
+								</p>
+								<p class="mt-2"><code>{ configs.Config.Email.FromNoReply.Addr() }</code></p>
+							</details>
+						}
+					</div>
+				</fieldset>
+			}
+			<p class="btn-block">
+				<button class="btn btn-primary" type="submit">{ L(ctx).Gettext("Save") }</button>
+			</p>
+		</form>
+	}
+}

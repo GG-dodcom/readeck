@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"codeberg.org/readeck/readeck/components"
 	"codeberg.org/readeck/readeck/configs"
 	"codeberg.org/readeck/readeck/internal/auth"
 	"codeberg.org/readeck/readeck/internal/auth/tokens"
@@ -93,15 +94,11 @@ func (v *profileViews) userProfile(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
 
-	ctx := server.TC{
-		"Form":     f,
-		"MailFrom": configs.Config.Email.FromNoReply.Addr(),
-	}
-	ctx.SetBreadcrumbs([][2]string{
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
 		{tr.Gettext("Profile")},
 	})
 
-	server.RenderTemplate(w, r, 200, "profile/index", ctx)
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.userProfile(f))
 }
 
 // userPassword handles GET and POST requests on /profile/password.
@@ -109,14 +106,6 @@ func (v *profileViews) userPassword(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
 	user := auth.GetRequestUser(r)
 	f := newChangePasswordForm(tr, user)
-
-	tc := server.TC{
-		"ChangeForm": f,
-	}
-	tc.SetBreadcrumbs([][2]string{
-		{tr.Gettext("Profile"), urls.AbsoluteURL(r, "/profile").String()},
-		{tr.Gettext("Security")},
-	})
 
 	if r.Method == http.MethodPost {
 		if err := r.ParseForm(); err != nil {
@@ -158,7 +147,12 @@ func (v *profileViews) userPassword(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
 
-	server.RenderTemplate(w, r, 200, "profile/password", tc)
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
+		{tr.Gettext("Profile"), urls.AbsoluteURL(r, "/profile").String()},
+		{tr.Gettext("Security")},
+	})
+
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.userPassword(f))
 }
 
 func (v *profileViews) userTOTP(w http.ResponseWriter, r *http.Request) {
@@ -166,28 +160,14 @@ func (v *profileViews) userTOTP(w http.ResponseWriter, r *http.Request) {
 	user := auth.GetRequestUser(r)
 	f := newTOTPForm(server.Locale(r), user)
 
-	tc := server.TC{}
-	tc.SetBreadcrumbs([][2]string{
-		{tr.Gettext("Profile"), urls.AbsoluteURL(r, "/profile").String()},
-		{tr.Gettext("Security"), urls.AbsoluteURL(r, "/profile/password").String()},
-		{tr.Gettext("Verification Code")},
-	})
-	tc["Form"] = f
-
-	status := http.StatusOK
-
 	switch r.Method {
 	case http.MethodGet:
 		f.generate()
-		tc["Code"] = f.code
 
 	case http.MethodPost:
 		forms.Bind(f, r)
-
-		tc["Code"] = f.code
-
 		if !f.IsValid() {
-			status = http.StatusUnprocessableEntity
+			w.WriteHeader(http.StatusUnprocessableEntity)
 			break
 		}
 
@@ -203,7 +183,13 @@ func (v *profileViews) userTOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.RenderTemplate(w, r, status, "profile/totp", tc)
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
+		{tr.Gettext("Profile"), urls.AbsoluteURL(r, "/profile").String()},
+		{tr.Gettext("Security"), urls.AbsoluteURL(r, "/profile/password").String()},
+		{tr.Gettext("Verification Code")},
+	})
+
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.setupTOTP(f))
 }
 
 // userSession handles changes of user session preferences.
@@ -238,33 +224,23 @@ func (v *profileViews) userSession(w http.ResponseWriter, r *http.Request) {
 func (v *profileViews) applicationList(w http.ResponseWriter, r *http.Request) {
 	tl := getTokenList(r.Context())
 	tr := server.Locale(r)
-
-	ctx := server.TC{
-		"Pagination": tl.Pagination,
-		"Tokens":     tl.Items,
-	}
-	ctx.SetBreadcrumbs([][2]string{
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
 		{tr.Gettext("Profile"), urls.AbsoluteURL(r, "/profile").String()},
 		{tr.Gettext("Applications")},
 	})
 
-	server.RenderTemplate(w, r, 200, "profile/app_list", ctx)
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.applicationList(tl))
 }
 
 func (v *profileViews) tokenList(w http.ResponseWriter, r *http.Request) {
 	tl := getTokenList(r.Context())
 	tr := server.Locale(r)
-
-	ctx := server.TC{
-		"Pagination": tl.Pagination,
-		"Tokens":     tl.Items,
-	}
-	ctx.SetBreadcrumbs([][2]string{
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
 		{tr.Gettext("Profile"), urls.AbsoluteURL(r, "/profile").String()},
 		{tr.Gettext("API Tokens")},
 	})
 
-	server.RenderTemplate(w, r, 200, "profile/token_list", ctx)
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.tokenList(tl))
 }
 
 func (v *profileViews) tokenCreate(w http.ResponseWriter, r *http.Request) {
@@ -308,24 +284,19 @@ func (v *profileViews) tokenInfo(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
 
-	token, err := configs.Keys.TokenKey().Encode(ti.UID)
+	encoded, err := configs.Keys.TokenKey().Encode(ti.UID)
 	if err != nil {
 		server.Status(w, r, http.StatusInternalServerError)
 		return
 	}
 
-	ctx := server.TC{
-		"Token":   ti,
-		"Encoded": token,
-		"Form":    f,
-	}
-	ctx.SetBreadcrumbs([][2]string{
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
 		{tr.Gettext("Profile"), urls.AbsoluteURL(r, "/profile").String()},
 		{tr.Gettext("API Tokens"), urls.AbsoluteURL(r, "/profile/tokens").String()},
 		{ti.UID},
 	})
 
-	server.RenderTemplate(w, r, 200, "profile/token", ctx)
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.tokenInfo(f, ti, encoded))
 }
 
 func (v *profileViews) tokenDelete(w http.ResponseWriter, r *http.Request) {
@@ -369,12 +340,12 @@ func (v *profileViews) exportData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tr := server.Locale(r)
-	ctx := server.TC{}
-	ctx.SetBreadcrumbs([][2]string{
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
 		{tr.Gettext("Profile"), urls.AbsoluteURL(r, "/profile").String()},
 		{tr.Gettext("Export")},
 	})
-	server.RenderTemplate(w, r, 200, "profile/export", ctx)
+
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.exportProfile())
 }
 
 func (v *profileViews) importData(w http.ResponseWriter, r *http.Request) {
@@ -398,12 +369,10 @@ func (v *profileViews) importData(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
 
-	ctx := server.TC{
-		"Form": f,
-	}
-	ctx.SetBreadcrumbs([][2]string{
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
 		{tr.Gettext("Profile"), urls.AbsoluteURL(r, "/profile").String()},
 		{tr.Gettext("Import")},
 	})
-	server.RenderTemplate(w, r, 200, "profile/import", ctx)
+
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.importProfile(f))
 }
