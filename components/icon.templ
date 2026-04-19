@@ -1,0 +1,24 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package components
+
+templ (i *icon) component(name string) {
+	<span class={ i.class } { i.attrs... }>
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			viewbox={ S("0 0 %d %d", i.w, i.h) }
+			width={ i.w }
+			height={ i.h }
+			class={ templ.CSSClasses{"inline-block", i.svgClass} }
+		>
+			<use href={ S("%s#%s", Asset(ctx, i.src), name) }></use>
+		</svg>
+	</span>
+}
+
+// Spinner renders a spinner icon.
+templ Spinner() {
+	@Icon("o-spinner", WithIconSvgClass("animate-spin stroke-current"))
+}

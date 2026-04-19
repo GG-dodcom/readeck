@@ -32,6 +32,7 @@ export GOARCH?=
 SITECONFIG_SRC=./ftr-site-config
 SITECONFIG_DEST=pkg/extract/contentscripts/assets/site-config
 
+TEMPL_PKG ?= github.com/a-h/templ/cmd/templ@latest
 GOLANGCI_PKG ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.9.0
 AIR_PKG ?= github.com/air-verse/air@v1.64.5
 SLOC_PKG ?= github.com/boyter/scc/v3@v3.6.0
@@ -68,6 +69,9 @@ setup:
 	@echo "GOARCH: $(shell go env GOARCH)"
 	$(GO) mod download
 	${MAKE} -C web setup
+
+templ:
+	$(GO) run $(TEMPL_PKG) generate
 
 # Build the server
 .PHONY: build
@@ -155,41 +159,68 @@ update-site-config:
 # These targets provide helper for autoreload during development.
 # `make dev` starts all the needed watch/autoreload and is only
 # needed when working on web/* or docs/src/*.
-# When working only on go files, `make serve` is enough.
+# When working only on go and templ files, `make serve` is enough.
+
+# Starts the HTTP server
+# It runs air watching the source files and the assets. It builds and reloads
+# the server on any change.
+.PHONY: serve
+serve:
+	${MAKE} -j2 watch/templ watch/server
 
 # Starts 3 watchers/reloaders for a full autoreload
 # dev server.
 # The initial errors during startup are normal
 .PHONY: dev
 dev:
-	${MAKE} -j3 docs-watch web-watch serve
+	${MAKE} -j3 watch/docs watch/web serve
 
 # Starts the HTTP server
 # It runs air watching the source files and the assets. It builds and reloads
 # the server on any change.
-.PHONY: serve
-serve: SERVE_CMD ?= serve
-serve:
+.PHONY: watch/server
+watch/server: SERVE_CMD ?= serve
+watch/server:
 	$(GO) run $(AIR_PKG) \
 		--tmp_dir "dist" \
 		--build.log "" \
 		--build.cmd "${MAKE} DATE= build" \
 		--build.bin "dist/readeck" \
 		--build.args_bin "$(SERVE_CMD)" \
+		--build.delay 2000 \
 		--build.exclude_dir "" \
-		--build.include_dir "assets,configs,docs/api,docs/assets,locales,internal,pkg" \
+		--build.include_dir "assets,components,configs,docs/assets,locales,internal,pkg" \
 		--build.include_ext "go,html,json,js,mo,tmpl,toml,xsl" \
-		--build.delay 2000
+		--build.kill_delay "10s" \
+		--build.stop_on_error "false" \
+		--misc.clean_on_exit false
+
+# Rebuild components on change.
+# It runs air watching the .templ files and rebuilds them on any change.
+watch/templ:
+	$(GO) run $(AIR_PKG) \
+		--tmp_dir "dist" \
+		--build.log "" \
+		--build.cmd "$(GO) run $(TEMPL_PKG) generate -lazy" \
+		--build.bin "/usr/bin/true" \
+		--build.delay 1000 \
+		--build.include_dir "components,internal" \
+		--build.include_ext "templ" \
+		--build.exclude_regex ".*_templ.go" \
+		--build.kill_delay "0s" \
+		--build.send_interrupt "false" \
+		--build.stop_on_error "true" \
+		--misc.clean_on_exit false
 
 # Watch the docs/src folder and rebuild the documentation
 # on changes.
-.PHONY: docs-watch
-docs-watch:
+.PHONY: watch/docs
+watch/docs:
 	$(GO) run $(AIR_PKG) \
 		--tmp_dir "dist" \
 		--build.log "" \
 		--build.cmd "${MAKE} docs-build" \
-		--build.bin "" \
+		--build.bin "/usr/bin/true" \
 		--build.exclude_dir "" \
 		--build.include_file "CHANGELOG.md" \
 		--build.include_dir "docs/src/en,docs/translations,docs/api" \
@@ -197,8 +228,8 @@ docs-watch:
 		--build.delay 100
 
 # Starts the watcher on the web folder.
-.PHONY: web-watch
-web-watch:
+.PHONY: watch/web
+watch/web:
 	@$(MAKE) -C web watch
 
 

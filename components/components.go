@@ -1,0 +1,138 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Package components contains the shared templ components.
+package components
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"strings"
+	"time"
+
+	"github.com/a-h/templ"
+
+	"codeberg.org/readeck/readeck/internal/profile/preferences"
+	"codeberg.org/readeck/readeck/internal/server"
+	"codeberg.org/readeck/readeck/internal/server/urls"
+	"codeberg.org/readeck/readeck/locales"
+	"codeberg.org/readeck/readeck/pkg/glob"
+	"codeberg.org/readeck/readeck/pkg/strftime"
+)
+
+// S is a shortcut to [fmt.Sprintf].
+var S = fmt.Sprintf
+
+// L returns the context's current [locales.Locale].
+func L(ctx context.Context) *locales.Locale {
+	return server.LocaleContext(ctx)
+}
+
+// URL returns a [templ.SafeURL] (path only) for a given internal URL.
+func URL(ctx context.Context, args ...string) templ.SafeURL {
+	return templ.URL(urls.PathOnly(urls.AbsoluteURLContext(ctx, args...)))
+}
+
+// Asset returns an asset path.
+func Asset(ctx context.Context, name string) templ.SafeURL {
+	return templ.URL(urls.PathOnly(urls.AssetURLContext(ctx, name)))
+}
+
+// CSPNonce returns the CSP nonce for stylesheets and scripts.
+func CSPNonce(ctx context.Context) string {
+	s, _ := server.GetCSPNonce(ctx)
+	return s
+}
+
+// CurrentPath returns the current path without the app prefix.
+func CurrentPath(ctx context.Context) string {
+	return urls.CurrentPath(server.GetRequest(ctx))
+}
+
+// PathIs returns whether one of the given paths p matches the current
+// request's path (query parameters excluded).
+func PathIs(ctx context.Context, p ...string) bool {
+	cp := "/" + strings.TrimPrefix(server.GetRequest(ctx).URL.Path, urls.Prefix())
+	for _, x := range p {
+		if glob.Glob(x, cp) {
+			return true
+		}
+	}
+	return false
+}
+
+// HasPermission returns whether the current user is granted permissions.
+func HasPermission(ctx context.Context, obj, act string) bool {
+	return server.GetUser(ctx).HasPermission(obj, act)
+}
+
+// IsAnonymous returns whether the current user is anonymous.
+func IsAnonymous(ctx context.Context) bool {
+	return server.GetUser(ctx).IsAnonymous()
+}
+
+// Strftime calls [strftime.Formatter.Strftime] with the user's locale.
+func Strftime(ctx context.Context, t time.Time, f string) string {
+	return strftime.New(L(ctx)).Strftime(f, t)
+}
+
+// Preferences returns the user's preferences.
+// Preferences are loaded only once, the first time they are needed.
+func Preferences(ctx context.Context) *preferences.Preferences {
+	p := server.GetPreferences(ctx)
+	if !p.IsLoaded() {
+		p2 := preferences.New(server.GetUser(ctx), server.GetSession(server.GetRequest(ctx)))
+		*p = *p2
+	}
+
+	return p
+}
+
+// Tern is a poor man's ternary operator.
+// Never to be used outside a component!
+func Tern[T any](t func() bool, whenTrue T, whenFalse T) T {
+	if t() {
+		return whenTrue
+	}
+	return whenFalse
+}
+
+// JSON returns a string of the marshaled data into JSON.
+// The result is not HTML escaped and can be indented if needed.
+func JSON(data any, indent bool) string {
+	buf := new(bytes.Buffer)
+	enc := json.NewEncoder(buf)
+	enc.SetEscapeHTML(false)
+	if indent {
+		enc.SetIndent("", "  ")
+	}
+	enc.Encode(data) //nolint:errcheck
+	return buf.String()
+}
+
+// HTML copies directly the input [io.Reader] to the response writer.
+func HTML(r io.Reader) templ.Component {
+	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		if r == nil {
+			return nil
+		}
+		_, err := io.Copy(w, r)
+		return err
+	})
+}
+
+// JetTemplate renders a Jet template.
+// TODO: remove after migration.
+func JetTemplate(name string, tc any) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		t, err := server.GetTemplate(name)
+		if err != nil {
+			return err
+		}
+		return t.Execute(w, server.TemplateVars(server.GetRequest(ctx)), tc)
+	})
+}

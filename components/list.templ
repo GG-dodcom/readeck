@@ -1,0 +1,22 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package components
+
+templ List(class ...string) {
+	<div class={ append([]string{"border divide-y shadow rounded"}, class...) }>
+		{ children... }
+	</div>
+}
+
+templ ListItem(class ...string) {
+	{{
+		if len(class) == 0 {
+			class = []string{"p-4"}
+		}
+	}}
+	<div class={ class }>
+		{ children... }
+	</div>
+}

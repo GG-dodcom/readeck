@@ -22,6 +22,7 @@ SPDX-License-Identifier = "CC-BY-4.0"
 [[annotations]]
 path = [
     ".dockerignore",
+    ".gitattributes",
     ".gitignore",
     ".go-version",
     ".golangci.yml",

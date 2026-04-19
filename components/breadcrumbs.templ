@@ -1,0 +1,29 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package components
+
+templ Breadcrumbs() {
+	{{ items, _ := checkBreadcrumb(ctx) }}
+	if len(items) > 0 {
+		<nav class="breadcrumbs">
+			<ol>
+				<li>
+					<a href={ URL(ctx, "/") } title={ L(ctx).Gettext("Home Page") }>
+						@Icon("o-home")
+					</a>
+				</li>
+				for _, item := range items {
+					<li>
+						if item[1] != "" {
+							<a href={ item[1] }>{ item[0] }</a>
+						} else {
+							{ item[0] }
+						}
+					</li>
+				}
+			</ol>
+		</nav>
+	}
+}
