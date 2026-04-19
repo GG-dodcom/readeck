@@ -152,10 +152,7 @@ func (h *authHandler) recover(w http.ResponseWriter, r *http.Request) {
 	f := newRecoverForm(server.Locale(r))
 	f.Get("step").Set(0)
 
-	tc := server.TC{
-		"Form": f,
-	}
-
+	var recoverErr error
 	userCode := chi.URLParam(r, "code")
 
 	step0 := func() {
@@ -221,13 +218,13 @@ func (h *authHandler) recover(w http.ResponseWriter, r *http.Request) {
 		code := new(recoverCode)
 		if err = code.load(f.prefix, userCode); err != nil {
 			server.Log(r).Warn("load code", slog.Any("err", err))
-			tc["Error"] = "Invalid recovery code"
+			recoverErr = errors.New("Invalid recovery code")
 			return
 		}
 
 		user, err = users.Users.GetOne(goqu.C("id").Eq(code.UserID))
 		if err != nil {
-			tc["Error"] = "Invalid recovery code"
+			recoverErr = errors.New("Invalid recovery code")
 			server.Log(r).Error("get user", slog.Any("err", err))
 			return
 		}
@@ -295,5 +292,5 @@ func (h *authHandler) recover(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	server.RenderTemplate(w, r, http.StatusOK, "/auth/recover", tc)
+	server.RenderComponent(w, r, http.StatusOK, Views{}.recover(f, recoverErr))
 }
