@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"codeberg.org/readeck/readeck/components"
 	"codeberg.org/readeck/readeck/internal/auth"
 	"codeberg.org/readeck/readeck/internal/auth/users"
 	"codeberg.org/readeck/readeck/internal/server"
@@ -51,15 +52,10 @@ func (h *adminViews) userList(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
 	ul := getUserList(r.Context())
 
-	ctx := server.TC{
-		"Pagination": ul.Pagination,
-		"Users":      ul.Items,
-	}
-	ctx.SetBreadcrumbs([][2]string{
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
 		{tr.Gettext("Users")},
 	})
-
-	server.RenderTemplate(w, r, 200, "/admin/user_list", ctx)
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.userList(ul))
 }
 
 func (h *adminViews) userCreate(w http.ResponseWriter, r *http.Request) {
@@ -82,14 +78,11 @@ func (h *adminViews) userCreate(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
 
-	ctx := server.TC{
-		"Form": f,
-	}
-	ctx.SetBreadcrumbs([][2]string{
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
 		{tr.Gettext("Users"), urls.AbsoluteURL(r, "/admin/users").String()},
 		{tr.Gettext("New User")},
 	})
-	server.RenderTemplate(w, r, 200, "/admin/user_create", ctx)
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.userCreate(f))
 }
 
 func (h *adminViews) userInfo(w http.ResponseWriter, r *http.Request) {
@@ -126,16 +119,11 @@ func (h *adminViews) userInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := server.TC{
-		"User": item,
-		"Form": f,
-	}
-	ctx.SetBreadcrumbs([][2]string{
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
 		{tr.Gettext("Users"), urls.AbsoluteURL(r, "/admin/users").String()},
 		{item.Username},
 	})
-
-	server.RenderTemplate(w, r, 200, "/admin/user", ctx)
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.userInfo(f, item))
 }
 
 func (h *adminViews) userDelete(w http.ResponseWriter, r *http.Request) {

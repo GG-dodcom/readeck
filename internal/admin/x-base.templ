@@ -1,0 +1,19 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package admin
+
+import (
+	"codeberg.org/readeck/readeck/internal/profile"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+type Views struct{}
+
+templ (v Views) base(title string) {
+	@SideMenuStdLayout(title, profile.Views{}.Menu()) {
+		{ children... }
+	}
+}

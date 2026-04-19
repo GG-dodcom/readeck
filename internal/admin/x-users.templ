@@ -1,0 +1,185 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package admin
+
+import (
+	"codeberg.org/readeck/readeck/internal/auth/users"
+	"codeberg.org/readeck/readeck/internal/server"
+	"codeberg.org/readeck/readeck/pkg/utils"
+
+	. "codeberg.org/readeck/readeck/components"
+	F "codeberg.org/readeck/readeck/components/forms"
+)
+
+templ (v Views) userList(ul *userList) {
+	{{ title := L(ctx).Gettext("Users") }}
+	@v.base(title) {
+		<h1 class="title text-h2">{ title }</h1>
+		<p><a href={ URL(ctx, ".", "add") } class="btn btn-primary">{ L(ctx).Gettext("Add a new user") }</a></p>
+		if len(ul.Items) > 0 {
+			@Pagination(&ul.Pagination)
+			<turbo-frame
+				id="user-list"
+				data-controller="turbo-refresh"
+				data-turbo-refresh-interval-value="10"
+				data-turbo-refresh-on-value="[data-user-deleted='true']"
+			>
+				@List("my-6") {
+					for _, u := range ul.Items {
+						@ListItem("flex gap-2 items-center hfw:bg-gray-100 max-md:block") {
+							<a class="block sm:flex flex-grow p-4" href={ URL(ctx, ".", u.ID) }>
+								<span class="grow">
+									<strong class="link font-semibold">{ u.Username }</strong>
+									({ u.Group })
+								</span>
+								<small class="block sm:text-right">
+									{ L(ctx).Gettext("Created on: %s", Strftime(ctx, u.Created, "%e %B %Y %H:%M")) }
+									<br/>
+									{ L(ctx).Gettext("Last update: %s", Strftime(ctx, u.Updated, "%e %B %Y %H:%M")) }
+									if !u.LastLogin.IsZero() {
+										<br/>
+										{ L(ctx).Gettext("Last login: %s", Strftime(ctx, u.LastLogin, "%e %B %Y %H:%M")) }
+									}
+								</small>
+							</a>
+							if u.IsDeleted {
+								<div class="flex items-center max-w-xs m-4 max-md:mt-0" data-user-deleted="true">
+									<span class="text-red-700 text-xs font-semibold">
+										{ L(ctx).Gettext("This user will be removed in a few seconds.") }
+									</span>
+									<form action={ URL(ctx, ".", u.ID, "delete") } method="post">
+										<input type="hidden" name="cancel" value="1"/>
+										<button type="submit" class="btn btn-primary whitespace-nowrap text-sm py-1 ml-2">
+											@Icon("o-undo")
+											{ "" }
+											{ L(ctx).Gettext("Cancel") }
+										</button>
+									</form>
+								</div>
+							}
+						}
+					}
+				}
+			</turbo-frame>
+			@Pagination(&ul.Pagination)
+		}
+	}
+}
+
+templ (v Views) userCreate(f *users.UserForm) {
+	{{ title := L(ctx).Gettext("New User") }}
+	@v.base(title) {
+		<h1 class="title text-h2">{ title }</h1>
+		<form action={ URL(ctx) } method="post">
+			@F.Errors(f)
+			@F.TextField(f.Get("username"),
+				F.Label(L(ctx).Gettext("Username")),
+				F.Required(true),
+				F.Classes("field-h"),
+			)
+			@F.TextField(f.Get("email"),
+				F.InputType("email"),
+				F.Label(L(ctx).Gettext("Email address")),
+				F.Required(true),
+				F.Classes("field-h"),
+			)
+			@F.SelectField[string](f.Get("group"),
+				F.Label(L(ctx).Gettext("Group")),
+				F.Required(true),
+				F.Classes("field-h"),
+			)
+			@F.PasswordField(f.Get("password"),
+				F.Label(L(ctx).Gettext("Password")),
+				F.Required(true),
+				F.Classes("field-h"),
+				F.InputAttr("autocomplete", "off"),
+			)
+			<p class="btn-block">
+				<button class="btn btn-primary" type="submit">{ L(ctx).Gettext("Create user") }</button>
+			</p>
+		</form>
+	}
+}
+
+templ (v Views) userInfo(f *users.UserForm, u *extendedUserItem) {
+	{{
+		title := L(ctx).Gettext("Users") + " - " + u.Username
+		user := server.GetUser(ctx)
+	}}
+	@v.base(title) {
+		<h1 class="title text-h2">{ u.Username }</h1>
+		if u.IsDeleted {
+			<form action={ URL(ctx, ".", "delete") } method="POST">
+				<input type="hidden" name="_to" value={ CurrentPath(ctx) }/>
+				@Message() {
+					{ L(ctx).Gettext("User will be removed in a few seconds") }
+					&nbsp;
+					<button class="btn btn-primary" name="cancel" value="1">{ L(ctx).Gettext("Cancel") }</button>
+				}
+			</form>
+		}
+		<form class="mb-8" action={ URL(ctx) } method="post">
+			@F.Errors(f)
+			@F.TextField(f.Get("username"),
+				F.Label(L(ctx).Gettext("Username")),
+				F.Required(true),
+				F.Classes("field-h"),
+			)
+			@F.TextField(f.Get("email"),
+				F.InputType("email"),
+				F.Label(L(ctx).Gettext("Email address")),
+				F.Required(true),
+				F.Classes("field-h"),
+			)
+			@F.SelectField[string](f.Get("group"),
+				F.Label(L(ctx).Gettext("Group")),
+				F.Required(true),
+				F.Classes("field-h"),
+			)
+			@F.PasswordField(f.Get("password"),
+				F.Label(L(ctx).Gettext("Password")),
+				F.Classes("field-h"),
+				F.InputAttr("autocomplete", "off"),
+				F.Help(L(ctx).Gettext("will not change if empty")),
+			)
+			<p class="btn-block">
+				<button class="btn btn-primary" type="submit">{ L(ctx).Gettext("Save") }</button>
+				if u.ID != user.UID && !u.IsDeleted {
+					<button
+						class="ml-auto btn-outlined btn-danger"
+						type="submit"
+						formaction={ URL(ctx, ".", "delete") }
+					>
+						{ L(ctx).Gettext("Delete this user") }
+					</button>
+				}
+			</p>
+		</form>
+		if !u.LastLogin.IsZero() {
+			<div class="field field-h sm:mb-0.5">
+				<label>{ L(ctx).Gettext("Last login") }</label>
+				<div class="control">
+					{ Strftime(ctx, u.LastLogin, "%e %B %Y %H:%M") }
+				</div>
+			</div>
+		}
+		if !u.LastActivity.IsZero() {
+			<div class="field field-h sm:mb-0.5">
+				<label>{ L(ctx).Gettext("Last Activity") }</label>
+				<div class="control">
+					{ Strftime(ctx, u.LastActivity, "%e %B %Y %H:%M") }
+				</div>
+			</div>
+		}
+		<div class="field field-h sm:mb-0.5">
+			<label>{ L(ctx).Gettext("Bookmarks") }</label>
+			<div class="control">{ u.BookmarkCount }</div>
+		</div>
+		<div class="field field-h sm:mb-0.5">
+			<label>{ L(ctx).Gettext("Disk usage") }</label>
+			<div class="control">{ utils.FormatBytes(u.BookmarkDiskUsage) }</div>
+		</div>
+	}
+}
