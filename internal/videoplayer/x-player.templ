@@ -1,0 +1,86 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package videoplayer
+
+import . "codeberg.org/readeck/readeck/components"
+
+type Views struct{}
+
+templ (_ Views) player(src, embedType string, w, h int) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<title>Video Player - Readeck</title>
+			<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<meta name="csp-nonce" content={ CSPNonce(ctx) }/>
+			<meta name="robots" content="noindex nofollow noarchive"/>
+			<link rel="icon" href={ Asset(ctx, "img/fi/favicon.ico") }/>
+			@templ.Raw(S(`
+<style nonce="%s">
+  html {
+    overflow: hidden;
+  }
+  body {
+    background-color: #000;
+    color: #fff;
+    height: 100%%;
+    width: 100%%;
+    overflow: hidden;
+    position: absolute;
+    margin: 0;
+    padding: 0;
+  }
+  video, iframe {
+    width: 100%%;
+    height: auto;
+    aspect-ratio: %d/%d;
+  }
+</style>`, CSPNonce(ctx), w, h))
+		</head>
+		<body>
+			switch embedType {
+				case "hls":
+					<video
+						id="video"
+						controls
+						data-manifest={ src }
+						width={ w }
+						height={ h }
+					></video>
+					<script src={ Asset(ctx, "vendor/hls.js") } nonce={ CSPNonce(ctx) }></script>
+					<script nonce={ CSPNonce(ctx) }>
+          const video = document.getElementById('video')
+          const src = video.dataset.manifest
+
+          if (Hls.isSupported()) {
+            var hls = new Hls();
+            hls.on(Hls.Events.MEDIA_ATTACHED, function () {
+              video.play()
+            });
+            hls.loadSource(src)
+            hls.attachMedia(video)
+          }
+        </script>
+				case "embed":
+					<iframe
+						src={ src }
+						width={ w }
+						height={ h }
+						frameborder="0"
+						allow="accelerometer 'none'; ambient-light-sensor 'none'; autoplay 'none'; battery 'none'; browsing-topics 'none'; camera 'none'; display-capture 'none'; domain-agent 'none'; document-domain 'none'; encrypted-media 'none'; execution-while-not-rendered 'none'; execution-while-out-of-viewport ''; gamepad 'none'; geolocation 'none'; gyroscope 'none'; hid 'none'; identity-credentials-get 'none'; idle-detection 'none'; local-fonts 'none'; magnetometer 'none'; microphone 'none'; midi 'none'; otp-credentials 'none'; payment 'none'; publickey-credentials-create 'none'; publickey-credentials-get 'none'; screen-wake-lock 'none'; serial 'none'; speaker-selection 'none'; usb 'none'; window-management 'none'; xr-spatial-tracking 'none'"
+						allowfullscreen="true"
+						credentialless="true"
+						referrerpolicy="strict-origin-when-cross-origin"
+						sandbox="allow-scripts allow-same-origin"
+						csp="sandbox allow-scripts allow-same-origin"
+					></iframe>
+				case "video":
+					<video id="video" controls autoplay src={ src } width={ w } height={ h }></video>
+			}
+		</body>
+	</html>
+}
