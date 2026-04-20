@@ -178,7 +178,6 @@ func (h *viewsRouter) diagnosis(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	b := getBookmark(r.Context())
-	tc := getBaseContext(r.Context())
 
 	d, err := dataset.NewBokmarkDiagnosis(b)
 	if err != nil {
@@ -186,13 +185,10 @@ func (h *viewsRouter) diagnosis(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tc["Log"] = string(d.Log)
-	tc["Props"] = string(d.Props)
-	tc["LogLines"] = d.LogLines()
-
-	server.RenderTurboStream(w, r,
-		"/bookmarks/components/diagnosis", "replace",
-		"diagnostic-info", tc, nil)
+	server.RenderTurboStreamComponent(w, r,
+		Components{}.diagnosis(d),
+		"replace", "diagnosis-info", nil,
+	)
 }
 
 func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
@@ -304,9 +300,10 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 					"bookmark-card-"+b.UID, item, nil)
 			}
 			if withMarked || withArchived {
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/bottom_actions", "replace",
-					"bookmark-bottom-actions-"+b.UID, item, nil)
+				server.RenderTurboStreamComponent(w, r,
+					Components{}.bookmarkInfoBottomActions(item),
+					"replace", "bookmark-bottom-actions-"+b.UID, nil,
+				)
 			}
 
 			return

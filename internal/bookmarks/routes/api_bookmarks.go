@@ -66,20 +66,16 @@ func (api *apiRouter) bookmarkArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if server.IsTurboRequest(r) {
-		server.RenderTurboStream(w, r,
-			"/bookmarks/components/content_block", "replace",
-			"bookmark-content-"+b.UID, map[string]any{
-				"Item": bi,
-				"HTML": buf,
-				"Out":  w,
-			},
+		server.RenderTurboStreamComponent(w, r,
+			Components{}.articleContent(bi, buf),
+			"replace",
+			"bookmark-content-"+b.UID,
 			map[string]string{"method": "morph"},
 		)
-		server.RenderTurboStream(w, r,
-			"/bookmarks/components/annotation_list", "replace",
-			"bookmark-annotation-list-"+b.UID, map[string]any{
-				"Item": bi,
-			},
+		server.RenderTurboStreamComponent(w, r,
+			Components{}.annotationList(bi),
+			"replace",
+			"bookmark-annotation-list-"+b.UID,
 			map[string]string{"method": "morph"},
 		)
 		return

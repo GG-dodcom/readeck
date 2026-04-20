@@ -188,11 +188,9 @@ templ (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) {
 							@JetTemplate("/bookmarks/components/title_block", server.TC{"Item": item})
 						</div>
 						// content
-						// FIXME
-						@JetTemplate("/bookmarks/components/content_block", server.TC{"Item": item, "HTML": html})
+						@Components{}.contentBlock(item, html)
 						<div class="mx-auto mt-6 pt-6 border-t print:hidden">
-							// FIXME
-							@JetTemplate("/bookmarks/components/bottom_actions", item)
+							@Components{}.bookmarkInfoBottomActions(item)
 						</div>
 					</div>
 				}
