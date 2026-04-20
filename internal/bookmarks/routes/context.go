@@ -16,6 +16,7 @@ import (
 // All route related context keys and functions must live here.
 
 // Base template context.
+// FIXME: remove after migration.
 type (
 	ctxBaseContextKey struct{}
 )
@@ -31,6 +32,7 @@ type (
 	ctxBookmarkListKey       struct{}
 	ctxBookmarkListTaggerKey struct{}
 	ctxBookmarkOrderKey      struct{}
+	ctxCountersKey           struct{}
 	ctxDefaultLimitKey       struct{}
 	ctxFiltersKey            struct{}
 	ctxLabelKey              struct{}
@@ -47,6 +49,7 @@ var (
 	withBookmarkList, getBookmarkList                 = ctxr.WithGetter[*dataset.BookmarkList](ctxBookmarkListKey{})
 	withBookmarkListTaggers, checkBookmarkListTaggers = ctxr.WithChecker[[]server.Etagger](ctxBookmarkListTaggerKey{})
 	withBookmarkOrder, checkBookmarkOrder             = ctxr.WithChecker[orderExpressionList](ctxBookmarkOrderKey{})
+	withCounters, checkCounters                       = ctxr.WithChecker[bookmarks.CountResult](ctxCountersKey{})
 	withDefaultLimit, checkDefaultLimit               = ctxr.WithChecker[int](ctxDefaultLimitKey{})
 	withFilterForm, checkFilterForm                   = ctxr.WithChecker[*filterForm](ctxFiltersKey{})
 	withLabel, getLabel                               = ctxr.WithGetter[string](ctxLabelKey{})

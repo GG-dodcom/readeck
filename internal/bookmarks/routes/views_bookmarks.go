@@ -16,6 +16,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/go-chi/chi/v5"
 
+	"codeberg.org/readeck/readeck/components"
 	"codeberg.org/readeck/readeck/internal/auth"
 	"codeberg.org/readeck/readeck/internal/auth/users"
 	"codeberg.org/readeck/readeck/internal/bookmarks"
@@ -43,7 +44,8 @@ func (h *viewsRouter) withBaseContext(next http.Handler) http.Handler {
 			"Count": count,
 		}
 
-		ctx := withBaseContext(r.Context(), c)
+		ctx := withBaseContext(r.Context(), c) // FIXME: remove
+		ctx = withCounters(ctx, count)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -194,19 +196,7 @@ func (h *viewsRouter) diagnosis(w http.ResponseWriter, r *http.Request) {
 func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
 	b := getBookmark(r.Context())
-
-	tc := getBaseContext(r.Context())
-	tc.SetBreadcrumbs([][2]string{
-		{tr.Gettext("Bookmarks"), urls.AbsoluteURL(r, "/bookmarks").String()},
-		{utils.ShortText(b.Title, 50), urls.AbsoluteURL(r, "/bookmarks", b.UID).String()},
-		{tr.Gettext("Update")},
-	})
-
-	tc["Title"] = b.Title
-	tc["ID"] = b.UID
-
 	f := newUpdateForm(server.Locale(r))
-	tc["Form"] = f
 
 	status := http.StatusOK
 
@@ -311,19 +301,26 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 			redir = f.Get("_to").String()
 		}
 		server.Redirect(w, r, redir)
-
+		return
 	}
 
 	if server.IsTurboRequest(r) {
 		w.WriteHeader(status)
-		server.RenderTurboStream(w, r,
-			"/bookmarks/components/bookmark_update", "replace",
-			"bookmark-update-"+b.UID, tc, nil,
+		server.RenderTurboStreamComponent(w, r,
+			Components{}.bookmarkUpdate(b, f),
+			"replace", "bookmark-update-"+b.UID, nil,
 		)
 		return
 	}
 
-	server.RenderTemplate(w, r, status, "bookmarks/bookmark_update", tc)
+	// server.RenderTemplate(w, r, status, "bookmarks/bookmark_update", tc)
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
+		{tr.Gettext("Bookmarks"), urls.AbsoluteURL(r, "/bookmarks").String()},
+		{utils.ShortText(b.Title, 50), urls.AbsoluteURL(r, "/bookmarks", b.UID).String()},
+		{tr.Gettext("Update")},
+	})
+
+	server.RenderComponent(w, r.WithContext(ctx), status, Views{}.bookmarkUpdate(b, f))
 }
 
 func (h *viewsRouter) bookmarkShareLink(w http.ResponseWriter, r *http.Request) {

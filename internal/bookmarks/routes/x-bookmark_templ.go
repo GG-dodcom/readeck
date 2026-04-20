@@ -17,13 +17,15 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"io"
 	"strconv"
+	"strings"
 
+	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+	"codeberg.org/readeck/readeck/pkg/forms"
 
 	. "codeberg.org/readeck/readeck/components"
+	F "codeberg.org/readeck/readeck/components/forms"
 )
-
-type Views struct{}
 
 func (v Views) bookmarkRefreshHead() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -146,7 +148,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Bookmark is loading"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 63, Col: 64}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 65, Col: 64}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -164,7 +166,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(URL(ctx, "/bookmarks", item.ID, "update"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 70, Col: 72}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 72, Col: 72}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -177,7 +179,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(item.ReadProgress)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 75, Col: 73}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 77, Col: 73}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -190,7 +192,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(item.ReadAnchor)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 76, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 78, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -225,7 +227,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(Tern(func() bool { return item.TextDirection != "" }, item.TextDirection, "ltr"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 81, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 83, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -238,7 +240,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 83, Col: 60}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 85, Col: 60}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -275,7 +277,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Close panel"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 104, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 106, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -288,7 +290,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(URL(ctx, "/profile/session"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 108, Col: 61}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 110, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
@@ -309,7 +311,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Close panel"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 116, Col: 61}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 118, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -330,7 +332,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var17 templ.SafeURL
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinURLErrs(URL(ctx, "/bookmarks/unread"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 129, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 131, Col: 46}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -351,7 +353,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var18 templ.SafeURL
 				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinURLErrs(URL(ctx, "/bookmarks", item.UID, "update"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 142, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 144, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 				if templ_7745c5c3_Err != nil {
@@ -372,7 +374,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Edit"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 148, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 150, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 				if templ_7745c5c3_Err != nil {
@@ -395,7 +397,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var20 string
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Bookmark information"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 155, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 157, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 				if templ_7745c5c3_Err != nil {
@@ -408,7 +410,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var21 string
 				templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.FormatBool(!prefs.BookmarkSidebarHidden()))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 157, Col: 67}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 159, Col: 67}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 				if templ_7745c5c3_Err != nil {
@@ -421,7 +423,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(URL(ctx, "/profile/session"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 159, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 161, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 				if templ_7745c5c3_Err != nil {
@@ -442,7 +444,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 				var templ_7745c5c3_Var23 string
 				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Bookmark information"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 168, Col: 71}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 170, Col: 71}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 				if templ_7745c5c3_Err != nil {
@@ -460,7 +462,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 					var templ_7745c5c3_Var24 string
 					templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(item.ReadProgress)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 172, Col: 53}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 174, Col: 53}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 					if templ_7745c5c3_Err != nil {
@@ -532,7 +534,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Close dialog"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 197, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 199, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -553,7 +555,7 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(URL(ctx, "/bookmarks", item.ID, "diagnosis"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 201, Col: 86}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 203, Col: 86}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 			if templ_7745c5c3_Err != nil {
@@ -566,6 +568,218 @@ func (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) templ.Compon
 			return nil
 		})
 		templ_7745c5c3_Err = layout.BasePage(title+" "+L(ctx).Gettext("Bookmarks")).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func (v Views) bookmarkUpdate(b *bookmarks.Bookmark, f *updateForm) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var29 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var29 == nil {
+			templ_7745c5c3_Var29 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Var30 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<h1 class=\"text-h2 title\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var31 string
+			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Edit: %s", b.Title))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 210, Col: 65}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "</h1>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = Components{}.bookmarkUpdate(b, f).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, " <p class=\"btn-block\"><button class=\"btn btn-primary\" type=\"submit\" form=\"bookmark-update-form\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var32 string
+			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Save"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 214, Col: 28}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "</button></p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = SideMenuStdLayout(L(ctx).Gettext("Edit bookmark"), v.menu()).Render(templ.WithChildren(ctx, templ_7745c5c3_Var30), templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func (c Components) bookmarkUpdate(b *bookmarks.Bookmark, f *updateForm) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var33 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var33 == nil {
+			templ_7745c5c3_Var33 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<turbo-frame id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var34 string
+		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs("bookmark-update-" + b.UID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 221, Col: 45}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "\"><form id=\"bookmark-update-form\" method=\"post\" action=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var35 templ.SafeURL
+		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinURLErrs(URL(ctx, "/bookmarks", b.UID, "update"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 225, Col: 51}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\" lang=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var36 string
+		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(b.Lang)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark.templ`, Line: 226, Col: 16}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = F.Errors(f).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = F.TextField(f.Get("title"),
+			F.Label(L(ctx).Gettext("Title")),
+			F.Required(true),
+			F.Classes("field-h"),
+		).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = F.TextAreaField(f.Get("description"),
+			F.Label(L(ctx).Gettext("Description")),
+			F.Classes("field-h"),
+			F.InputAttr("rows", 5),
+		).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = F.TextField(f.Get("site_name"),
+			F.Label(L(ctx).Gettext("Site Name")),
+			F.Required(true),
+			F.Classes("field-h"),
+		).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = F.TextAreaField(f.Get("authors"),
+			F.Label(L(ctx).Gettext("Authors")),
+			F.Value(strings.Join(f.Get("authors").(*forms.TextListField).V(), "\n")),
+			F.Classes("field-h"),
+			F.Help(L(ctx).Gettext("One value per line")),
+			F.InputAttr("rows", 3),
+		).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = F.DateField(f.Get("published"),
+			F.Label(L(ctx).Gettext("Published")),
+			F.Classes("field-h"),
+		).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = F.TextField(f.Get("lang"),
+			F.Label(L(ctx).Gettext("Language")),
+			F.Classes("field-h"),
+		).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = F.SelectField[string](f.Get("text_direction"),
+			F.Label(L(ctx).Gettext("Text Direction")),
+			F.Classes("field-h"),
+		).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "</form></turbo-frame>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

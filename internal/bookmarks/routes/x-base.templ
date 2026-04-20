@@ -1,0 +1,106 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package routes
+
+import (
+	. "codeberg.org/readeck/readeck/components"
+	"codeberg.org/readeck/readeck/internal/server"
+)
+
+type Views struct{}
+
+templ (v Views) menu() {
+	@SideMenuTitle() {
+		{ L(ctx).Gettext("Bookmarks") }
+	}
+	{{ counters, hasCounters := checkCounters(ctx) }}
+	<turbo-frame id="bookmarks-sidemenu">
+		<menu class="my-4">
+			@v.sideMenuItem(L(ctx).Gettext("All"), "o-library",
+				"/bookmarks", PathIs(ctx, "/bookmarks"), counters.Total)
+			@v.sideMenuItem(L(ctx).Gettext("Unread"), "o-check-off",
+				"/bookmarks/unread", PathIs(ctx, "/bookmarks/unread"), counters.Unread)
+			@v.sideMenuItem(L(ctx).Gettext("Archive"), "o-archive-off",
+				"/bookmarks/archive", PathIs(ctx, "/bookmarks/archive"), counters.Archived)
+			@v.sideMenuItem(L(ctx).Gettext("Favorites"), "o-favorite-off",
+				"/bookmarks/favorites", PathIs(ctx, "/bookmarks/favorites"), counters.Marked)
+		</menu>
+		if hasCounters {
+			<menu class="my-4">
+				if counters.ByType["article"] > 0 {
+					@v.sideMenuItem(L(ctx).Gettext("Articles"), "o-file",
+						"/bookmarks/articles", PathIs(ctx, "/bookmarks/articles"), counters.ByType["article"])
+				}
+				if counters.ByType["video"] > 0 {
+					@v.sideMenuItem(L(ctx).Gettext("Videos"), "o-video",
+						"/bookmarks/videos", PathIs(ctx, "/bookmarks/videos"), counters.ByType["video"])
+				}
+				if counters.ByType["photo"] > 0 {
+					@v.sideMenuItem(L(ctx).Gettext("Pictures"), "o-photo",
+						"/bookmarks/pictures", PathIs(ctx, "/bookmarks/pictures"), counters.ByType["photo"])
+				}
+			</menu>
+		}
+		<hr class="w-[25%] border-gray-200 mx-auto"/>
+		<menu class="mt-4">
+			@v.sideMenuItem(L(ctx).Gettext("Labels"), "o-label",
+				"/bookmarks/labels", PathIs(ctx, "/bookmarks/labels"), 0)
+			@v.sideMenuItem(L(ctx).Gettext("Highlights"), "o-highlight",
+				"/bookmarks/highlights", PathIs(ctx, "/bookmarks/highlights"), 0)
+			@v.sideMenuItem(L(ctx).Gettext("Collections"), "o-collection",
+				"/bookmarks/collections", PathIs(ctx, "/bookmarks/collections"), 0)
+		</menu>
+		if server.GetUser(ctx).Settings.AddonReminder && counters.Total > 0 && PathIs(ctx, "/bookmarks", "/bookmarks/unread") {
+			<div
+				class="hidden chrome:hidden firefox:hidden chrome:block firefox:block border rounded mt-8 p-2 bg-app-bg text-sm"
+				data-controller="browser-extension"
+				data-browser-extension-installed-class="chrome:hidden firefox:hidden"
+			>
+				<div class="flex gap-2 items-start">
+					<p>
+						@Icon("o-extension", WithIconClass("text-green-600"), WithIconSvgClass("h-8 w-8"))
+					</p>
+					<div class="grow">
+						<p class="mb-1 font-semibold">{ L(ctx).Gettext("Did you know?") }</p>
+						<p class="mb-1">
+							{ L(ctx).Gettext(`
+                With the Browser Extension, you can save pages, images and selections
+                directly from your browser!`,
+              ) }
+						</p>
+					</div>
+				</div>
+				<div class="flex flex-col gap-2 items-center mt-2">
+					<a class="btn btn-outlined btn-primary py-1 rounded-full" target="_blank" href="https://readeck.org/en/extension">
+						{ L(ctx).Gettext("Learn more") }
+					</a>
+					<button
+						class="text-gray-700 underline decoration-dotted hf:text-app-fg"
+						name="settings_addon_reminder"
+						value="false"
+						data-controller="request"
+						data-request-url-value={ URL(ctx, "/api/profile") }
+						data-request-method-value="PATCH"
+						data-action="request#fetch request:done->browser-extension#setReady"
+					>
+						{ L(ctx).Gettext("Don't remind me") }
+					</button>
+				</div>
+			</div>
+		}
+	</turbo-frame>
+}
+
+templ (_ Views) sideMenuItem(name, icon, path string, current bool, nbItems int) {
+	<li>
+		<a href={ URL(ctx, path) } data-current={ current }>
+			@Icon(icon)
+			<span class="grow">{ name }</span>
+			if nbItems > 0 {
+				<span class="count">{ nbItems }</span>
+			}
+		</a>
+	</li>
+}
