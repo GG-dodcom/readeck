@@ -140,11 +140,7 @@ func (h *viewsRouter) bookmarkInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tc := getBaseContext(r.Context())
-	tc["Item"] = item
-
-	var err error
-	tc["HTML"], err = item.GetArticle()
+	html, err := item.GetArticle()
 	if err != nil {
 		server.Log(r).Error("", slog.Any("err", err))
 	}
@@ -156,7 +152,7 @@ func (h *viewsRouter) bookmarkInfo(w http.ResponseWriter, r *http.Request) {
 		policy.Write(w.Header())
 	}
 
-	server.RenderTemplate(w, r, 200, "/bookmarks/bookmark", tc)
+	server.RenderComponent(w, r, http.StatusOK, Views{}.bookmarkInfo(item, html))
 }
 
 func (h *viewsRouter) bookmarkCard(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,210 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package routes
+
+import (
+	"io"
+	"strconv"
+
+	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+	"codeberg.org/readeck/readeck/internal/server"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+type Views struct{}
+
+templ (v Views) bookmarkRefreshHead() {
+	// TODO: not sure about noscript here
+	<noscript><meta http-equiv="refresh" content="5"/></noscript>
+}
+
+templ (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) {
+	{{
+		layout := NewLayout()
+		layout.Head = templ.NopComponent
+
+		title := item.Title
+		if !item.Loaded {
+			title = L(ctx).Gettext("Bookmark loading")
+			layout.Head = v.bookmarkRefreshHead()
+		}
+		prefs := Preferences(ctx)
+	}}
+	@layout.BasePage(title + " " + L(ctx).Gettext("Bookmarks")) {
+		@QuickAccessMenu([][2]string{
+			{"menu", L(ctx).Gettext("Menu")},
+			{"content", L(ctx).Gettext("Main content")},
+		})
+		<div class="layout">
+			@layout.Menu(templ.NopComponent)
+			<turbo-frame
+				id="bookmark-info"
+				class="bookmark-container"
+				data-controller="turbo-refresh panel scroll-progress"
+				data-turbo-refresh-on-value="[data-deleted]"
+				data-turbo-refresh-interval-value="3"
+				data-panel-hidden-class="max-lg:hidden hidden"
+				data-panel-force-hidden-class="max-lg:hidden"
+				data-panel-body-class="max-lg:overflow-hidden"
+				if item.Type == "photo" {
+					data-scroll-progress-auto-mark-after-value="4"
+				} else {
+					data-scroll-progress-auto-mark-after-value="0"
+				}
+			>
+				if !item.Loaded {
+					// TODO: center on page
+					<div class="text-center mt-8" id="content">
+						<span class="text-3xl">
+							@Spinner()
+						</span>
+						<p class="text-lg">{ L(ctx).Gettext("Bookmark is loading") }…</p>
+					</div>
+				} else {
+					<form
+						class="hidden"
+						data-controller="request"
+						data-request-turbo-value="1"
+						data-request-url-value={ URL(ctx, "/bookmarks", item.ID, "update") }
+						data-request-method-value="post"
+						data-scroll-progress-target="trigger"
+						data-action="scroll-progress:progress->request#fetch"
+					>
+						<input type="hidden" name="read_progress" value={ item.ReadProgress } data-scroll-progress-target="value"/>
+						<input type="hidden" name="read_anchor" value={ item.ReadAnchor } data-scroll-progress-target="anchor"/>
+					</form>
+					<div
+						class={ "hidden print:block", prefs.ReaderFont().Class }
+						data-controller="styler"
+						dir={ Tern(func() bool { return item.TextDirection != "" }, item.TextDirection, "ltr") }
+					>
+						<h1 class="px-6 py-4 text-3xl print:px-0">{ item.Title }</h1>
+					</div>
+					<div
+						id="bookmark-panel"
+						class={
+							"bookmark-sidebar max-lg:hidden",
+							templ.KV("hidden", prefs.BookmarkSidebarHidden()),
+						}
+						data-panel-target="panel"
+						tabindex="-1"
+					>
+						<div
+							class="
+					      h-topnav border-b bg-app-bg border-b-gray-200
+					      flex px-3 items-center
+					      max-lg:sticky max-lg:top-0 max-lg:z-40
+					      print:hidden no-js:hidden
+					    "
+						>
+							<button
+								type="button"
+								title={ L(ctx).Gettext("Close panel") }
+								name="bookmark_sidebar_hidden"
+								value="true"
+								data-controller="request"
+								data-request-url-value={ URL(ctx, "/profile/session") }
+								data-request-method-value="post"
+								data-action="click->panel#toggle click->request#fetch"
+								data-panel-target="button"
+								aria-controls="bookmark-panel"
+								class="lg:hidden p-1 ml-auto border rounded text-gray-400 hf:text-gray-700"
+							>
+								@Icon("o-close", WithIconClass("inline-block"), WithIconSvgClass("w-8 h-8"))
+								<span class="sr-only">{ L(ctx).Gettext("Close panel") }</span>
+							</button>
+						</div>
+						<div class="pt-4 pb-8 px-6">
+							// FIXME
+							@JetTemplate("/bookmarks/components/sidebar", server.TC{"Item": item})
+						</div>
+					</div>
+					<div class="bookmark-content" id="content">
+						// top bar
+						<div class="bookmark-topbar">
+							<div class="flex-grow flex gap-4 items-center">
+								<div>
+									<a
+										href={ URL(ctx, "/bookmarks/unread") }
+										data-controller="history"
+										data-action="history#back"
+										class="
+                      p-2 rounded-full w-8 h-8 border border-bg-100 inline-flex items-center justify-center
+                      hf:bg-gray-200 hf:text-gray-800
+                    "
+									>
+										@Icon("o-chevron-l", WithIconClass("inline-block"), WithIconSvgClass("w-6 h-6"))
+									</a>
+								</div>
+								<div class="flex-grow"></div>
+								<a
+									href={ URL(ctx, "/bookmarks", item.UID, "update") }
+									data-controller="dialog"
+									data-dialog-select-value="#bookmark-update-dialog"
+									data-action="scroll-progress#skip dialog#open:prevent"
+								>
+									@Icon("o-pencil", WithIconClass("inline-block"), WithIconSvgClass("w-6 h-6"))
+									<span class="sr-only">{ L(ctx).Gettext("Edit") }</span>
+								</a>
+								if item.HasArticle {
+									// FIXME
+									@JetTemplate("/bookmarks/components/reader_control", server.TC{"Item": item})
+								}
+								<button
+									type="button"
+									title={ L(ctx).Gettext("Bookmark information") }
+									name="bookmark_sidebar_hidden"
+									value={ strconv.FormatBool(!prefs.BookmarkSidebarHidden()) }
+									data-controller="request"
+									data-request-url-value={ URL(ctx, "/profile/session") }
+									data-request-method-value="post"
+									data-action="click->panel#toggle click->request#fetch"
+									data-panel-target="button"
+									aria-expanded="false"
+									aria-controls="bookmark-panel"
+									class="no-js:hidden hf:text-gray-700"
+								>
+									@Icon("o-sidebar", WithIconClass("inline-block"), WithIconSvgClass("w-6 h-6"))
+									<span class="sr-only">{ L(ctx).Gettext("Bookmark information") }</span>
+								</button>
+							</div>
+							if item.HasArticle {
+								<progress max="100" value={ item.ReadProgress } data-scroll-progress-target="indicator"></progress>
+							}
+						</div>
+						// title and description
+						<div
+							class={
+								"bookmark-header mt-4 print:mt-2 print:max-w-none mb-8",
+								prefs.ReaderWidth().Class,
+								prefs.ReaderFont().Class,
+							}
+							data-controller="styler"
+						>
+							// FIXME
+							@JetTemplate("/bookmarks/components/title_block", server.TC{"Item": item})
+						</div>
+						// content
+						// FIXME
+						@JetTemplate("/bookmarks/components/content_block", server.TC{"Item": item, "HTML": html})
+						<div class="mx-auto mt-6 pt-6 border-t print:hidden">
+							// FIXME
+							@JetTemplate("/bookmarks/components/bottom_actions", item)
+						</div>
+					</div>
+				}
+			</turbo-frame>
+		</div>
+		<dialog class="dialog" id="debug-info">
+			<form class="dialog--top" method="dialog">
+				<button class="dialog--close" title={ L(ctx).Gettext("Close dialog") }>
+					@Icon("o-close", WithIconClass(""), WithIconSvgClass("h-8 w-8"))
+				</button>
+			</form>
+			<turbo-frame id="diagnosis-info" src={ URL(ctx, "/bookmarks", item.ID, "diagnosis") } loading="lazy"></turbo-frame>
+		</dialog>
+	}
+}
