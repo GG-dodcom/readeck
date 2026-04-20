@@ -265,9 +265,9 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if before.SiteName != b.SiteName || beforeP != afterP || !slices.Equal(before.Authors, b.Authors) {
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/sidebar", "replace",
-					"bookmark-sidebar-"+b.UID, server.TC{"Item": item}, nil)
+				server.RenderTurboStreamComponent(w, r,
+					SidebarComponent{}.sidebar(item),
+					"replace", "bookmark-sidebar-"+b.UID, nil)
 			}
 
 			if before.Lang != b.Lang || before.TextDirection != b.TextDirection {
@@ -275,27 +275,21 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					server.Log(r).Error("", slog.Any("err", err))
 				}
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/content_block", "replace",
-					"bookmark-content-"+b.UID, map[string]any{
-						"Item": item,
-						"HTML": buf,
-						"Out":  w,
-					},
-					nil,
-				)
+				server.RenderTurboStreamComponent(w, r,
+					Components{}.articleContent(item, buf),
+					"replace", "bookmark-content-"+b.UID, nil)
 			}
 
 			if !slices.Equal(before.Labels, b.Labels) {
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/labels", "replace",
-					"bookmark-label-list-"+b.UID, item, nil)
+				server.RenderTurboStreamComponent(w, r,
+					SidebarComponent{}.labelList(item),
+					"replace", "bookmark-label-list-"+b.UID, nil)
 			}
 
 			if withMarked || withArchived || withDeleted || withProgress {
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/actions", "replace",
-					"bookmark-actions-"+b.UID, item, nil)
+				server.RenderTurboStreamComponent(w, r,
+					SidebarComponent{}.actions(item),
+					"replace", "bookmark-actions-"+b.UID, nil)
 				server.RenderTurboStream(w, r,
 					"/bookmarks/components/card", "replace",
 					"bookmark-card-"+b.UID, item, nil)

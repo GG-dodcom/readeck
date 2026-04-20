@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
-	"codeberg.org/readeck/readeck/internal/server"
 
 	. "codeberg.org/readeck/readeck/components"
 )
@@ -118,8 +117,7 @@ templ (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) {
 							</button>
 						</div>
 						<div class="pt-4 pb-8 px-6">
-							// FIXME
-							@JetTemplate("/bookmarks/components/sidebar", server.TC{"Item": item})
+							@SidebarComponent{}.sidebar(item)
 						</div>
 					</div>
 					<div class="bookmark-content" id="content">

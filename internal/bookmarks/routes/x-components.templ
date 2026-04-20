@@ -9,7 +9,6 @@ import (
 
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
 	"codeberg.org/readeck/readeck/internal/server"
-	"codeberg.org/readeck/readeck/pkg/utils"
 
 	. "codeberg.org/readeck/readeck/components"
 )
@@ -195,66 +194,6 @@ templ (c Components) articleAnnotator() {
 			</div>
 		</div>
 	</div>
-}
-
-templ (c Components) annotationList(item *dataset.Bookmark) {
-	<turbo-frame id={ "bookmark-annotation-list-" + item.ID } class="print:hidden">
-		<h3 class="mb-2 title text-lg">
-			@Icon("o-highlight")
-			{ " " }
-			{ L(ctx).Gettext("Highlights") }
-		</h3>
-		<div class="group">
-			if len(item.Annotations) == 0 {
-				<p class="mb-4">{ L(ctx).Gettext("Start selecting text in the article to create a new highlight.") }</p>
-			} else {
-				<ul class="mb-4" data-controller="request scrollto">
-					for _, a := range item.Annotations {
-						{{
-							color := a.Color
-							if color == "" {
-								color = "yellow"
-							}
-						}}
-						<li
-							class="mb-3 flex p-2 rd-annotation bg-opacity-20 hfw:bg-opacity-80 rounded border group/btn"
-							data-annotation-color={ color }
-						>
-							<a
-								class="grow flex flex-col"
-								href={ "#annotation-" + a.ID }
-								data-action="scrollto#scroll:prevent panel#close:prevent"
-							>
-								if a.Note != "" {
-									<p class="flex items-baseline gap-1 border-b pb-2 mb-2 font-semibold">
-										@Icon("o-note")
-										<span class="grow">{ a.Note }</span>
-									</p>
-								}
-								<blockquote class="text-sm italic">{ utils.ShortText(a.Text, 100) }</blockquote>
-							</a>
-							<span class="no-js:hidden flex-shrink-0">
-								<button
-									class="
-                    block -mt-4 -mr-4 text-gray-600 opacity-0
-                    group-hover/btn:opacity-100 group-focus-within/btn:opacity-100
-                    hf:text-red-700 touch:opacity-75 touch:active:text-red-700
-                    "
-									data-action="click->request#fetch"
-									data-request-url-param={ URL(ctx, "/api/bookmarks", item.ID, "annotations", a.ID) }
-									data-request-method-param="delete"
-									data-request-event-name-param="annotation-removed"
-									aria-label={ L(ctx).Gettext("Delete highlight") }
-								>
-									@Icon("o-cross", WithIconClass("svgicon rounded-full bg-app-bg"), WithIconSvgClass("w-5 align-bottom"))
-								</button>
-							</span>
-						</li>
-					}
-				</ul>
-			}
-		</div>
-	</turbo-frame>
 }
 
 templ (c Components) bookmarkInfoBottomActions(b *dataset.Bookmark) {
