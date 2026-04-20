@@ -184,8 +184,7 @@ templ (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) {
 							}
 							data-controller="styler"
 						>
-							// FIXME
-							@JetTemplate("/bookmarks/components/title_block", server.TC{"Item": item})
+							@Components{}.titleBlock(item)
 						</div>
 						// content
 						@Components{}.contentBlock(item, html)

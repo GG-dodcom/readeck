@@ -250,9 +250,10 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 			_, withProgress := updated["read_progress"]
 
 			if withTitle || withDescription {
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/title_block", "replace",
-					"bookmark-title-"+b.UID, server.TC{"Item": item}, nil)
+				server.RenderTurboStreamComponent(w, r,
+					Components{}.titleBlock(item),
+					"replace", "bookmark-title-"+b.UID, nil,
+				)
 			}
 
 			var beforeP, afterP time.Time
