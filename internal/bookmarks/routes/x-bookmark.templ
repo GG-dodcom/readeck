@@ -150,8 +150,7 @@ templ (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) {
 									<span class="sr-only">{ L(ctx).Gettext("Edit") }</span>
 								</a>
 								if item.HasArticle {
-									// FIXME
-									@JetTemplate("/bookmarks/components/reader_control", server.TC{"Item": item})
+									@ReaderControlComponent{}.controls()
 								}
 								<button
 									type="button"
