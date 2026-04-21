@@ -267,7 +267,10 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 				}
 				server.RenderTurboStreamComponent(w, r,
 					Components{}.articleContent(item, buf),
-					"replace", "bookmark-content-"+b.UID, nil)
+					"replace", "bookmark-content-"+b.UID,
+					map[string]string{
+						"method": "morph",
+					})
 			}
 
 			if !slices.Equal(before.Labels, b.Labels) {
@@ -376,10 +379,10 @@ func (h *viewsRouter) bookmarkShareEmail(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *viewsRouter) labelList(w http.ResponseWriter, r *http.Request) {
-	tc := getBaseContext(r.Context())
-	tc["Labels"] = getLabelList(r.Context())
-
-	server.RenderTemplate(w, r, 200, "/bookmarks/labels", tc)
+	server.RenderComponent(
+		w, r, http.StatusOK,
+		Views{}.labelList(getLabelList(r.Context())),
+	)
 }
 
 func (h *viewsRouter) labelInfo(w http.ResponseWriter, r *http.Request) {
@@ -445,15 +448,10 @@ func (h *viewsRouter) labelDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *viewsRouter) annotationList(w http.ResponseWriter, r *http.Request) {
-	al := getAnnotationList(r.Context())
-
-	server.SendPaginationHeaders(w, r, al.Pagination)
-
-	tc := getBaseContext(r.Context())
-	tc["Pagination"] = al.Pagination
-	tc["Annotations"] = al.Items
-
-	server.RenderTemplate(w, r, 200, "/bookmarks/annotation_list", tc)
+	server.RenderComponent(
+		w, r, http.StatusOK,
+		Views{}.annotationList(getAnnotationList(r.Context())),
+	)
 }
 
 func (h *publicViewsRouter) withBookmark(next http.Handler) http.Handler {

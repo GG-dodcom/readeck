@@ -62,11 +62,11 @@ func WithIconSvgClass(c ...any) func(*icon) {
 // WithIconSize sets the icon's dimension.
 func WithIconSize(w, h int) func(*icon) {
 	return func(i *icon) {
-		if w == 0 {
-			i.w = 24
+		if w > 0 {
+			i.w = w
 		}
-		if h == 0 {
-			i.h = 24
+		if h > 0 {
+			i.h = h
 		}
 	}
 }

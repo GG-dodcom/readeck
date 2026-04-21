@@ -5,11 +5,9 @@
 package routes
 
 import (
-	"net/url"
 	"strings"
 
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
-	"codeberg.org/readeck/readeck/internal/server/urls"
 	"codeberg.org/readeck/readeck/pkg/utils"
 
 	. "codeberg.org/readeck/readeck/components"
@@ -371,15 +369,10 @@ templ (c SidebarComponent) labelForm(b *dataset.Bookmark) {
 templ (c SidebarComponent) labelList(b *dataset.Bookmark) {
 	<ul class="inline" id={ "bookmark-label-list-" + b.ID }>
 		for _, x := range b.Labels {
-			{{
-				link := urls.AbsoluteURLContext(ctx, "/bookmarks/labels")
-				q := url.Values{"name": {x}}
-				link.RawQuery = q.Encode()
-			}}
 			<li class="inline-flex items-center text-sm bg-gray-100 py-1 px-1.5 mr-1 mb-1 border rounded-md">
 				<a
 					data-turbo="false"
-					href={ link.String() }
+					href={ labelLink(ctx, x) }
 					class="hf:text-primary"
 				>
 					{ x }

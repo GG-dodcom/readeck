@@ -1,0 +1,71 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package routes
+
+import (
+	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+templ (v Views) annotationList(annotations *dataset.AnnotationList) {
+	{{ title := L(ctx).Gettext("Bookmark Highlights") }}
+	@SideMenuLayout(title, v.menu()) {
+		<h1 class="title text-h2">{ title }</h1>
+		if annotations.Pagination.TotalCount == 0 {
+			<div class="max-w-std">
+				<div class="my-4 p-4 text-blue-800 bg-yellow-100 border border-blue-800 rounded">
+					<p class="font-bold mb-2">{ L(ctx).Gettext("You don't have any highlights yet.") }</p>
+					<p>
+						{ L(ctx).Gettext(`
+              Once you start highlighting parts of your saved articles, they will appear on this page
+              for you to easily find them.
+            `) }
+					</p>
+				</div>
+				<p>
+					@templ.Raw(L(ctx).Gettext(
+						`Read more about highlights in the <a class="%s" href="%s">documentation</a>.`,
+						"link",
+						URL(ctx, "/docs/bookmark")+"#highlights",
+					))
+				</p>
+			</div>
+		} else {
+			@Pagination(&annotations.Pagination)
+			for i, item := range annotations.Items {
+				<blockquote class="my-2">
+					<a
+						class="block mb-1 pt-2 pb-4 px-4 rd-annotation bg-opacity-30 border rounded hf:bg-opacity-80"
+						data-annotation-color={ Tern(func() bool { return item.Color != "" }, item.Color, "yellow") }
+						href={ string(URL(ctx, "/bookmarks", item.BookmarkID)) + "#annotation-" + item.ID }
+					>
+						<p class="block mb-1 text-sm text-yellow-800">{ Strftime(ctx, item.Created, "%e %B %Y, %H:%M") }</p>
+						<div class="flex flex-col">
+							if item.Note != "" {
+								<p class="flex items-baseline gap-1 border-b pb-2 mb-2 font-semibold">
+									@Icon("o-note")
+									<span class="grow">{ item.Note }</span>
+								</p>
+							}
+							<blockquote class="text-sm italic">{ item.Text }</blockquote>
+						</div>
+					</a>
+					// This groups annotations by bookmarks in the same sequence
+					if i+1 == len(annotations.Items) || annotations.Items[i+1].BookmarkID != item.BookmarkID {
+						<cite class="block ml-2 mb-6 not-italic">
+							{ item.BookmarkSiteName }
+							‐
+							<a class="link font-semibold" href={ URL(ctx, "/bookmarks", item.BookmarkID) }>
+								{ item.BookmarkTitle }
+							</a>
+						</cite>
+					}
+				</blockquote>
+			}
+			@Pagination(&annotations.Pagination)
+		}
+	}
+}

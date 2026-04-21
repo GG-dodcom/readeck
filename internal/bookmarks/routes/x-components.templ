@@ -133,6 +133,8 @@ templ (c Components) articleContent(item *dataset.Bookmark, html io.Reader) {
 	}
 }
 
+// FIXME: image & video dialogs not showing after update -> due to morph when loading the turbo stream
+// See: https://github.com/hotwired/stimulus/issues/829
 templ (c Components) articleAnnotator() {
 	{{
 		colors := [][2]string{
@@ -245,7 +247,7 @@ templ (c Components) imageModal() {
 		</div>
 	</dialog>
 	<template data-modal-images-target="trigger">
-		<span class="inline-block relative group">
+		<span class="block relative group">
 			<button
 				type="button"
 				title={ L(ctx).Gettext("Show image") }
@@ -275,7 +277,7 @@ templ (c Components) videoModal() {
 		</div>
 	</dialog>
 	<template data-modal-videos-target="trigger">
-		<span class="inline-block relative group">
+		<span class="block relative group">
 			<button
 				type="button"
 				title={ L(ctx).Gettext("Play video") }

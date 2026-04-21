@@ -1,0 +1,41 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package routes
+
+import (
+	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+templ (v Views) labelList(labels dataset.LabelList) {
+	{{ title := L(ctx).Gettext("Bookmarks Labels") }}
+	@SideMenuLayout(title, v.menu()) {
+		<h1 class="title text-h2">{ title }</h1>
+		<p class="mb-4">
+			{ L(ctx).Gettext(`
+        Labels let your organize your bookmarks the way you want.
+        You can set anything to a label, including emojis!
+    `) }
+		</p>
+		<ul class="grid lg:grid-cols-3 xl:grid-cols-4 gap-4">
+			for _, x := range labels {
+				<li>
+					<a
+						href={ labelLink(ctx, x.Name) }
+						class="
+              h-full flex items-center gap-1 border rounded-xl
+              py-2 px-4 font-semibold
+              hf:bg-yellow-100
+            "
+					>
+						<span class="flex-grow [overflow-wrap:anywhere]">{ x.Name }</span>
+						<span class="py-0.5 px-2 bg-gray-200 text-xs rounded-lg">{ x.Count }</span>
+					</a>
+				</li>
+			}
+		</ul>
+	}
+}

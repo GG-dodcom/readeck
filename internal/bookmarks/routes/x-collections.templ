@@ -1,0 +1,105 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package routes
+
+import (
+	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+templ (v Views) collectionList(cl *dataset.CollectionList) {
+	{{ title := L(ctx).Gettext("Bookmark Collections") }}
+	@SideMenuLayout(title, v.menu()) {
+		<h1 class="title text-h2">{ title }</h1>
+		<p class="my-4">
+			<a
+				href={ URL(ctx, "./add") }
+				class="btn btn-primary"
+			>
+				{ L(ctx).Gettext("Create a new collection") }
+			</a>
+		</p>
+		if cl.Pagination.TotalCount == 0 {
+			<div class="flex gap-4 max-w-std">
+				<div class="-mt-2">
+					@Icon("o-big-arrow",
+						WithIconClass("inline-block h-36 text-yellow-500"), WithIconSvgClass("h-36"),
+						WithIconSize(50, 250),
+					)
+				</div>
+				<div class="flex-grow-0">
+					<div class="prose my-4 px-4 pt-4 text-blue-800 bg-yellow-100 border border-blue-800 rounded">
+						<p>
+							{ L(ctx).Gettext(`
+                Collections let you easily organize and export your bookmarks
+                by saving search requests of your choice.
+                When you create a new bookmark that matches a collection's
+                criteria, it will appear immediately.
+                Here are some examples:
+              `) }
+						</p>
+						<ul>
+							<li>{ L(ctx).Gettext("The unread articles (no photos or videos)") },</li>
+							<li>{ L(ctx).Gettext(`The archived articles from "wikipedia.org"`) },</li>
+							<li>{ L(ctx).Gettext(`The pictures with the label "cat"`) },</li>
+							<li>{ L(ctx).Gettext(`The articles that contain "shelter" in their title`) }.</li>
+						</ul>
+					</div>
+					<p>
+						@templ.Raw(L(ctx).Gettext(
+							`Read more about collections in the <a class="%s" href="%s">documentation</a>.`,
+							"link",
+							URL(ctx, "/docs/collections"),
+						))
+					</p>
+				</div>
+			</div>
+		} else {
+			<turbo-frame
+				id="collection-list"
+				data-controller="turbo-refresh"
+				data-turbo-refresh-interval-value="10"
+				data-turbo-refresh-on-value="[data-collection-deleted='true']"
+			>
+				@Pagination(&cl.Pagination)
+				@List() {
+					for _, c := range cl.Items {
+						@ListItem("flex gap-2 items-center hfw:bg-gray-100 max-md:block") {
+							<a class="block flex-grow p-4" href={ URL(ctx, ".", c.ID) }>
+								<strong class="link font-semibold">{ c.Name }</strong>
+								<small class="block">
+									{ L(ctx).Gettext("Created on: %s", Strftime(ctx, c.Created, "%e %B %Y")) }
+								</small>
+							</a>
+							if c.IsDeleted {
+								<div
+									class="flex items-center max-w-xs m-4 max-md:mt-0"
+									data-collection-deleted="true"
+								>
+									<span class="text-red-700 text-xs font-semibold">
+										{ L(ctx).Gettext("This collection will be removed in a few seconds.") }
+									</span>
+									<form action={ URL(ctx, ".", c.ID, "delete") } method="post">
+										<input type="hidden" name="cancel" value="1"/>
+										<button
+											type="submit"
+											class="btn btn-primary whitespace-nowrap text-sm py-1 ml-2"
+										>
+											@Icon("o-undo")
+											{ " " }
+											{ L(ctx).Gettext("Undo") }
+										</button>
+									</form>
+								</div>
+							}
+						}
+					}
+				}
+				@Pagination(&cl.Pagination)
+			</turbo-frame>
+		}
+	}
+}

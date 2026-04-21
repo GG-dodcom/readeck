@@ -15,11 +15,10 @@ import (
 )
 
 func (h *viewsRouter) collectionList(w http.ResponseWriter, r *http.Request) {
-	cl := getCollectionList(r.Context())
-	tc := getBaseContext(r.Context())
-	tc["Collections"] = cl.Items
-
-	server.RenderTemplate(w, r, 200, "/bookmarks/collection_list", tc)
+	server.RenderComponent(
+		w, r, http.StatusOK,
+		Views{}.collectionList(getCollectionList(r.Context())),
+	)
 }
 
 func (h *viewsRouter) collectionCreate(w http.ResponseWriter, r *http.Request) {

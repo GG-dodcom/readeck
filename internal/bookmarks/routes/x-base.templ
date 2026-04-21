@@ -5,8 +5,13 @@
 package routes
 
 import (
-	. "codeberg.org/readeck/readeck/components"
+	"context"
+	"net/url"
+
 	"codeberg.org/readeck/readeck/internal/server"
+	"codeberg.org/readeck/readeck/internal/server/urls"
+
+	. "codeberg.org/readeck/readeck/components"
 )
 
 type Views struct{}
@@ -103,4 +108,12 @@ templ (_ Views) sideMenuItem(name, icon, path string, current bool, nbItems int)
 			}
 		</a>
 	</li>
+}
+
+func labelLink(ctx context.Context, name string) string {
+	link := urls.AbsoluteURLContext(ctx, "/bookmarks/labels")
+	q := url.Values{"name": {name}}
+	link.RawQuery = q.Encode()
+
+	return urls.PathOnly(link)
 }
