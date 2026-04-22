@@ -15,7 +15,7 @@ type FilterComponents struct{}
 
 var compactField = F.Classes("field-h--compact")
 
-templ (c FilterComponents) filters(f *filterForm) {
+templ (c FilterComponents) filters(f forms.Binder) {
 	<div class="space-y-4 text-sm">
 		@F.TextField(f.Get("search"), F.Label(L(ctx).Gettext("Search")))
 		@c.autoComplete(f.Get("title"), L(ctx).Gettext("Title"), "title", false)

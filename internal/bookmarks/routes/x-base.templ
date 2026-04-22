@@ -74,7 +74,7 @@ templ (v Views) menu() {
 			@v.sideMenuItem(L(ctx).Gettext("Highlights"), "o-highlight",
 				"/bookmarks/highlights", PathIs(ctx, "/bookmarks/highlights"), 0)
 			@v.sideMenuItem(L(ctx).Gettext("Collections"), "o-collection",
-				"/bookmarks/collections", PathIs(ctx, "/bookmarks/collections"), 0)
+				"/bookmarks/collections", PathIs(ctx, "/bookmarks/collections", "/bookmarks/collections/*"), 0)
 		</menu>
 		if server.GetUser(ctx).Settings.AddonReminder && counters.Total > 0 && PathIs(ctx, "/bookmarks", "/bookmarks/unread") {
 			<div

@@ -5,10 +5,24 @@
 package routes
 
 import (
+	"net/url"
+
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+	"codeberg.org/readeck/readeck/internal/server"
 
 	. "codeberg.org/readeck/readeck/components"
+	F "codeberg.org/readeck/readeck/components/forms"
 )
+
+templ (v Views) collectionInfoHead(item *dataset.Collection) {
+	<link
+		rel="alternate"
+		href={ string(URL(ctx, "/api/bookmarks/feed")) + "?collection=" + item.ID }
+		type="application/atom+xml"
+		title="Atom Feed"
+	/>
+	<meta name="turbo-refresh-scroll" content="preserve"/>
+}
 
 templ (v Views) collectionList(cl *dataset.CollectionList) {
 	{{ title := L(ctx).Gettext("Bookmark Collections") }}
@@ -102,4 +116,148 @@ templ (v Views) collectionList(cl *dataset.CollectionList) {
 			</turbo-frame>
 		}
 	}
+}
+
+templ (v Views) collectionCreate(f *collectionForm, bl *dataset.BookmarkList) {
+	{{ title := L(ctx).Gettext("New Collection") }}
+	@SideMenuLayout(title, v.menu()) {
+		<h1 class="title text-h2">{ title }</h1>
+		<div class="bookmark-list">
+			<div class="bookmark-list-container">
+				<div class="bookmark-filters">
+					<form action={ URL(ctx) } method="post">
+						@F.Errors(f)
+						@F.TextField(f.Get("name"),
+							F.Label(L(ctx).Gettext("Name")),
+							F.Required(true),
+							F.Classes("mb-2"),
+							F.InputAttr("autofocus", true),
+						)
+						@FilterComponents{}.filters(f)
+						<div class="bookmark-filters--actions">
+							<button class="btn btn-primary" type="submit">{ L(ctx).Gettext("Save") }</button>
+						</div>
+					</form>
+				</div>
+				@Components{}.bookmarkList(bl)
+			</div>
+		</div>
+	}
+}
+
+templ (v Views) collectionInfo(item *dataset.Collection, f *collectionForm, bl *dataset.BookmarkList) {
+	{{
+		layout := NewLayout()
+		layout.Head = v.collectionInfoHead(item)
+	}}
+	@layout.SideMenuLayout(L(ctx).Gettext("Collection %s", item.Title), v.menu(), layout.SideMenuWrapper()) {
+		if item.IsDeleted {
+			@Components{}.collectionTitle(item)
+			<form action={ URL(ctx, "./delete") } method="post">
+				<input type="hidden" name="_to" value={ CurrentPath(ctx) }/>
+				@Message() {
+					{ L(ctx).Gettext("Collection will be removed in a few seconds.") }
+					&nbsp;
+					<button class="btn btn-primary" name="cancel" value="1">
+						{ L(ctx).Gettext("Cancel") }
+					</button>
+				}
+			</form>
+		} else {
+			{{ editing := server.GetRequest(ctx).URL.Query().Get("edit") == "1" }}
+			<turbo-frame
+				id="bookmark-list"
+				data-controller="turbo-refresh"
+				data-turbo-refresh-interval-value="10"
+				data-turbo-refresh-on-value="[data-bookmark-deleted='true']"
+			>
+				<div class="flex flex-wrap items-center gap-2">
+					@Components{}.collectionTitle(item)
+					@Components{}.listActions() {
+						<form action={ URL(ctx) } method="get">
+							<input type="hidden" name="edit" value={ Tern(func() bool { return editing }, 0, 1) }/>
+							<button
+								type="submit"
+								class="btn-outlined btn-primary py-1"
+								data-controller="remote"
+								data-action="remote#toggleDetails:prevent"
+								data-remote-selector-param="#filters"
+							>
+								@Icon("o-pencil")
+								{ " " }
+								{ L(ctx).Gettext("Edit") }
+							</button>
+						</form>
+						if HasPermission(ctx, "api:bookmarks", "export") {
+							{{
+								q := url.Values{"collection": {item.ID}}
+								if of, ok := checkOrderForm(ctx); ok {
+									q[of.fieldName] = of.value()
+								}
+							}}
+							@Components{}.exportMenu(q)
+						}
+					}
+				</div>
+				<div class="bookmark-list-container mt-2">
+					<details id="filters" class="bookmark-filters" open?={ editing }>
+						<summary>
+							@Icon("o-filter")
+							{ " " }
+							{ L(ctx).Gettext("Filters") }
+						</summary>
+						<p class="mb-4 flex gap-2">
+							<strong>{ L(ctx).Gettext("Filters") }</strong>
+							<a
+								href={ URL(ctx, "/docs/bookmark-list") + "#filters" }
+								class="link ml-auto"
+							>
+								@Icon("o-help")
+								{ " " }
+								{ L(ctx).Gettext("Documentation") }
+							</a>
+						</p>
+						{{
+							q := server.GetRequest(ctx).URL.Query()
+							q.Set("edit", "1")
+						}}
+						<form action={ URL(ctx, "?"+q.Encode()) } method="post">
+							@F.Errors(f)
+							@F.TextField(f.Get("name"),
+								F.Label(L(ctx).Gettext("Name")),
+								F.Required(true),
+							)
+							@FilterComponents{}.filters(f)
+							<input type="hidden" name="bf" value="1"/>
+							<div class="bookmark-filters--actions mt-4">
+								<button class="btn btn-primary">{ L(ctx).Gettext("Save") }</button>
+								<button
+									class="btn-outlined btn-danger"
+									formaction={ URL(ctx, "./delete") }
+									formmethod="post"
+								>
+									@Icon("o-trash")
+									{ " " }
+									{ L(ctx).Gettext("Delete collection") }
+								</button>
+							</div>
+						</form>
+					</details>
+					@Components{}.bookmarkList(bl)
+				</div>
+			</turbo-frame>
+		}
+	}
+}
+
+templ (c Components) collectionTitle(item *dataset.Collection) {
+	<h1 class="flex-grow title mb-0 text-h2 max-md:w-full">
+		<span class="font-normal">
+			<a class="link" href={ URL(ctx, "/bookmarks/collections") }>
+				{ L(ctx).Gettext("Collections") }
+			</a>
+			/
+		</span>
+		{ item.Name }
+	</h1>
 }
