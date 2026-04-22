@@ -448,4 +448,5 @@ type SharedEmail struct {
 	Title string
 	ID    string
 	Error error
+	Sent  bool
 }

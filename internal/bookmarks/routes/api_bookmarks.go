@@ -909,6 +909,7 @@ func (api *apiRouter) withShareEmail(next http.Handler) http.Handler {
 			if !info.Form.IsValid() {
 				w.WriteHeader(http.StatusUnprocessableEntity)
 			}
+			info.Sent = true
 		}
 
 		ctx := withSharedEmail(r.Context(), info)

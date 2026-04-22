@@ -330,12 +330,6 @@ func (h *viewsRouter) bookmarkShareLink(w http.ResponseWriter, r *http.Request) 
 
 func (h *viewsRouter) bookmarkShareEmail(w http.ResponseWriter, r *http.Request) {
 	info := getSharedEmail(r.Context())
-	tc := server.TC{
-		"Form":  info.Form,
-		"Title": info.Title,
-		"ID":    info.ID,
-		"Sent":  false,
-	}
 
 	// Get format from query string
 	if format := r.URL.Query().Get("format"); format != "" {
@@ -347,18 +341,20 @@ func (h *viewsRouter) bookmarkShareEmail(w http.ResponseWriter, r *http.Request)
 		info.Form.Get("email").Set(u.Settings.EmailSettings.EpubTo)
 	}
 
-	if r.Method == http.MethodPost {
-		tc["Sent"] = info.Error == nil && info.Form.IsValid()
-	}
-
 	if server.IsTurboRequest(r) {
-		server.RenderTurboStream(w, r,
-			"/bookmarks/components/share_email", "replace",
-			"bookmark-share-"+info.ID, tc, nil)
+		server.RenderTurboStreamComponent(w, r,
+			Components{}.shareByEmail(info), "replace",
+			"bookmark-share-"+info.ID, nil)
 		return
 	}
 
-	server.RenderTemplate(w, r, http.StatusOK, "bookmarks/bookmark_share_email", tc)
+	tr := server.Locale(r)
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
+		{tr.Gettext("Bookmarks"), urls.AbsoluteURL(r, "/bookmarks").String()},
+		{utils.ShortText(info.Title, 50), urls.AbsoluteURL(r, "/bookmarks", info.ID).String()},
+		{tr.Gettext("Share by email")},
+	})
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.shareByEmail(info))
 }
 
 func (h *viewsRouter) labelList(w http.ResponseWriter, r *http.Request) {

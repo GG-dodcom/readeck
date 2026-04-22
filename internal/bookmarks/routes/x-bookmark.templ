@@ -225,6 +225,13 @@ templ (v Views) shareByLink(link dataset.SharedLink) {
 	}
 }
 
+templ (v Views) shareByEmail(info dataset.SharedEmail) {
+	@SideMenuStdLayout(L(ctx).Gettext("Share by email"), v.menu()) {
+		<h1 class="title text-h2">{ L(ctx).Gettext("Share: %s", info.Title) }</h1>
+		@Components{}.shareByEmail(info)
+	}
+}
+
 templ (c Components) bookmarkUpdate(b *bookmarks.Bookmark, f *updateForm) {
 	<turbo-frame id={ "bookmark-update-" + b.UID }>
 		<form
@@ -297,7 +304,7 @@ templ (c Components) shareByLink(link dataset.SharedLink) {
 			</button>
 			if !turbo {
 				<a
-					class="sm:ml-auto btn btn-primary text-center"
+					class="sm:ml-auto btn btn-primary btn-outlined"
 					href={ URL(ctx, "/bookmarks", link.ID) }
 					data-controller="history"
 					data-action="history#back"
@@ -306,5 +313,63 @@ templ (c Components) shareByLink(link dataset.SharedLink) {
 				</a>
 			}
 		</div>
+	</turbo-frame>
+}
+
+templ (c Components) shareByEmail(info dataset.SharedEmail) {
+	{{ turbo := server.IsTurboRequest(server.GetRequest(ctx)) }}
+	<turbo-frame id={ "bookmark-share-" + info.ID }>
+		<form
+			id="share-email-form"
+			action={ URL(ctx, "/bookmarks", info.ID, "share/email") }
+			method="post"
+			if turbo {
+				data-controller="turbo-form"
+			}
+		>
+			if !info.Sent {
+				if turbo {
+					switch info.Form.Get("format").String() {
+						case "html":
+							<p class="mb-4">{ L(ctx).Gettext("Sends this bookmark's content in the message.") }</p>
+						case "epub":
+							<p class="mb-4">{ L(ctx).Gettext("Sends this bookmark as an attached EPUB file.") }</p>
+					}
+				}
+				@F.Errors(info.Form)
+				if turbo {
+					<input type="hidden" name="format" value={ info.Form.Get(`format`).String() }/>
+				} else {
+					@F.SelectField[string](info.Form.Get("format"),
+						F.Label(L(ctx).Gettext("Format")),
+						F.Required(true),
+						F.Classes("field-h"),
+					)
+				}
+				@F.TextField(info.Form.Get("email"),
+					F.Label(L(ctx).Gettext("Send To")),
+					F.InputType("email"),
+					F.Required(true),
+					F.Classes(templ.KV("field-h", !turbo)),
+				)
+			} else {
+				@Message(WithMessageType("success")) {
+					{ L(ctx).Gettext("The bookmark was sent to %s", info.Form.Get("email")) }
+				}
+			}
+			<div class={ templ.KV("btn-block max-sm:flex-col", !turbo) }>
+				if !info.Sent {
+					<button class="btn btn-primary" type="submit">{ L(ctx).Gettext("Send message") }</button>
+				}
+				if !turbo {
+					<a
+						class="sm:ml-auto max-sm:w-full text-center btn btn-primary btn-outlined"
+						href={ URL(ctx, "/bookmarks", info.ID) }
+					>
+						{ L(ctx).Gettext("Go back to the bookmark") }
+					</a>
+				}
+			</div>
+		</form>
 	</turbo-frame>
 }
