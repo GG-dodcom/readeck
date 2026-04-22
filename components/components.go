@@ -10,7 +10,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/adler32"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -78,6 +80,13 @@ func IsAnonymous(ctx context.Context) bool {
 // Strftime calls [strftime.Formatter.Strftime] with the user's locale.
 func Strftime(ctx context.Context, t time.Time, f string) string {
 	return strftime.New(L(ctx)).Strftime(f, t)
+}
+
+// Checksum returns the hexadecimal adler32 checksum of a string.
+func Checksum(text string) string {
+	h := adler32.New()
+	h.Write([]byte(text))
+	return strconv.FormatUint(uint64(h.Sum32()), 16)
 }
 
 // Preferences returns the user's preferences.

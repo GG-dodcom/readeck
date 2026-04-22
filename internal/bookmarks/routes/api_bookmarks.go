@@ -619,12 +619,13 @@ func (api *apiRouter) withBookmarkOrdering(next http.Handler) http.Handler {
 		f := newBookmarkOrderForm()
 		forms.BindURL(f, r)
 
+		ctx := withOrderForm(r.Context(), f)
 		order := f.toOrderedExpressions()
-		ctx := r.Context()
 		if order != nil {
 			ctx = withBookmarkOrder(ctx, order)
 		}
 
+		// FIXME: remove unnecessary stuff
 		// When we have a template context, we add the current order
 		// and ordering options
 		if c, ok := checkBaseContext(ctx); ok {

@@ -203,6 +203,7 @@ templ (f *selectField[T]) component() {
 			for _, c := range choices {
 				<option value={ S("%s", c.Value) } selected?={ f.Field.(forms.TypedField[T]).V() == c.Value }>{ c.Name }</option>
 			}
+			{ children... }
 		</select>
 	}
 }

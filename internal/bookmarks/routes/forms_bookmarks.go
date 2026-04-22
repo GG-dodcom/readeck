@@ -723,7 +723,7 @@ func (f *filterForm) IsActive() bool {
 	return false
 }
 
-func (f *filterForm) GetQueryString() string {
+func (f filterForm) getQueryParams() url.Values {
 	q := url.Values{}
 	for _, field := range f.Fields() {
 		if field.IsNil() {
@@ -739,7 +739,11 @@ func (f *filterForm) GetQueryString() string {
 		}
 	}
 
-	return q.Encode()
+	return q
+}
+
+func (f *filterForm) GetQueryString() string {
+	return f.getQueryParams().Encode()
 }
 
 // setMarked sets the IsMarked property.
@@ -847,12 +851,17 @@ func newBookmarkOrderForm() *bookmarkOrderForm {
 }
 
 func (f *bookmarkOrderForm) addToTemplateContext(r *http.Request, tr *locales.Locale, c server.TC) {
+	// FIXME: this can go at the end
 	if v := f.value(); len(v) > 0 {
 		c["CurrentOrder"] = v[0]
 	} else {
 		c["CurrentOrder"] = "-created"
 	}
 
+	c["OrderOptions"] = f.getOptions(r, tr)
+}
+
+func (f *bookmarkOrderForm) getOptions(r *http.Request, tr *locales.Locale) [][3]string {
 	qs := url.Values{}
 	for k, v := range r.URL.Query() {
 		if k == "sort" {
@@ -867,7 +876,7 @@ func (f *bookmarkOrderForm) addToTemplateContext(r *http.Request, tr *locales.Lo
 		return [3]string{name, r.URL.Path + "?" + qs.Encode(), label}
 	}
 
-	c["OrderOptions"] = [][3]string{
+	return [][3]string{
 		setOption("-created", tr.Pgettext("sort", "Added, most recent first")),
 		setOption("created", tr.Pgettext("sort", "Added, oldest first")),
 		setOption("-published", tr.Pgettext("sort", "Published, most recent first")),

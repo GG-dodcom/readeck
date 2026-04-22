@@ -5,7 +5,6 @@
 package routes
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -52,8 +51,6 @@ func (h *viewsRouter) withBaseContext(next http.Handler) http.Handler {
 
 func (h *viewsRouter) bookmarkList(w http.ResponseWriter, r *http.Request) {
 	f := newCreateForm(r)
-	tc := getBaseContext(r.Context())
-	tc["MaybeSearch"] = false
 
 	switch r.Method {
 	case http.MethodGet:
@@ -80,13 +77,6 @@ func (h *viewsRouter) bookmarkList(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-
-		// If the URL is not valid, set MaybeSearch so we can suggest it later
-		if len(f.Get("url").Errors()) > 0 && errors.Is(f.Get("url").Errors()[0], forms.ErrInvalidURL) {
-			// User entered a wrong URL, we can mark it.
-			tc["MaybeSearch"] = true
-		}
-
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
 
@@ -94,37 +84,31 @@ func (h *viewsRouter) bookmarkList(w http.ResponseWriter, r *http.Request) {
 	bl := getBookmarkList(r.Context())
 
 	tr := server.Locale(r)
-
-	tc["Form"] = f
-	tc["Pagination"] = bl.Pagination
-	tc["Bookmarks"] = bl.Items
-	tc["Filters"] = newContextFilterForm(r.Context(), tr)
 	title := tr.Gettext("All your Bookmarks")
+	filters := newContextFilterForm(r.Context(), tr)
 
-	if filters, ok := checkFilterForm(r.Context()); ok {
-		tc["Filters"] = filters
-		if filters.IsActive() {
-			title = tr.Gettext("Bookmark Search")
-		} else {
-			switch filters.title {
-			case filtersTitleUnread:
-				title = tr.Gettext("Unread Bookmarks")
-			case filtersTitleArchived:
-				title = tr.Gettext("Archived Bookmarks")
-			case filtersTitleFavorites:
-				title = tr.Gettext("Favorite Bookmarks")
-			case filtersTitleArticles:
-				title = tr.Gettext("Articles")
-			case filtersTitlePictures:
-				title = tr.Gettext("Pictures")
-			case filtersTitleVideos:
-				title = tr.Gettext("Videos")
-			}
+	if filters.IsActive() {
+		title = tr.Gettext("Bookmark Search")
+	} else {
+		switch filters.title {
+		case filtersTitleUnread:
+			title = tr.Gettext("Unread Bookmarks")
+		case filtersTitleArchived:
+			title = tr.Gettext("Archived Bookmarks")
+		case filtersTitleFavorites:
+			title = tr.Gettext("Favorite Bookmarks")
+		case filtersTitleArticles:
+			title = tr.Gettext("Articles")
+		case filtersTitlePictures:
+			title = tr.Gettext("Pictures")
+		case filtersTitleVideos:
+			title = tr.Gettext("Videos")
 		}
 	}
-	tc["PageTitle"] = title
 
-	server.RenderTemplate(w, r, 200, "/bookmarks/index", tc)
+	server.RenderComponent(w, r, http.StatusOK, Views{}.bookmarkList(
+		title, bl, f, filters,
+	))
 }
 
 func (h *viewsRouter) bookmarkInfo(w http.ResponseWriter, r *http.Request) {
@@ -136,9 +120,9 @@ func (h *viewsRouter) bookmarkInfo(w http.ResponseWriter, r *http.Request) {
 	item.Errors = b.Errors
 
 	if server.IsTurboRequest(r) {
-		server.RenderTurboStream(w, r,
-			"/bookmarks/components/card", "replace",
-			"bookmark-card-"+b.UID, item, nil)
+		server.RenderTurboStreamComponent(w, r,
+			Components{}.card(item),
+			"replace", "bookmark-card-"+b.UID, nil)
 		return
 	}
 
@@ -167,9 +151,9 @@ func (h *viewsRouter) bookmarkCard(w http.ResponseWriter, r *http.Request) {
 	b := getBookmark(r.Context())
 	item := dataset.NewBookmark(r.Context(), b)
 
-	server.RenderTurboStream(w, r,
-		"/bookmarks/components/card", "replace",
-		"bookmark-card-"+b.UID, item, nil)
+	server.RenderTurboStreamComponent(w, r,
+		Components{}.card(item),
+		"replace", "bookmark-card-"+b.UID, nil)
 }
 
 func (h *viewsRouter) diagnosis(w http.ResponseWriter, r *http.Request) {
@@ -283,9 +267,9 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 				server.RenderTurboStreamComponent(w, r,
 					SidebarComponent{}.actions(item),
 					"replace", "bookmark-actions-"+b.UID, nil)
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/card", "replace",
-					"bookmark-card-"+b.UID, item, nil)
+				server.RenderTurboStreamComponent(w, r,
+					Components{}.card(item),
+					"replace", "bookmark-card-"+b.UID, nil)
 			}
 			if withMarked || withArchived {
 				server.RenderTurboStreamComponent(w, r,

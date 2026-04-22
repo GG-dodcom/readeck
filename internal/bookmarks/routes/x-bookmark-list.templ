@@ -1,0 +1,622 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package routes
+
+import (
+	"errors"
+	"maps"
+	"net/url"
+
+	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+	"codeberg.org/readeck/readeck/internal/server"
+	"codeberg.org/readeck/readeck/internal/server/urls"
+	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/utils"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+templ (v Views) bookmarkListHead(f *filterForm) {
+	<link
+		rel="alternate"
+		href={ string(URL(ctx, "/api/bookmarks/feed")) + "?" + f.getQueryParams().Encode() }
+		type="application/atom+xml"
+		title="Atom Feed"
+	/>
+	<meta name="turbo-refresh-scroll" content="preserve"/>
+}
+
+templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createForm, filters *filterForm) {
+	{{
+		layout := NewLayout()
+		layout.Head = v.bookmarkListHead(filters)
+	}}
+	@layout.SideMenuLayout(title, v.menu(), layout.SideMenuWrapper()) {
+		<turbo-frame
+			id="bookmark-list"
+			data-controller="turbo-refresh"
+			data-turbo-refresh-interval-value="10"
+			data-turbo-refresh-on-value="[data-bookmark-deleted='true']"
+		>
+			@Components{}.createForm(f)
+			@Components{}.welcomeInfo(bl)
+			{{ counters, _ := checkCounters(ctx) }}
+			if counters.Total > 0 {
+				<div class="flex flex-wrap items-center gap-2 -mx-6 px-6 py-2">
+					<h1 class="flex-grow title mb-0 text-h2 max-md:w-full">{ title }</h1>
+					@Components{}.listActions() {
+						<form action={ URL(ctx) } method="get">
+							<input type="hidden" name="bf" value={ Tern(func() bool { return filters.IsActive() }, 0, 1) }/>
+							<button
+								type="submit"
+								class="btn-outlined py-1"
+								data-controller="remote"
+								data-action="remote#toggleDetails:prevent"
+								data-remote-selector-param="#filters"
+							>
+								@Icon("o-filter")
+								{ " " }
+								{ L(ctx).Gettext("Filters") }
+							</button>
+						</form>
+						{{
+							q := filters.getQueryParams()
+							if of, ok := checkOrderForm(ctx); ok {
+								q[of.fieldName] = of.value()
+							}
+						}}
+						@Components{}.exportMenu(q) {
+							if HasPermission(ctx, "bookmarks", "import") {
+								<li>
+									<a class="link" href={ URL(ctx, "/bookmarks/import") }>
+										@Icon("o-import")
+										{ " " }
+										{ L(ctx).Gettext("Import bookmarks") }
+									</a>
+								</li>
+							}
+						}
+					}
+				</div>
+			}
+			if filters.IsActive() {
+				<p class="mb-2">
+					if bl.Pagination.TotalCount == 0 {
+						@templ.Raw(L(ctx).Gettext("Your search query yielded <strong>no results</strong>."))
+					} else {
+						@templ.Raw(L(ctx).Ngettext(
+							"Your search query yielded <strong>%d result</strong>.",
+							"Your search query yielded <strong>%d results</strong>.",
+							bl.Pagination.TotalCount,
+							bl.Pagination.TotalCount,
+						))
+					}
+				</p>
+			}
+			<div class="bookmark-list-container">
+				<details
+					id="filters"
+					class="bookmark-filters"
+					open?={ filters.IsActive() }
+				>
+					<summary>
+						@Icon("o-filter")
+						{ " " }
+						{ L(ctx).Gettext("Filters") }
+					</summary>
+					<p class="mb-4 flex gap-2">
+						<strong>{ L(ctx).Gettext("Filters") }</strong>
+						<a
+							href={ URL(ctx, "/docs/bookmark-list") + "#filters" }
+							class="link ml-auto"
+						>
+							@Icon("o-help")
+							{ L(ctx).Gettext("Documentation") }
+						</a>
+					</p>
+					<form action={ URL(ctx, "/bookmarks") } method="get" aria-label={ L(ctx).Gettext("Bookmark filters") }>
+						@FilterComponents{}.filters(filters)
+						if of, ok := checkOrderForm(ctx); ok {
+							for _, x := range of.value() {
+								<input type="hidden" name={ of.fieldName } value={ x }/>
+							}
+						}
+						<input type="hidden" name="bf" value="1"/>
+						<div class="bookmark-filters--actions mt-4">
+							<button class="btn btn-primary">{ L(ctx).Pgettext("action", "Search") }</button>
+							if filters.IsActive() {
+								<a href={ URL(ctx, "?bf=1") } class="btn btn-default rounded text-center">
+									{ L(ctx).Gettext("Reset search") }
+								</a>
+								<a
+									href={ string(URL(ctx, "/bookmarks/collections/add")) + "?" + filters.getQueryParams().Encode() }
+									class="col-span-2 btn-outlined btn-primary font-semibold rounded text-center"
+								>
+									@Icon("o-plus")
+									{ L(ctx).Gettext("Create a collection") }
+								</a>
+							}
+						</div>
+					</form>
+				</details>
+				@Components{}.bookmarkList(bl)
+			</div>
+		</turbo-frame>
+	}
+}
+
+templ (c Components) createForm(f *createForm) {
+	<div
+		class="
+      group -mt-8 py-4 -mx-6 px-6 w-100 border-b border-gray-200 border-opacity-80
+      bg-gradient-to-r from-gray-100 to-app-bg
+      sm:pt-9
+      print:hidden
+    "
+	>
+		<div class="flex items-center mx-4 my-2 invisible group-hfw:visible">
+			<label for="create-url" class="text-sm font-semibold cursor-pointer">
+				{ L(ctx).Gettext("Save a new link") }
+			</label>
+		</div>
+		<form
+			action={ URL(ctx, "/bookmarks") }
+			method="post"
+			data-controller="turbo-form"
+			data-turbo-frame="_top"
+		>
+			<div class="flex p-1 form-input rounded-full border">
+				<input
+					type="text"
+					name="url"
+					id="create-url"
+					size="15"
+					class="leading-tight w-full rounded-full px-4 py-2 bg-gray-light focus-visible:bg-gray-light text-gray-dark ring-0 ring-offset-0"
+					value={ f.Get("url").String() }
+					placeholder="https://"
+				/>
+				<button type="submit" class="whitespace-nowrap btn btn-primary rounded-full pl-0.5 py-0 inline-flex gap-1 items-center leading-none">
+					@Icon("o-create", WithIconClass("text-yellow-400 dark:text-yellow-600"), WithIconSvgClass("h-8 w-8"))
+					<span>{ L(ctx).Pgettext("button", "Save link") }</span>
+				</button>
+			</div>
+			for _, err := range f.Errors() {
+				<p class="ml-4 text-red-700"><strong>{ err.Error() }</strong> </p>
+			}
+			{{ urlErrors := f.Get("url").Errors() }}
+			if len(urlErrors) > 0 && errors.Is(f.Get("url").Errors()[0], forms.ErrInvalidURL) {
+				// Maybe it was a search request?
+				{{
+					searchURL := urls.AbsoluteURLContext(ctx, "/bookmarks")
+					q := url.Values{"bf": {"1"}, "search": {f.Get("url").String()}}
+					searchURL.RawQuery = q.Encode()
+					searchHref := urls.PathOnly(searchURL)
+				}}
+				@Message() {
+					@templ.Raw(L(ctx).Gettext(
+						`"%[1]s" is not a valid address. Did you mean to search your bookmarks for %[2]s?`,
+						templ.EscapeString(f.Get("url").String()),
+						`<a data-turbo-frame="_top" href="`+searchHref+`" class="link font-bold">`+
+							templ.EscapeString(f.Get("url").String())+"</a>",
+					))
+				}
+			} else if len(urlErrors) > 0 {
+				@Message(WithMessageType("error")) {
+					<ul>
+						for _, err := range urlErrors {
+							<li>{ err.Error() }</li>
+						}
+					</ul>
+				}
+			}
+		</form>
+	</div>
+}
+
+templ (c Components) welcomeInfo(bl *dataset.BookmarkList) {
+	{{ counters, _ := checkCounters(ctx) }}
+	if counters.Total == 0 {
+		<div class="my-6 flex gap-4 max-w-std">
+			<div class="-mt-9">
+				@Icon("o-big-arrow",
+					WithIconClass("inline-block h-36 text-yellow-500"), WithIconSvgClass("h-36"),
+					WithIconSize(50, 250),
+				)
+			</div>
+			<div class="flex-grow-0">
+				<h1 class="title text-h3">{ L(ctx).Gettext("Welcome to Readeck!") }</h1>
+				<p class="text-xl mb-4 p-4 text-blue-800 bg-yellow-100 border border-blue-800 rounded">
+					@templ.Raw(L(ctx).Gettext(
+						"You don't have any bookmarks yet.<br> Copy a link in the field above and start saving.",
+					))
+				</p>
+				<p class="mb-8">
+					@templ.Raw(L(ctx).Gettext(
+						`Read more about bookmarks in the <a class="%s" href="%s">documentation</a>.`,
+						"link",
+						URL(ctx, "/docs"),
+					))
+				</p>
+				<div class="grid grid-cols-2 gap-4">
+					<div class="hidden chrome:flex firefox:flex flex-col">
+						<h3 class="title text-xl">
+							@Icon("o-extension", WithIconClass("text-green-600"), WithIconSvgClass("h-6 w-6"))
+							{ " " }
+							{ L(ctx).Gettext("Readeck Browser Extension") }
+						</h3>
+						<p class="mb-1 grow">
+							{ L(ctx).Gettext(`
+                With the Browser Extension, you can save pages, images and selections
+                directly from your browser!`,
+						  ) }
+						</p>
+						<p class="flex justify-start">
+							<a
+								class="btn btn-primary btn-outlined rounded-full py-2 px-4"
+								target="_blank"
+								href="https://readeck.org/en/extension"
+							>
+								{ L(ctx).Gettext("Learn more") }
+							</a>
+						</p>
+					</div>
+					if HasPermission(ctx, "bookmarks", "import") {
+						<div class="flex flex-col">
+							<h3 class="title text-xl">
+								@Icon("o-import", WithIconClass("text-yellow-600"), WithIconSvgClass("h-6 w-6"))
+								{ " " }
+								{ L(ctx).Gettext("Import existing bookmarks") }
+							</h3>
+							<p class="mb-4 grow">
+								{ L(ctx).Gettext(`
+                  Would you like to import from a similar tool or from a file with existing bookmarks?
+                  Try Readeck's import tool.
+                `) }
+							</p>
+							<p class="flex justify-start">
+								<a
+									class="btn btn-primary btn-outlined rounded-full py-2 px-4"
+									href={ URL(ctx, "/bookmarks/import") }
+								>
+									{ L(ctx).Gettext("Import links and articles") }
+								</a>
+							</p>
+						</div>
+					}
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ (c Components) listActions() {
+	{{ prefs := Preferences(ctx) }}
+	<div class="flex flex-nowrap items-center gap-2">
+		<div
+			class="btn-group"
+			data-controller="styler-option request"
+			data-styler-option-styler-outlet="[data-controller~='styler']"
+			data-request-url-value={ URL(ctx, "/profile/session") }
+			data-request-method-value="post"
+		>
+			{{
+				layouts := []struct {
+					value string
+					icon  string
+					class string
+					title string
+				}{
+					{"grid", "o-grid", "bookmark-list--grid", L(ctx).Gettext("Grid view")},
+					{"compact", "o-list", "bookmark-list--compact", L(ctx).Gettext("Compact view")},
+					{"mosaic", "o-mosaic", "bookmark-list--mosaic", L(ctx).Gettext("Mosaic view")},
+				}
+			}}
+			for _, x := range layouts {
+				<button
+					class="btn-outlined py-1 data-[current]:btn-primary"
+					title={ x.title }
+					type="button"
+					value={ x.value }
+					data-choice-value={ x.class }
+					data-styler-option-target="choices"
+					data-action="styler-option#setChoice"
+				>
+					@Icon(x.icon)
+				</button>
+			}
+			<input
+				type="hidden"
+				name="bookmark_list_display"
+				value={ prefs.BookmarkListLayout().Value }
+				data-styler-option-target="value"
+				data-action="styler-option:setValue->request#fetch"
+			/>
+		</div>
+		if orderForm, ok := checkOrderForm(ctx); ok {
+			{{
+				currentOrder := "-created"
+				if v := orderForm.value(); len(v) > 0 {
+					currentOrder = v[0]
+				}
+				orderOptions := orderForm.getOptions(server.GetRequest(ctx), L(ctx))
+				_, _ = currentOrder, orderOptions
+			}}
+			<div class="relative flex items-center">
+				<details
+					class="menu btn-group"
+					data-controller="menu"
+					data-menu-offset-value="right"
+				>
+					<summary
+						class="btn-outlined py-1"
+						role="button"
+						title={ L(ctx).Gettext("Sort bookmarks") }
+					>
+						@Icon("o-sort")
+					</summary>
+					<ul class="top-8 right-0" role="menu" aria-label={ L(ctx).Gettext("Sort options") }>
+						for _, x := range orderOptions {
+							<li
+								role="menuitem"
+								if x[0] == currentOrder {
+									aria-current="page"
+								}
+							>
+								<a class="link" href={ x[1] }>{ x[2] } </a>
+							</li>
+						}
+					</ul>
+				</details>
+			</div>
+		}
+		{ children... }
+	</div>
+}
+
+templ (c Components) exportMenu(q url.Values) {
+	<div class="relative flex items-center">
+		<details
+			class="menu btn-group"
+			data-controller="menu"
+			data-menu-offset-value="right"
+		>
+			<summary
+				class="btn-outlined py-1"
+				role="button"
+				title={ L(ctx).Gettext("Import and export") }
+			>
+				@Icon("o-menu-dots")
+			</summary>
+			<ul class="top-8 right-0">
+				{ children... }
+				if HasPermission(ctx, "api:bookmarks", "export") {
+					<li>
+						<a class="link" href={ string(URL(ctx, "/api/bookmarks/export.epub")) + "?" + q.Encode() }>
+							@Icon("o-ebook")
+							{ " " }
+							{ L(ctx).Gettext("Download EPUB") }
+						</a>
+					</li>
+					{{
+						q2 := maps.Clone(q)
+						if f, ok := checkOrderForm(ctx); ok {
+							delete(q2, f.fieldName)
+						}
+					}}
+					<li>
+						<a class="link" href={ string(URL(ctx, "/api/bookmarks/feed")) + "?" + q2.Encode() }>
+							@Icon("o-feed")
+							{ " " }
+							{ L(ctx).Gettext("Atom Feed") }
+						</a>
+					</li>
+				}
+			</ul>
+		</details>
+	</div>
+}
+
+templ (c Components) bookmarkList(bl *dataset.BookmarkList) {
+	<div class="bookmark-list">
+		@Pagination(&bl.Pagination)
+		<div
+			class={ "my-4", Preferences(ctx).BookmarkListLayout().Class }
+			data-controller="styler"
+		>
+			for _, b := range bl.Items {
+				@c.card(b)
+			}
+		</div>
+		@Pagination(&bl.Pagination)
+	</div>
+}
+
+templ (c Components) card(b *dataset.Bookmark) {
+	{{ bURL := URL(ctx, "/bookmarks", b.ID) }}
+	<turbo-frame
+		id={ "bookmark-card-" + b.ID }
+		if !b.Loaded && !b.IsDeleted {
+			data-controller="turbo-refresh"
+			data-turbo-refresh-interval-value="2"
+			data-turbo-refresh-on-value="[data-loading]"
+			data-turbo-refresh-src-value={ URL(ctx, "/bookmarks", b.ID, "card") }
+		}
+		if b.IsDeleted {
+			data-bookmark-deleted="true"
+		}
+	>
+		<div class="bookmark-card" data-deleted={ b.IsDeleted } data-loading={ !b.Loaded }>
+			if !b.Loaded {
+				<div class="bookmark-card--img">
+					@c.cardImage(string(URL(ctx, "/assets/rnd", Checksum(b.URL)))+".svg", 256, 144)
+				</div>
+				<div class="bookmark-card--spinner">
+					@Spinner()
+					<p>{ L(ctx).Pgettext("bookmark", "Loading") }</p>
+				</div>
+			} else {
+				switch b.DocumentType {
+					case "photo":
+						@Icon("o-photo")
+					case "video":
+						@Icon("o-video")
+				}
+				<span class="bookmark-card--img">
+					if img, ok := b.Resources["thumbnail"]; ok {
+						@c.cardImage(img.Src, img.Width, img.Height)
+					} else {
+						@c.cardImage(string(URL(ctx, "/assets/rnd", Checksum(b.URL)))+".svg", 256, 144)
+					}
+				</span>
+				if b.ReadProgress > 0 {
+					<div class="bookmark-card--progress">
+						@c.progressCircle(b.ReadProgress)
+					</div>
+				}
+				<div class="bookmark-card--ico">
+					if img, ok := b.Resources["icon"]; ok {
+						@c.cardImage(img.Src, img.Width, img.Height)
+					} else {
+						@Icon("o-circle", WithIconClass("svgicon text-gray-600"))
+					}
+				</div>
+				<div class="bookmark-card--title">
+					<h3>
+						<a
+							dir={ Tern(func() bool { return b.TextDirection != "" }, b.TextDirection, "ltr") }
+							href={ bURL }
+							data-turbo-frame="_top"
+						>
+							{ utils.ShortText(Tern(func() bool { return b.Title != ""}, b.Title, "untitled"), 90) }
+						</a>
+					</h3>
+				</div>
+				<div class="bookmark-card--meta">
+					<strong
+						title={ b.SiteName }
+						dir={ Tern(func() bool { return b.TextDirection != "" }, b.TextDirection, "ltr") }
+					>
+						{ utils.ShortText(b.SiteName, 50) }
+					</strong>
+					if b.ReadingTime > 0 {
+						<span>{ " " }•&nbsp;{ L(ctx).Npgettext("abbr", "%d min", "%d min", b.ReadingTime, b.ReadingTime) }</span>
+					}
+				</div>
+				if len(b.Labels) > 0 {
+					<div class="bookmark-card--labels">
+						<ul>
+							for _, x := range b.Labels {
+								<li><a href={ labelLink(ctx, x) }>{ x }</a></li>
+							}
+						</ul>
+					</div>
+				}
+			}
+			if b.IsDeleted {
+				<div class="bookmark-card--deleted">
+					<span>
+						{ L(ctx).Gettext("This bookmark will be removed in a few seconds.") }
+					</span>
+					<form action={ bURL + "/update" } method="post">
+						<input type="hidden" name="cancel" value="1"/>
+						<input type="hidden" name="_to" value={ CurrentPath(ctx) }/>
+						<button
+							type="submit"
+							name="is_deleted"
+							value="0"
+							data-controller="turbo-form"
+						>
+							@Icon("o-undo")
+							{ " " }
+							{ L(ctx).Gettext("Cancel") }
+						</button>
+					</form>
+				</div>
+			} else {
+				{{
+					textArch := Tern(func() bool { return b.IsArchived }, L(ctx).Gettext("Remove from archive"), L(ctx).Gettext("Move to archive"))
+					textFav := Tern(func() bool { return b.IsMarked }, L(ctx).Gettext("Remove from favorites"), L(ctx).Gettext("Add to favorites"))
+				}}
+				<div class="bookmark-card--actions">
+					<form
+						action={ bURL + "/update" }
+						method="post"
+						data-controller="turbo-form turbo-reload"
+					>
+						<input type="hidden" name="_to" value={ CurrentPath(ctx) }/>
+						if b.Loaded {
+							<button
+								name="is_marked"
+								value={ Tern(func() bool { return b.IsMarked }, 0, 1) }
+								title={ textFav }
+							>
+								@Icon(Tern(func() bool { return b.IsMarked }, "o-favorite-on", "o-favorite-off"))
+							</button>
+							<button
+								name="is_archived"
+								value={ Tern(func() bool { return b.IsArchived }, 0, 1) }
+								title={ textArch }
+							>
+								@Icon(Tern(func() bool { return b.IsArchived }, "o-archive-on", "o-archive-off"))
+							</button>
+						}
+						<a href={ b.URL } target="_blank" title={ L(ctx).Gettext("Go to original page") }>
+							@Icon("o-link-ext")
+						</a>
+					</form>
+					<form action={ bURL + "/update" } method="post">
+						<input type="hidden" name="_to" value={ CurrentPath(ctx) }/>
+						<button
+							name="is_deleted"
+							value="1"
+							data-controller="turbo-form"
+							title={ L(ctx).Gettext("Delete this bookmark") }
+						>
+							@Icon("o-trash")
+						</button>
+					</form>
+				</div>
+			}
+		</div>
+	</turbo-frame>
+}
+
+templ (c Components) cardImage(src string, w, h int) {
+	<img loading="lazy" alt="" src={ src } width={ w } height={ h }/>
+}
+
+templ (c Components) progressCircle(value int) {
+	{{
+		r := float64(65)
+		c := 2 * 3.1416 * r
+		o := c * (100 - float64(value)) / 100
+	}}
+	<svg
+		xmlns="http://www.w3.org/2000/svg"
+		version="1.1"
+		width="16"
+		height="16"
+		viewBox="0 0 200 200"
+		class={ templ.KV("progress-completed", value == 100) }
+	>
+		<circle r="100" cx="100" cy="100" stroke-width="0"></circle>
+		if value < 100 {
+			<g transform="rotate(-90, 100, 100)">
+				<circle
+					r={ r }
+					cx="100"
+					cy="100"
+					fill="transparent"
+					stroke-width="22"
+					stroke-linecap="round"
+					stroke-dashoffset={ S("%fpx", o) }
+					stroke-dasharray={ S("%fpx", c) }
+				></circle>
+			</g>
+		} else {
+			<path d="M63,95 l35,30 l42,-50" fill="transparent" stroke-width="24" stroke-linecap="round"></path>
+		}
+	</svg>
+}

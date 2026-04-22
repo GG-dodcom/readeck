@@ -21,6 +21,25 @@ templ (v Views) menu() {
 		{ L(ctx).Gettext("Bookmarks") }
 	}
 	{{ counters, hasCounters := checkCounters(ctx) }}
+	<form class="mt-2 ml-0.5 mr-1 flex" action={ URL(ctx, "/bookmarks") } method="get">
+		<input type="hidden" name="bf" value="1"/>
+		<div class="flex p-1 form-input rounded-full w-full">
+			<input
+				title={ L(ctx).Gettext("search in bookmarks") }
+				size="14"
+				type="text"
+				name="search"
+				placeholder={ L(ctx).Gettext("Search") }
+				class="leading-tight w-full rounded-full px-4 py-2 bg-gray-light focus-visible:bg-gray-light text-gray-dark ring-0 ring-offset-0"
+			/>
+			<button
+				title="search"
+				class="btn btn-primary rounded-full w-[2.8rem]"
+			>
+				@Icon("o-search")
+			</button>
+		</div>
+	</form>
 	<turbo-frame id="bookmarks-sidemenu">
 		<menu class="my-4">
 			@v.sideMenuItem(L(ctx).Gettext("All"), "o-library",
@@ -28,7 +47,7 @@ templ (v Views) menu() {
 			@v.sideMenuItem(L(ctx).Gettext("Unread"), "o-check-off",
 				"/bookmarks/unread", PathIs(ctx, "/bookmarks/unread"), counters.Unread)
 			@v.sideMenuItem(L(ctx).Gettext("Archive"), "o-archive-off",
-				"/bookmarks/archive", PathIs(ctx, "/bookmarks/archive"), counters.Archived)
+				"/bookmarks/archives", PathIs(ctx, "/bookmarks/archives"), counters.Archived)
 			@v.sideMenuItem(L(ctx).Gettext("Favorites"), "o-favorite-off",
 				"/bookmarks/favorites", PathIs(ctx, "/bookmarks/favorites"), counters.Marked)
 		</menu>

@@ -37,6 +37,7 @@ type (
 	ctxFiltersKey            struct{}
 	ctxLabelKey              struct{}
 	ctxLabelListKey          struct{}
+	ctxOrderFormKey          struct{}
 	ctxSharedEmailKey        struct{}
 	ctxSharedLinkKey         struct{}
 )
@@ -54,6 +55,7 @@ var (
 	withFilterForm, checkFilterForm                   = ctxr.WithChecker[*filterForm](ctxFiltersKey{})
 	withLabel, getLabel                               = ctxr.WithGetter[string](ctxLabelKey{})
 	withLabelList, getLabelList                       = ctxr.WithGetter[dataset.LabelList](ctxLabelListKey{})
+	withOrderForm, checkOrderForm                     = ctxr.WithChecker[*bookmarkOrderForm](ctxOrderFormKey{})
 	withSharedEmail, getSharedEmail                   = ctxr.WithGetter[dataset.SharedEmail](ctxSharedEmailKey{})
 	withSharedLink, getSharedLink                     = ctxr.WithGetter[dataset.SharedLink](ctxSharedLinkKey{})
 )
