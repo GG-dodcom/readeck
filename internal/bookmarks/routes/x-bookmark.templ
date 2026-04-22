@@ -15,6 +15,7 @@ import (
 
 	. "codeberg.org/readeck/readeck/components"
 	F "codeberg.org/readeck/readeck/components/forms"
+	"codeberg.org/readeck/readeck/internal/server"
 )
 
 templ (v Views) bookmarkRefreshHead() {
@@ -217,6 +218,13 @@ templ (v Views) bookmarkUpdate(b *bookmarks.Bookmark, f *updateForm) {
 	}
 }
 
+templ (v Views) shareByLink(link dataset.SharedLink) {
+	@SideMenuStdLayout(L(ctx).Gettext("Share link"), v.menu()) {
+		<h1 class="title text-h2">{ L(ctx).Gettext("Share: %s", link.Title) }</h1>
+		@Components{}.shareByLink(link)
+	}
+}
+
 templ (c Components) bookmarkUpdate(b *bookmarks.Bookmark, f *updateForm) {
 	<turbo-frame id={ "bookmark-update-" + b.UID }>
 		<form
@@ -261,5 +269,42 @@ templ (c Components) bookmarkUpdate(b *bookmarks.Bookmark, f *updateForm) {
 				F.Classes("field-h"),
 			)
 		</form>
+	</turbo-frame>
+}
+
+templ (c Components) shareByLink(link dataset.SharedLink) {
+	{{ turbo := server.IsTurboRequest(server.GetRequest(ctx)) }}
+	<turbo-frame id={ "bookmark-share-" + link.ID }>
+		<p>{ L(ctx).Gettext("You can share the following link with your friends.") }</p>
+		<p class="mb-2">
+			{ L(ctx).Gettext("It expires on %s", Strftime(ctx, link.Expires, "%a %e %b %Y %H:%M %Z")) }
+		</p>
+		<p class="mb-2">
+			<a class="link break-all" href={ link.URL } data-turbo="false">{ link.URL }</a>
+		</p>
+		<p class="mb-2">
+			<img src={ QRCodeB64(link.URL, ColorPrimary, -3) } alt="" class="rounded bg-white p-2"/>
+		</p>
+		<div
+			class={ templ.KV("btn-block", !turbo) }
+			data-controller="clipboard"
+		>
+			<input class="hidden" type="text" value={ link.URL } data-clipboard-target="content"/>
+			<button class="btn btn-default rounded" type="button" data-action="clipboard#copy">
+				@Icon("o-copy", WithIconAttrs(templ.Attributes{"data-clipboard-target": "icon"}))
+				{ " " }
+				{ L(ctx).Gettext("Copy the link") }
+			</button>
+			if !turbo {
+				<a
+					class="sm:ml-auto btn btn-primary text-center"
+					href={ URL(ctx, "/bookmarks", link.ID) }
+					data-controller="history"
+					data-action="history#back"
+				>
+					{ L(ctx).Gettext("Go back to the bookmark") }
+				</a>
+			}
+		</div>
 	</turbo-frame>
 }
