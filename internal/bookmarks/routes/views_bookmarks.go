@@ -300,7 +300,6 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// server.RenderTemplate(w, r, status, "bookmarks/bookmark_update", tc)
 	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
 		{tr.Gettext("Bookmarks"), urls.AbsoluteURL(r, "/bookmarks").String()},
 		{utils.ShortText(b.Title, 50), urls.AbsoluteURL(r, "/bookmarks", b.UID).String()},
@@ -399,13 +398,10 @@ func (h *viewsRouter) labelInfo(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
 
-	tc := getBaseContext(r.Context())
-	tc["Label"] = label
-	tc["Pagination"] = bl.Pagination
-	tc["Bookmarks"] = bl.Items
-	tc["IsDeleted"] = tasks.DeleteLabelTask.IsRunning(fmt.Sprintf("%d@%s", auth.GetRequestUser(r).ID, label))
-
-	server.RenderTemplate(w, r, 200, "/bookmarks/label", tc)
+	isDeleted := tasks.DeleteLabelTask.IsRunning(fmt.Sprintf("%d@%s", auth.GetRequestUser(r).ID, label))
+	server.RenderComponent(w, r, http.StatusOK, Views{}.labelInfo(
+		label, bl, isDeleted,
+	))
 }
 
 func (h *viewsRouter) labelDelete(w http.ResponseWriter, r *http.Request) {
