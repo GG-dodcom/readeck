@@ -1,0 +1,45 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package converter
+
+import (
+	"io"
+	"strings"
+
+	"codeberg.org/readeck/readeck/internal/bookmarks"
+	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+type atomViews struct{}
+
+templ (v atomViews) bookmark(b *dataset.Bookmark, resources bookmarks.BookmarkFiles, html io.Reader) {
+	<ul>
+		<li>
+			<strong>{ Tern(func() bool {return b.SiteName != "" }, b.SiteName, L(ctx).Gettext("no site name")) }</strong>
+		</li>
+		if b.Published != nil {
+			<li>{ L(ctx).Gettext("Published on %s", Strftime(ctx, *b.Published, "%e %B %Y")) }</li>
+		}
+		if len(b.Authors) > 0 {
+			<li>{ L(ctx).Gettext("By %s", strings.Join(b.Authors, ", ")) }</li>
+		}
+		<li><a href={ b.URL }>{ b.Domain }</a></li>
+		if b.ReadingTime > 0 {
+			<li>{ L(ctx).Ngettext("About %d minute read", "About %d minutes read", b.ReadingTime, b.ReadingTime) }</li>
+		}
+	</ul>
+	if img, ok := resources["image"]; ok && ( b.DocumentType == "photo" || b.DocumentType == "video") {
+		<div>
+			<img src={ img.Name } alt="" width={ img.Size[0] } height={ img.Size[1] }/>
+		</div>
+	}
+	if _, ok := b.Files["article"]; ok {
+		<main class="content">
+			@HTML(html)
+		</main>
+	}
+}
