@@ -13,6 +13,10 @@ import (
 
 type Views struct{}
 
+func SigninLayout(title string) templ.Component {
+	return Views{}.base(title)
+}
+
 templ (_ Views) base(title string) {
 	@BasePage(title) {
 		<h1 class="max-w-sm mt-12 mx-auto px-8">

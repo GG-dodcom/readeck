@@ -10,7 +10,6 @@ package oauth2
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -100,11 +99,6 @@ func (h *authorizeViewRouter) authorizeHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	tc := server.TC{
-		"Client": client,
-		"Redir":  fmt.Sprintf("%s://%s", redir.Scheme, redir.Hostname()),
-	}
-
 	availableScopes := f.Get("scope").(interface {
 		Choices() forms.ValueChoices[string]
 	}).Choices()
@@ -115,7 +109,6 @@ func (h *authorizeViewRouter) authorizeHandler(w http.ResponseWriter, r *http.Re
 			scopes = append(scopes, x.Name)
 		}
 	}
-	tc["Scopes"] = scopes
 
 	// Remove form-action CSP directive
 	policy := server.GetCSPHeader(r)
@@ -152,7 +145,7 @@ func (h *authorizeViewRouter) authorizeHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	server.RenderTemplate(w, r, http.StatusOK, "auth/oauth/auth-code", tc)
+	server.RenderComponent(w, r, http.StatusOK, Views{}.authCode(client, scopes))
 }
 
 // authorizationCodeHandler is the api route that receives the authorization code

@@ -1,0 +1,149 @@
+// SPDX-FileCopyrightText: © 2025 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package oauth2
+
+import (
+	"codeberg.org/readeck/readeck/internal/auth/signin"
+	"codeberg.org/readeck/readeck/internal/server"
+	"codeberg.org/readeck/readeck/pkg/forms"
+
+	. "codeberg.org/readeck/readeck/components"
+	F "codeberg.org/readeck/readeck/components/forms"
+)
+
+type Views struct{}
+
+templ (v Views) authCode(client *oauthClient, scopes []string) {
+	@signin.SigninLayout(L(ctx).Gettext("Authorization required")) {
+		@v.form(client, scopes)
+	}
+}
+
+templ (v Views) deviceCode(
+	step deviceCodeStep, f forms.Binder,
+	client *oauthClient, req *deviceAuthorizationRequest, scopes []string,
+) {
+	@signin.SigninLayout(L(ctx).Gettext("Authorization required")) {
+		switch step {
+			case stepInvalid:
+				<h2 class="font-semibold">{ L(ctx).Gettext("Error") }</h2>
+				<p>{ L(ctx).Gettext("This code has expired or is not valid") }</p>
+				@v.backBtn()
+			case stepCode:
+				<h2 class="text-h3 mb-8 text-center">{ L(ctx).Gettext("Connect a device") }</h2>
+				<form class="" action={ URL(ctx) } method="post">
+					@F.TextField(f.Get("user_code"),
+						F.Label(L(ctx).Gettext("Enter the code displayed on your device")),
+						F.Classes("max"),
+						F.InputClasses("form-input w-full text-center text-lg font-bold"),
+						F.InputAttr("autocapitalize", "off"),
+					)
+					<button class="btn btn-primary block mt-6 w-full rounded-md" type="submit">
+						{ L(ctx).Gettext("Next") }
+					</button>
+				</form>
+			case stepPending:
+				@v.form(client, scopes) {
+					<input type="hidden" name="user_code" value={ f.Get("user_code").String() }/>
+				}
+			case stepDenied:
+				<h2 class="text-h3 mb-8 text-center">{ L(ctx).Gettext("Connect a device") }</h2>
+				<p>
+					{ L(ctx).Gettext("Authorization request was denied.") }
+					{ " " }
+					{ L(ctx).Gettext(" You can now close this page.") }
+				</p>
+				@v.backBtn()
+			case stepGranted:
+				<h2 class="text-h3 mb-8 text-center">{ L(ctx).Gettext("Connect a device") }</h2>
+				if req.TokenID < 0 {
+					<p>{ L(ctx).Gettext("Authorization granted. Connecting device...") }</p>
+					<p class="mt-4 text-center text-3xl">
+						<span class="text-3xl">
+							@Spinner()
+						</span>
+					</p>
+					<p class="prose mt-8 text-sm">
+						@templ.Raw(L(ctx).Gettext(
+							`<a href="%s">Reload this page</a> if it doesn't refresh after a few seconds.`,
+							templ.EscapeString(URL(ctx)),
+						))
+					</p>
+				} else {
+					<p>
+						{ L(ctx).Gettext("Device is connected!") }
+						{ " " }
+						{ L(ctx).Gettext(" You can now close this page.") }
+					</p>
+					@v.backBtn()
+				}
+		}
+	}
+}
+
+templ (v Views) backBtn() {
+	<p class="mt-6">
+		<a class="btn btn-primary block w-full rounded-md text-center" href={ URL(ctx, "/") }>
+			{ L(ctx).Gettext("Go back to Readeck") }
+		</a>
+	</p>
+}
+
+templ (v Views) form(client *oauthClient, scopes []string) {
+	{{ user := server.GetUser(ctx) }}
+	<p class="mb-8 text-green-700 text-center">
+		@templ.Raw(L(ctx).Gettext(
+			"Signed in as: <strong>%s</strong>",
+			templ.EscapeString(user.Username),
+		))
+	</p>
+	<h2 class="text-h3 mb-8 text-center">{ L(ctx).Gettext("Authorization required") }</h2>
+	<div class="flex gap-4 items-center mb-4">
+		if client.Logo != "" {
+			<img class="max-h-12 max-w-12" src={ client.Logo } alt=""/>
+		}
+		<p class="grow">
+			@templ.Raw(L(ctx).Gettext(`
+          <strong>%s</strong> would like permission to access your account.
+          Only approve this request if you recognize and trust this source.
+        `, templ.EscapeString(client.Name)))
+		</p>
+	</div>
+	<h3 class="title text-lg mb-2">{ L(ctx).Gettext("Review permissions") }</h3>
+	<ul class="mb-4">
+		for _, x := range scopes {
+			<li class="mb-2">
+				@Icon("o-check-on", WithIconClass("svgicon text-green-700"))
+				{ " " }
+				{ x }
+			</li>
+		}
+	</ul>
+	<h3 class="title text-lg mb-2">{ L(ctx).Gettext("Application information") }</h3>
+	<ul>
+		<li>{ L(ctx).Gettext("Name") }: <strong>{ client.Name }</strong></li>
+		<li>{ L(ctx).Gettext("Website") }: <a class="link" href={ client.URI } target="_blank">{ client.URI }</a></li>
+		<li>{ L(ctx).Gettext("Version") }: <strong>{ client.SoftwareVersion }</strong></li>
+	</ul>
+	<form class="flex gap-2" action={ URL(ctx) } method="post">
+		<button
+			class="btn btn-primary block mt-6 w-full rounded-md"
+			type="submit"
+			name="granted"
+			value="1"
+		>
+			{ L(ctx).Gettext("Authorize") }
+		</button>
+		<button
+			class="btn btn-danger block mt-6 w-full rounded-md"
+			type="submit"
+			name="granted"
+			value="0"
+		>
+			{ L(ctx).Gettext("Deny") }
+		</button>
+		{ children... }
+	</form>
+}

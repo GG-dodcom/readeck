@@ -55,6 +55,16 @@ func newDeviceViewRouter() *deviceViewRouter {
 	return router
 }
 
+type deviceCodeStep uint8
+
+const (
+	stepCode deviceCodeStep = iota
+	stepPending
+	stepGranted
+	stepDenied
+	stepInvalid
+)
+
 type userCode string
 
 type deviceAuthorizationResponse struct {
@@ -158,39 +168,36 @@ func (h *deviceViewRouter) authorizeHandler(w http.ResponseWriter, r *http.Reque
 		forms.Bind(f, r)
 	}
 
-	tc := server.TC{
-		"Form": f,
-		"Step": "code",
-	}
+	var err error
 	status := http.StatusOK
+	scopes := []string{}
+	step := stepCode
+	var client *oauthClient
+	var req *deviceAuthorizationRequest
 
 	if f.Get("user_code").String() != "" {
 		code := userCode(f.Get("user_code").String())
-		req, err := loadDeviceAuthorizationRequest(code)
+		req, err = loadDeviceAuthorizationRequest(code)
 		if err != nil {
-			tc["Error"] = err
 			status = http.StatusBadRequest
+			step = stepInvalid
 			goto RENDER
 		}
 
-		tc["Request"] = req
-
 		switch req.Status {
 		case codeRequestPending:
-			client, err := loadClient(req.ClientID, grantTypeDeviceCode)
+			client, err = loadClient(req.ClientID, grantTypeDeviceCode)
 			if err != nil {
 				server.Err(w, r, err)
 				return
 			}
 
-			tc["Step"] = "pending"
-			tc["Client"] = client
+			step = stepPending
 
 			availableScopes := users.GroupList(server.Locale(r), "@oauth_scope", auth.GetRequestUser(r))
-			tc["Scopes"] = []string{}
 			for _, x := range availableScopes {
 				if slices.Contains(req.Scopes, x[0]) {
-					tc["Scopes"] = append(tc["Scopes"].([]string), x[1])
+					scopes = append(scopes, x[1])
 				}
 			}
 
@@ -219,23 +226,25 @@ func (h *deviceViewRouter) authorizeHandler(w http.ResponseWriter, r *http.Reque
 			}
 			goto RENDER
 		case codeRequestGranted:
-			tc["Step"] = "granted"
+			step = stepGranted
 			if req.TokenID < 0 {
 				// Refresh the page until the token is created
 				w.Header().Set("Refresh", "6")
 			}
 			goto RENDER
 		case codeRequestDenied:
-			tc["Step"] = "denied"
+			step = stepDenied
 			goto RENDER
 		default:
 			status = http.StatusBadRequest
-			tc["Error"] = "This code has expired or is not valid"
+			step = stepInvalid
 		}
 	}
 
 RENDER:
-	server.RenderTemplate(w, r, status, "auth/oauth/device-code", tc)
+	server.RenderComponent(w, r, status, Views{}.deviceCode(
+		step, f, client, req, scopes,
+	))
 }
 
 // deviceHandler is the handler that creates a new device code and
