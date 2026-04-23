@@ -1,0 +1,30 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package components
+
+import "net/http"
+
+templ DefaultError(status int) {
+	@BasePage(L(ctx).Gettext("Error")) {
+		@QuickAccessMenu([][2]string{
+			{"menu", L(ctx).Gettext("Menu")},
+			{"content", L(ctx).Gettext("Main content")},
+		})
+		<div class="layout">
+			@defaultLayout.Menu(templ.NopComponent)
+			<div class="layout-content" id="content">
+				<h1 class="text-h1 title">{ L(ctx).Gettext("Error") }</h1>
+				switch status {
+					case http.StatusForbidden:
+						<p>{ L(ctx).Gettext("Permission denied.") }</p>
+					case http.StatusNotFound:
+						<p>{ L(ctx).Gettext("Page not found.") }</p>
+					default:
+						<p>{ L(ctx).Gettext("An error occurred.") }</p>
+				}
+			</div>
+		</div>
+	}
+}

@@ -27,6 +27,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
+	"codeberg.org/readeck/readeck/components"
 	"codeberg.org/readeck/readeck/configs"
 	"codeberg.org/readeck/readeck/internal/admin"
 	"codeberg.org/readeck/readeck/internal/assets"
@@ -282,6 +283,8 @@ func runServer(_ context.Context, args []string) error { // nolint:gocognit,gocy
 
 // InitServer setups all the routes.
 func InitServer(s *server.Server) error {
+	server.DefaultErrorComponent = components.DefaultError
+
 	// Init session store
 	if err := server.InitSession(); err != nil {
 		return err

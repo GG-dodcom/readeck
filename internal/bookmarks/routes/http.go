@@ -185,7 +185,7 @@ func newViewsRouter(api *apiRouter) *viewsRouter {
 			).Get("/{filter:(unread|archives|favorites|articles|videos|pictures)}", h.bookmarkList)
 
 			r.With(
-				server.WithCustomErrorTemplate(404, "/bookmarks/bookmark_missing"),
+				server.WithCustomErrorComponent(404, Views{}.bookmarkMissing),
 				api.withBookmark,
 			).Route("/{uid:[a-zA-Z0-9]{18,22}}", func(r chi.Router) {
 				r.Get("/", h.bookmarkInfo)

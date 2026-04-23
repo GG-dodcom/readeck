@@ -23,6 +23,15 @@ templ (v Views) bookmarkRefreshHead() {
 	<noscript><meta http-equiv="refresh" content="5"/></noscript>
 }
 
+templ (v Views) bookmarkMissing(_ int) {
+	{{ title := L(ctx).Gettext("Bookmark not found") }}
+	@SideMenuStdLayout(L(ctx).Gettext("Edit bookmark"), v.menu()) {
+		<turbo-frame id="bookmark-info">
+			<h1 class="m-4 title text-h2">{ title }</h1>
+		</turbo-frame>
+	}
+}
+
 templ (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) {
 	{{
 		layout := NewLayout()
