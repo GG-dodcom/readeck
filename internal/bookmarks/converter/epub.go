@@ -22,7 +22,6 @@ import (
 	"codeberg.org/readeck/readeck/assets"
 	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
-	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
 	"codeberg.org/readeck/readeck/pkg/ctxr"
 	"codeberg.org/readeck/readeck/pkg/epub"
@@ -162,7 +161,7 @@ func (m *epubMaker) addStylesheet() error {
 }
 
 // addBookmark adds a bookmark, with all its resources, to the epub file.
-func (m *epubMaker) addBookmark(ctx context.Context, r *http.Request, e EPUBExporter, b *dataset.Bookmark) (err error) {
+func (m *epubMaker) addBookmark(ctx context.Context, _ *http.Request, e EPUBExporter, b *dataset.Bookmark) (err error) {
 	var c *bookmarks.BookmarkContainer
 	if c, err = b.OpenContainer(); err != nil {
 		return
@@ -243,18 +242,8 @@ func (m *epubMaker) addBookmark(ctx context.Context, r *http.Request, e EPUBExpo
 	if err != nil {
 		return err
 	}
-	tpl, err := server.GetTemplate("epub/bookmark.jet.html")
+	err = epubViews{}.bookmark(b, resources, notes, html).Render(ctx, buf)
 	if err != nil {
-		return err
-	}
-	tc := map[string]any{
-		"HTML":      html,
-		"Item":      b,
-		"ItemURL":   urls.AbsoluteURL(r, "/bookmarks", b.UID).String(),
-		"Resources": resources,
-		"Notes":     notes,
-	}
-	if err := tpl.Execute(buf, server.TemplateVars(r), tc); err != nil {
 		return err
 	}
 
