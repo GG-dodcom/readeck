@@ -6,6 +6,7 @@ package routes
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -430,95 +431,83 @@ func (h *viewsRouter) annotationList(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-func (h *publicViewsRouter) withBookmark(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		data := chi.URLParam(r, "id")
-		id, expires, err := bookmarks.DecodeID(data)
-		if err != nil {
-			server.Log(r).Warn("shared bookmark", slog.Any("err", err))
-			server.Status(w, r, 404)
-			return
-		}
-
-		expired := expires.Before(time.Now().UTC())
-		status := http.StatusOK
-		ct := server.TC{
-			"Expired": expired,
-		}
-
-		if !expired {
-			var bu struct {
-				User     *users.User         `db:"u"`
-				Bookmark *bookmarks.Bookmark `db:"b"`
-			}
-			ds := bookmarks.Bookmarks.
-				Query().
-				Join(goqu.T(db.TableUser).As("u"), goqu.On(goqu.I("u.id").Eq(goqu.I("b.user_id")))).
-				Where(
-					goqu.I("b.id").Eq(id),
-					goqu.I("b.state").Eq(bookmarks.StateLoaded),
-				)
-			found, err := ds.ScanStruct(&bu)
-
-			if !found || err != nil {
-				status = http.StatusNotFound
-			} else {
-				// Don't show the notes on a shared, public, page.
-				ctx := dataset.WithAnnotationTag(r.Context(),
-					dataset.AnnotationTag,
-					dataset.AnnotationCallback(false),
-				)
-
-				item := dataset.NewBookmark(ctx, bu.Bookmark)
-				if err := item.SetEmbed(); err != nil {
-					server.Err(w, r, err)
-					return
-				}
-				ct["Username"] = bu.User.Username
-				ct["Item"] = item
-
-				w.Header().Add("readeck-original", item.URL)
-				server.NewLink(item.URL).WithRel("original").Write(w)
-				server.NewLink(item.URL).WithRel("cite-as").Write(w)
-				server.WriteLastModified(w, r, bu.Bookmark)
-				server.WriteEtag(w, r, bu.Bookmark)
-			}
-		} else {
-			status = http.StatusGone
-		}
-
-		ct["Status"] = status
-
-		ctx := withBaseContext(r.Context(), ct)
-		server.WithCaching(next).ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 func (h *publicViewsRouter) get(w http.ResponseWriter, r *http.Request) {
-	tc := getBaseContext(r.Context())
-	status := tc["Status"].(int)
+	// This uses custom error handlers so we can fail with [server.Status]
+	// when we need to.
+	// Status codes can be 404 or 410 (when expired).
 
-	if status == http.StatusOK {
-		item := tc["Item"].(*dataset.Bookmark)
-		article, err := item.GetArticle()
-		if err != nil {
-			server.Err(w, r, err)
-			return
-		}
+	data := chi.URLParam(r, "id")
+	id, expires, err := bookmarks.DecodeID(data)
+	if err != nil {
+		server.Log(r).Warn("shared bookmark", slog.Any("err", err))
+		server.Status(w, r, 404)
+		return
+	}
 
-		tc["HTML"] = article
+	var item *dataset.Bookmark
+	var user *users.User
+	expired := expires.Before(time.Now().UTC())
+	if expired {
+		server.Status(w, r, http.StatusGone)
+		return
+	}
+
+	var bu struct {
+		User     *users.User         `db:"u"`
+		Bookmark *bookmarks.Bookmark `db:"b"`
+	}
+	ds := bookmarks.Bookmarks.
+		Query().
+		Join(goqu.T(db.TableUser).As("u"), goqu.On(goqu.I("u.id").Eq(goqu.I("b.user_id")))).
+		Where(
+			goqu.I("b.id").Eq(id),
+			goqu.I("b.state").Eq(bookmarks.StateLoaded),
+		)
+	found, err := ds.ScanStruct(&bu)
+
+	if !found || err != nil {
+		server.Status(w, r, http.StatusNotFound)
+		return
+	}
+
+	// Don't show the notes on a shared, public, page.
+	ctx := dataset.WithAnnotationTag(r.Context(),
+		dataset.AnnotationTag,
+		dataset.AnnotationCallback(false),
+	)
+
+	item = dataset.NewBookmark(ctx, bu.Bookmark)
+	if err := item.SetEmbed(); err != nil {
+		server.Err(w, r, err)
+		return
+	}
+	user = bu.User
+
+	w.Header().Add("readeck-original", item.URL)
+	server.NewLink(item.URL).WithRel("original").Write(w)
+	server.NewLink(item.URL).WithRel("cite-as").Write(w)
+	server.WriteLastModified(w, r, bu.Bookmark)
+	server.WriteEtag(w, r, bu.Bookmark)
+
+	server.WithCaching(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var html io.Reader
 
 		// Harden CSP
 		policy := server.GetCSPHeader(r).Clone()
 		policy.Set("connect-src", csp.None)
 		policy.Set("form-action", csp.None)
 
+		if html, err = item.GetArticle(); err != nil {
+			server.Err(w, r, err)
+			return
+		}
+
 		// Relax CSP for video playback
 		if item.Type == "video" && item.EmbedHostname != "" {
 			policy.Add("frame-src", item.EmbedHostname)
 		}
-		policy.Write(w.Header())
-	}
 
-	server.RenderTemplate(w, r, status, "bookmarks/bookmark_public", tc)
+		policy.Write(w.Header())
+		server.RenderComponent(w, r, http.StatusOK, PublicViews{}.bookmark(user, item, html))
+	})).ServeHTTP(w, r)
 }

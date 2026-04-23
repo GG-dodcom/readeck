@@ -286,8 +286,13 @@ func newViewsRouter(api *apiRouter) *viewsRouter {
 func newSharedViewsRouter(api *apiRouter) *publicViewsRouter {
 	r := chi.NewRouter()
 	h := &publicViewsRouter{r, api}
+	r.Use(
+		server.WithCustomErrorComponent(http.StatusNotFound, PublicViews{}.error),
+		server.WithCustomErrorComponent(http.StatusGone, PublicViews{}.error),
+		server.WithCustomErrorComponent(http.StatusInternalServerError, PublicViews{}.error),
+	)
 
-	r.With(h.withBookmark).Get("/{id:[a-zA-Z0-9_-]+}", h.get)
+	r.Get("/{id:[a-zA-Z0-9_-]+}", h.get)
 	return h
 }
 
