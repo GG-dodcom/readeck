@@ -58,7 +58,7 @@ func serverFeedXsl(w http.ResponseWriter, r *http.Request) {
 	server.WriteEtag(w, r, nil)
 	w.Header().Set("Content-Type", "application/xml")
 	if !server.HandleCaching(w, r) {
-		server.RenderTemplate(w, r, http.StatusOK, "xsl/feed.jet.xsl", nil)
+		server.RenderComponent(w, r, http.StatusOK, feedXSLT{}.component())
 	}
 }
 

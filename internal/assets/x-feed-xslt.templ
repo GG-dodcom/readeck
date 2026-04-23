@@ -1,0 +1,112 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package assets
+
+import . "codeberg.org/readeck/readeck/components"
+
+type feedXSLT struct{}
+
+templ (v feedXSLT) component() {
+	@templ.Raw(`<?xml version="1.0" encoding="utf-8"?>` + "\n")
+	<xsl:stylesheet
+		version="1.0"
+		xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+		xmlns:atom="http://www.w3.org/2005/Atom"
+		exclude-result-prefixes="atom"
+	>
+		<xsl:output method="html" version="1.0" encoding="UTF-8" indent="yes"></xsl:output>
+		<xsl:template match="/">
+			<html xmlns="http://www.w3.org/1999/xhtml">
+				<head>
+					<title>Feed - <xsl:value-of select="atom:feed/atom:title"></xsl:value-of></title>
+					@templ.Raw(`<meta http-equiv="X-UA-Compatible" content="IE=edge"/>`)
+					@templ.Raw(`<meta name="viewport" content="width=device-width, initial-scale=1.0"/>`)
+					@templ.Raw(S(
+						`<link rel="icon" href="%s" sizes="48x48"/>`,
+						templ.EscapeString(Asset(ctx, "img/fi/favicon.ico")),
+					))
+					@templ.Raw(S(
+						`<link rel="stylesheet" href="%s"/>`,
+						templ.EscapeString(Asset(ctx, "bundle.css")),
+					))
+				</head>
+				<body class="font-sans leading-tight tracking-normal max-w-col-14 mt-0 mb-12 mx-auto">
+					<section>
+						<div class="my-8 p-4 rounded bg-yellow-200">
+							<p>
+								<strong>This is a web feed</strong>, also known as an Atom feed.
+								<strong>Subscribe</strong> by following the instructions below.
+							</p>
+						</div>
+					</section>
+					<section class="mb-8">
+						<xsl:apply-templates select="atom:feed"></xsl:apply-templates>
+					</section>
+					<section class="border-t pt-4">
+						<h2 class="title text-h3">Feed's Items</h2>
+						<xsl:apply-templates select="atom:feed/atom:entry"></xsl:apply-templates>
+					</section>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="atom:feed">
+			<h1 class="flex items-center gap-2 title text-h2">
+				@templ.Raw(`<img alt="" class="inline h-6 w-6 mb-0">`)
+				<xsl:attribute name="src">
+					<xsl:value-of select="atom:icon"></xsl:value-of>
+				</xsl:attribute>
+				@templ.Raw(`</img>`)
+				<xsl:attribute name="src">
+					<xsl:value-of select="atom:icon"></xsl:value-of>
+				</xsl:attribute>
+				<span><xsl:value-of select="atom:title"></xsl:value-of> • Web Feed Preview</span>
+			</h1>
+			<p class="mb-2">This feed provides the latest entries from <xsl:value-of select="atom:title"></xsl:value-of>.</p>
+			<p class="mb-2">Subscribe to this feed by copying the URL below:</p>
+			<p class="mb-4">
+				<code>
+					<a class="link text-sm font-semibold">
+						<xsl:attribute name="href">
+							<xsl:value-of select="atom:link[@rel='self']/@href"></xsl:value-of>
+						</xsl:attribute>
+						<xsl:value-of select="atom:link[@rel='self']/@href"></xsl:value-of>
+					</a>
+				</code>
+			</p>
+			<p class="my-4 p-4 rounded bg-red-100">
+				<strong>Access to this feed is restricted.</strong>
+				@templ.Raw("<br/> ")
+				You must provide your newsreader app a username and an <a class="link" href={ URL(ctx, "/profile/tokens") }>API Token</a> to load this feed.
+			</p>
+			<p class="text-center">
+				<a class="btn btn-outlined btn-primary">
+					<xsl:attribute name="href">
+						<xsl:value-of select="atom:link[@rel='alternate']/@href"></xsl:value-of>
+					</xsl:attribute>
+					@Icon("o-chevron-l", WithIconClass("inline-block"), WithIconSvgClass())
+					Go back
+				</a>
+			</p>
+		</xsl:template>
+		<xsl:template match="atom:entry">
+			<div class="mb-4">
+				<h3 class="mb-1.5 text-lg font-semibold leading-none">
+					<a class="link">
+						<xsl:attribute name="href">
+							<xsl:value-of select="atom:link[@rel='alternate']/@href"></xsl:value-of>
+						</xsl:attribute>
+						<xsl:value-of select="atom:title"></xsl:value-of>
+					</a>
+				</h3>
+				<p>
+					<xsl:value-of select="atom:summary" disable-output-escaping="yes"></xsl:value-of>
+				</p>
+				<small>
+					Published: <xsl:value-of select="atom:updated"></xsl:value-of>
+				</small>
+			</div>
+		</xsl:template>
+	</xsl:stylesheet>
+}
