@@ -1,0 +1,343 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package importer
+
+import (
+	"codeberg.org/readeck/readeck/pkg/forms"
+
+	. "codeberg.org/readeck/readeck/components"
+	F "codeberg.org/readeck/readeck/components/forms"
+)
+
+type formViews struct{}
+
+templ (_ formViews) form(f forms.Binder) {
+	<form action={ URL(ctx) } method="post" enctype="multipart/form-data">
+		@F.Errors(f)
+		{ children... }
+		<p class="btn-block">
+			<button class="btn btn-primary" type="submit">{ L(ctx).Gettext("Import Bookmarks") }</button>
+			<a class="ml-auto btn btn-default rounded" href={ URL(ctx, "/bookmarks/import") }>
+				{ L(ctx).Gettext("Cancel") }
+			</a>
+		</p>
+	</form>
+}
+
+templ (v formViews) fileForm(f forms.Binder) {
+	@v.form(f) {
+		@F.FiledDropField(f.Get("data"),
+			F.Label(L(ctx).Gettext("File")),
+			F.Required(true),
+			F.Classes("field-h"),
+		)
+		@v.options(f)
+		{ children... }
+	}
+}
+
+templ (v formViews) options(f forms.Binder) {
+	<h2>{ L(ctx).Gettext("Options") }</h2>
+	@F.TextField(f.Get("label"),
+		F.Label(L(ctx).Gettext("Label")),
+		F.Classes("field-h"),
+		F.Help(L(ctx).Gettext("A label to add to all imported bookmarks")),
+	)
+	@F.CheckboxField(f.Get("ignore_duplicates"),
+		F.Label(L(ctx).Gettext("Ignore links already in your bookmarks")),
+		F.Classes("field-h"),
+	)
+	@F.CheckboxField(f.Get("archive"),
+		F.Label(L(ctx).Gettext("Archive all links")),
+		F.Classes("field-h"),
+		F.Help(L(ctx).Gettext("Moves all links to archive, regardless of their original status")),
+	)
+	@F.CheckboxField(f.Get("mark_read"),
+		F.Label(L(ctx).Gettext("Mark all links as read")),
+		F.Classes("field-h"),
+		F.Help(L(ctx).Gettext("Marks all links as read, regardless of their original status")),
+	)
+}
+
+templ (_ *browserAdapter) Component(f forms.Binder) {
+	<h1 class="title text-h2">{ L(ctx).Gettext("Import your Browser's Bookmarks") }</h1>
+	<div class="prose mb-8">
+		<p>
+			@templ.Raw(L(ctx).Gettext(`
+					In your web browser, export your bookmarks as an HTML file.<br>
+					Upload this file in the form below and Readeck will create and fetch
+					every bookmark found it the file.
+				`))
+		</p>
+		<ul>
+			<li>
+				<a href="https://support.mozilla.org/en-US/kb/export-firefox-bookmarks-to-backup-or-transfer">
+					{ L(ctx).Gettext("Instructions for Firefox") }
+				</a>
+			</li>
+			<li>
+				<a href="https://support.google.com/chrome/answer/96816?hl=en">
+					{ L(ctx).Gettext("Instructions for Chrome") }
+				</a>
+			</li>
+		</ul>
+	</div>
+	@formViews{}.fileForm(f) {
+		@F.CheckboxField(f.Get("labels_from_titles"),
+			F.Label(L(ctx).Gettext("Convert section titles to labels")),
+			F.Classes("field-h"),
+			F.Help(L(ctx).Gettext("Adds a label on links, based on their section title")),
+		)
+	}
+}
+
+templ (_ *csvAdapter) Component(f forms.Binder) {
+	<h1 class="title text-h2">{ L(ctx).Gettext("Import Links from a CSV File") }</h1>
+	<div class="prose mb-8">
+		<p>
+			{ L(ctx).Gettext(
+				"Upload a CSV file from Instapaper or any CSV that matches the format specified below.",
+			) }
+		</p>
+	</div>
+	@formViews{}.fileForm(f)
+	<h2 class="mt-8 title text-h3">{ L(ctx).Gettext("CSV Format") }</h2>
+	<div class="prose mb-8">
+		<p>
+			@templ.Raw(L(ctx).Gettext(`
+				The uploaded file must contain a first row with the column names. Column names are case
+    		insensitive and, except for <code>%s</code>, every column is optional.
+			`, "url"))
+		</p>
+		<p>{ L(ctx).Gettext("Here are the columns you can set:") }</p>
+		<table>
+			<thead>
+				<tr>
+					<th>{ L(ctx).Gettext("Field") }</th>
+					<th>{ L(ctx).Gettext("Alias") }</th>
+					<th>{ L(ctx).Gettext("Description") }</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td><code>url</code> (<strong>{ L(ctx).Gettext("Required") }</strong>)</td>
+					<td></td>
+					<td>{ L(ctx).Gettext("Link address") }</td>
+				</tr>
+				<tr>
+					<td><code>title</code></td>
+					<td></td>
+					<td>{ L(ctx).Gettext("Bookmark title") }</td>
+				</tr>
+				<tr>
+					<td><code>state</code></td>
+					<td><code>folder</code></td>
+					<td>{ L(ctx).Gettext(`Bookmark's archived state; only valid value is "%s"`, "archive") }</td>
+				</tr>
+				<tr>
+					<td><code>created</code></td>
+					<td><code>timestamp</code></td>
+					<td>{ L(ctx).Gettext("Creation date, can be a UNIX timestamp or an RFC-3339 formatted date") }</td>
+				</tr>
+				<tr>
+					<td><code>labels</code></td>
+					<td><code>tags</code></td>
+					<td>{ L(ctx).Gettext("A JSON encoded list of labels") }</td>
+				</tr>
+			</tbody>
+		</table>
+		<h4>{ L(ctx).Gettext("Example") }</h4>
+		<pre>
+			{ "url,title,state,created,labels\n" +
+			 `https://www.the-reframe.com/all-in-the-same-boat/,"All In The Same Boat",,2025-01-12T10:45:56,"[""label 1"",""label 2""]"` }
+		</pre>
+	</div>
+}
+
+templ (_ *goodlinksAdapter) Component(f forms.Binder) {
+	<h1 class="title text-h2">{ L(ctx).Gettext("Import Links from a GoodLinks export file") }</h1>
+	<div class="prose mb-8">
+		<p>
+			{ L(ctx).Gettext(
+				"Upload a JSON file obtained from your GoodLinks app.",
+			) }
+		</p>
+	</div>
+	@formViews{}.fileForm(f)
+}
+
+templ (_ *pinboardAdapter) Component(f forms.Binder) {
+	<h1 class="title text-h2">{ L(ctx).Gettext("Import Links from a Pinboard JSON backup file") }</h1>
+	<div class="prose mb-8">
+		<p>
+			{ L(ctx).Gettext(
+				"Upload a JSON file obtained from your Pinboard account.",
+			) }
+		</p>
+	</div>
+	@formViews{}.fileForm(f)
+}
+
+templ (_ *linkwardenAdapter) Component(f forms.Binder) {
+	<h1 class="title text-h2">{ L(ctx).Gettext("Import Bookmarks from a Linkwarden export file") }</h1>
+	<div class="prose mb-8">
+		<p>
+			{ L(ctx).Gettext(
+				"Upload a JSON file obtained from your Linkwarden app.",
+			) }
+		</p>
+	</div>
+	@formViews{}.fileForm(f)
+}
+
+templ (_ *omnivoreAPIAdapter) Component(f forms.Binder) {
+	<h1 class="title text-h2">{ L(ctx).Gettext("Import your Omnivore Articles") }</h1>
+	<div class="prose mb-8">
+		<p>
+			{ L(ctx).Gettext(`
+				To import your articles from Omnivore, you must first create an API Key in your
+    		Omnivore's settings and enter it in the the form below.
+			`) }
+		</p>
+	</div>
+	@formViews{}.form(f) {
+		@F.TextField(f.Get("url"),
+			F.Label(L(ctx).Gettext("Omnivore URL")),
+			F.Required(true),
+			F.Classes("field-h"),
+			F.Help(L(ctx).Gettext("URL of your Omnivore homepage")),
+		)
+		@F.TextField(f.Get("token"),
+			F.Label(L(ctx).Gettext("API Key")),
+			F.Required(true),
+			F.Classes("field-h"),
+		)
+		@formViews{}.options(f)
+	}
+}
+
+templ (_ *pocketFileAdapter) Component(f forms.Binder) {
+	<h1 class="title text-h2">{ L(ctx).Gettext("Import your Pocket Articles") }</h1>
+	<div class="prose mb-8">
+		<p>
+			@templ.Raw(L(ctx).Gettext(`
+				You can export your articles on Pocket by visiting:<br>
+    		<a class="%[1]s" href="%[2]s">%[2]s</a>.
+			`,
+				"link", "https://getpocket.com/export"))
+		</p>
+		<p>
+			{ L(ctx).Gettext(`
+			Upload this file in the form below and Readeck will fetch and save
+    	every link found it the file.
+		`) }
+		</p>
+		@Message() {
+			{ L(ctx).Gettext(`
+				Please note that Pocket does not allow the article content to be exported.
+				This could lead to different results in Readeck than what you currently
+				see in Pocket.
+			`) }
+		}
+	</div>
+	@formViews{}.form(f) {
+		@F.FiledDropField(f.Get("data"),
+			F.Label(L(ctx).Gettext("File")),
+			F.Required(true),
+			F.Classes("field-h"),
+			F.Help(L(ctx).Gettext("Note: upload the ZIP file directly, not its contents")),
+		)
+		@formViews{}.options(f)
+		{ children... }
+	}
+}
+
+templ (_ *readwiseAdapter) Component(f forms.Binder) {
+	<h1 class="title text-h2">{ L(ctx).Gettext("Import Links from Readwise Reader CSV export") }</h1>
+	<div class="prose mb-8">
+		<p>
+			{ L(ctx).Gettext(
+				"Upload a CSV file exported from your Readwise Reader account below.",
+			) }
+		</p>
+	</div>
+	@formViews{}.fileForm(f)
+	<h2 class="mt-8 title text-h3">{ L(ctx).Gettext("Which information is imported") }</h2>
+	<div class="prose">
+		<ul>
+			<li>{ L(ctx).Gettext("Article title, URL, and when it was first saved,") }</li>
+			<li>{ L(ctx).Gettext("The archived state of an article,") }</li>
+			<li>{ L(ctx).Gettext(`"%s" as Readeck labels,`, "Document tags") }</li>
+			<li>{ L(ctx).Gettext(`When a document tag contains "%s", the bookmark will be added to Readeck Favorites.`, "favorite") }</li>
+		</ul>
+		<p>{ L(ctx).Gettext("What is not imported:") }</p>
+		<ul>
+			<li>{ L(ctx).Gettext("Article reading progress and seen status,") }</li>
+			<li>{ L(ctx).Gettext("Articles forwarded to Readwise Reader by email,") }</li>
+			<li>{ L(ctx).Gettext("Uploaded documents such as PDFs or EPUB.") }</li>
+		</ul>
+	</div>
+}
+
+templ (_ *textAdapter) Component(f forms.Binder) {
+	<h1 class="title text-h2">{ L(ctx).Gettext("Import Links from a Text File") }</h1>
+	<div class="prose mb-8">
+		<p>
+			{ L(ctx).Gettext(`
+				Upload a text file that contains one link per line and Readeck will fetch
+    		all of them and save them in your bookmark list.
+			`) }
+		</p>
+	</div>
+	@formViews{}.fileForm(f)
+}
+
+templ (_ *wallabagAdapter) Component(f forms.Binder) {
+	<h1 class="title text-h2">{ L(ctx).Gettext("Import your Wallabag Articles") }</h1>
+	<div class="prose mb-8">
+		<p>
+			@templ.Raw(L(ctx).Gettext(`
+				To import your articles from Wallabag, you must first create an API client
+				in Wallabag's <strong>API clients management</strong> menu. This will give you
+				a <strong>Client ID</strong> and <strong>Client secret</strong>.
+			`))
+		</p>
+		<p>
+			{ L(ctx).Gettext(
+				"You can then enter all the necessary information in the form below.",
+			) }
+		</p>
+	</div>
+	@formViews{}.form(f) {
+		@F.TextField(f.Get("url"),
+			F.Label(L(ctx).Gettext("Wallabag URL")),
+			F.Required(true),
+			F.Classes("field-h"),
+			F.Help(L(ctx).Gettext("URL of your Wallabag homepage")),
+		)
+		@F.TextField(f.Get("username"),
+			F.Label(L(ctx).Gettext("Username")),
+			F.Required(true),
+			F.Classes("field-h"),
+		)
+		@F.PasswordField(f.Get("password"),
+			F.Label(L(ctx).Gettext("Password")),
+			F.Required(true),
+			F.Classes("field-h"),
+			F.InputAttr("autocomplete", "off"),
+		)
+		@F.TextField(f.Get("client_id"),
+			F.Label(L(ctx).Gettext("Client ID")),
+			F.Required(true),
+			F.Classes("field-h"),
+		)
+		@F.TextField(f.Get("client_secret"),
+			F.Label(L(ctx).Gettext("Client Secret")),
+			F.Required(true),
+			F.Classes("field-h"),
+		)
+		@formViews{}.options(f)
+	}
+}

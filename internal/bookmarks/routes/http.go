@@ -273,7 +273,7 @@ func newViewsRouter(api *apiRouter) *viewsRouter {
 		r.With(server.WithPermission("bookmarks", "import")).Group(func(r chi.Router) {
 			r.With(h.withBaseContext).Group(func(r chi.Router) {
 				r.Get("/", h.bookmarksImportMain)
-				r.Get("/{trackID:[a-zA-Z0-9]{18,22}}", h.bookmarksImportMain)
+				r.Get("/{trackID:[a-zA-Z0-9]{18,22}}", h.bookmarksImportStatus)
 				r.Get("/{source}", h.bookmarksImport)
 				r.Post("/{source}", h.bookmarksImport)
 			})

@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"codeberg.org/readeck/readeck/components"
 	"codeberg.org/readeck/readeck/internal/auth"
 	"codeberg.org/readeck/readeck/internal/bookmarks/importer"
 	"codeberg.org/readeck/readeck/internal/server"
@@ -19,27 +20,30 @@ import (
 
 func (h *viewsRouter) bookmarksImportMain(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
+		{tr.Gettext("Bookmarks"), urls.AbsoluteURL(r, "/bookmarks").String()},
+		{tr.Gettext("Import")},
+	})
+
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, importViews{}.main())
+}
+
+func (h *viewsRouter) bookmarksImportStatus(w http.ResponseWriter, r *http.Request) {
 	trackID := chi.URLParam(r, "trackID")
+	tr := server.Locale(r)
+	progress, _ := importer.NewImportProgress(trackID)
 
-	tc := getBaseContext(r.Context())
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
+		{tr.Gettext("Bookmarks"), urls.AbsoluteURL(r, "/bookmarks").String()},
+		{tr.Gettext("Import"), urls.AbsoluteURL(r, "/bookmarks/import").String()},
+		{tr.Gettext("Progress")},
+	})
 
-	if trackID != "" {
-		tc.SetBreadcrumbs([][2]string{
-			{tr.Gettext("Bookmarks"), urls.AbsoluteURL(r, "/bookmarks").String()},
-			{tr.Gettext("Import"), urls.AbsoluteURL(r, "/bookmarks/import").String()},
-			{tr.Gettext("Progress")},
-		})
-		tc["TrackID"] = trackID
-		tc["Running"] = importer.ImportBookmarksTask.IsRunning(trackID)
-		tc["Progress"], _ = importer.NewImportProgress(trackID)
-	} else {
-		tc.SetBreadcrumbs([][2]string{
-			{tr.Gettext("Bookmarks"), urls.AbsoluteURL(r, "/bookmarks").String()},
-			{tr.Gettext("Import")},
-		})
-	}
-
-	server.RenderTemplate(w, r, 200, "/bookmarks/import/index", tc)
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, importViews{}.status(
+		trackID,
+		importer.ImportBookmarksTask.IsRunning(trackID),
+		progress,
+	))
 }
 
 func (h *viewsRouter) bookmarksImport(w http.ResponseWriter, r *http.Request) {
@@ -61,10 +65,7 @@ func (h *viewsRouter) bookmarksImport(w http.ResponseWriter, r *http.Request) {
 		adapter,
 	)
 
-	templateName := "/bookmarks/import/form-" + source
-	tc := getBaseContext(r.Context())
-	tc["Form"] = f
-	tc.SetBreadcrumbs([][2]string{
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
 		{tr.Gettext("Bookmarks"), urls.AbsoluteURL(r, "/bookmarks").String()},
 		{tr.Gettext("Import"), urls.AbsoluteURL(r, "/bookmarks/import").String()},
 		{adapter.Name(tr)},
@@ -84,7 +85,11 @@ func (h *viewsRouter) bookmarksImport(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !f.IsValid() {
-			server.RenderTemplate(w, r, http.StatusUnprocessableEntity, templateName, tc)
+			server.RenderComponent(
+				w, r.WithContext(ctx),
+				http.StatusUnprocessableEntity,
+				importViews{}.form(adapter, f),
+			)
 			return
 		}
 
@@ -111,5 +116,5 @@ func (h *viewsRouter) bookmarksImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.RenderTemplate(w, r, 200, templateName, tc)
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, importViews{}.form(adapter, f))
 }

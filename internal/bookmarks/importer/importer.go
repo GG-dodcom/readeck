@@ -16,6 +16,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/doug-martin/goqu/v9"
 
 	"codeberg.org/readeck/readeck/internal/auth/users"
@@ -25,17 +26,18 @@ import (
 	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
+// Adapter identifiers.
 const (
-	importBrowser    = "browser"
-	importCSV        = "csv"
-	importGoodLinks  = "goodlinks"
-	importPinboard   = "pinboard"
-	importLinkwarden = "linkwarden"
-	importOmnivore   = "omnivore"
-	importPocketFile = "pocket-file"
-	importReadwise   = "readwise"
-	importText       = "text"
-	importWallabag   = "wallabag"
+	ImportBrowser    = "browser"
+	ImportCSV        = "csv"
+	ImportGoodLinks  = "goodlinks"
+	ImportPinboard   = "pinboard"
+	ImportLinkwarden = "linkwarden"
+	ImportOmnivore   = "omnivore"
+	ImportPocketFile = "pocket-file"
+	ImportReadwise   = "readwise"
+	ImportText       = "text"
+	ImportWallabag   = "wallabag"
 )
 
 var (
@@ -57,6 +59,7 @@ type ImportLoader interface {
 	Name(forms.Translator) string
 	Form() forms.Binder
 	Params(forms.Binder) ([]byte, error)
+	Component(forms.Binder) templ.Component
 }
 
 // ImportWorker describes an import worker.
@@ -134,25 +137,25 @@ func (b urlBookmarkItem) URL() string {
 // LoadAdapter returns an import loader based on a given name.
 func LoadAdapter(name string) ImportLoader {
 	switch name {
-	case importBrowser:
+	case ImportBrowser:
 		return &browserAdapter{}
-	case importCSV:
+	case ImportCSV:
 		return newCsvAdapter()
-	case importGoodLinks:
+	case ImportGoodLinks:
 		return newGoodlinksAdapter()
-	case importPinboard:
+	case ImportPinboard:
 		return newPinboardAdapter()
-	case importLinkwarden:
+	case ImportLinkwarden:
 		return newLinkwardenAdapter()
-	case importOmnivore:
+	case ImportOmnivore:
 		return &omnivoreAPIAdapter{}
-	case importPocketFile:
+	case ImportPocketFile:
 		return newPocketAdapter()
-	case importReadwise:
+	case ImportReadwise:
 		return newReadwiseAdapter()
-	case importText:
+	case ImportText:
 		return &textAdapter{}
-	case importWallabag:
+	case ImportWallabag:
 		return &wallabagAdapter{}
 	default:
 		return nil

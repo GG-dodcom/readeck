@@ -133,15 +133,3 @@ func HTML(r io.Reader) templ.Component {
 		return err
 	})
 }
-
-// JetTemplate renders a Jet template.
-// TODO: remove after migration.
-func JetTemplate(name string, tc any) templ.Component {
-	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		t, err := server.GetTemplate(name)
-		if err != nil {
-			return err
-		}
-		return t.Execute(w, server.TemplateVars(server.GetRequest(ctx)), tc)
-	})
-}

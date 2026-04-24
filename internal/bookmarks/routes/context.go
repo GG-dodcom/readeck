@@ -21,7 +21,7 @@ type (
 	ctxBaseContextKey struct{}
 )
 
-var withBaseContext, getBaseContext, checkBaseContext = ctxr.WithAll[server.TC](ctxBaseContextKey{})
+var withBaseContext, _, checkBaseContext = ctxr.WithAll[server.TC](ctxBaseContextKey{})
 
 // Bookmark context keys.
 type (
