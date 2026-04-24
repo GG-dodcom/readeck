@@ -15,14 +15,6 @@ import (
 
 // All route related context keys and functions must live here.
 
-// Base template context.
-// FIXME: remove after migration.
-type (
-	ctxBaseContextKey struct{}
-)
-
-var withBaseContext, _, checkBaseContext = ctxr.WithAll[server.TC](ctxBaseContextKey{})
-
 // Bookmark context keys.
 type (
 	ctxAnnotationListKey     struct{}

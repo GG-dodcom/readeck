@@ -493,7 +493,7 @@ function watch_css() {
     [
       "tailwind.config.js", //
       "ui/**/*",
-      "../assets/templates/**/*.jet.*",
+      "../**/*.templ",
     ],
     gulp.series(
       clean_css, //

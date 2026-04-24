@@ -40,12 +40,7 @@ func (h *viewsRouter) withBaseContext(next http.Handler) http.Handler {
 			return
 		}
 
-		c := server.TC{
-			"Count": count,
-		}
-
-		ctx := withBaseContext(r.Context(), c) // FIXME: remove
-		ctx = withCounters(ctx, count)
+		ctx := withCounters(r.Context(), count)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

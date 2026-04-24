@@ -1,10 +1,5 @@
 codeberg.org/readeck/go-readability/v2 v2.1.1 h1:1tEwxFuUqDRP5JABzDHXGWRx5p9S7TElS3U8qQwXC5Y=
 codeberg.org/readeck/go-readability/v2 v2.1.1/go.mod h1:x3WG9GpWWnkRb7ajP1NmOKSHbafxNUb736lrDZXeXrs=
-github.com/CloudyKit/fastprinter v0.0.0-20200109182630-33d98a066a53/go.mod h1:+3IMCy2vIlbG1XG/0ggNQv0SvxCAIpPM5b1nCz56Xno=
-github.com/CloudyKit/fastprinter v0.0.0-20251202014920-1725d2651bd4 h1:DQ1+lDdBve+u+aovjh4wV6sYnvZKH0Hx8GaQOi4vYl8=
-github.com/CloudyKit/fastprinter v0.0.0-20251202014920-1725d2651bd4/go.mod h1:eauGmjfZG874MOAEPVeqg21mZCbTOLW+tFe8F7NpfnY=
-github.com/CloudyKit/jet/v6 v6.3.2 h1:BPaX0lnXTZ9TniICiiK/0iJqzeGJ2ibvB4DjAqLMBSM=
-github.com/CloudyKit/jet/v6 v6.3.2/go.mod h1:lf8ksdNsxZt7/yH/3n4vJQWA9RUq4wpaHtArHhGVMOw=
 github.com/DATA-DOG/go-sqlmock v1.5.0 h1:Shsta01QNfFxHCfpW6YH2STWB0MudeXXEWMr20OEh60=
 github.com/DATA-DOG/go-sqlmock v1.5.0/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/JohannesKaufmann/dom v0.2.0 h1:1bragmEb19K8lHAqgFgqCpiPCFEZMTXzOIEjuxkUfLQ=

@@ -4,8 +4,8 @@ go 1.26.2
 
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.1
-	github.com/CloudyKit/jet/v6 v6.3.2
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.0
+	github.com/a-h/templ v0.3.1001
 	github.com/antchfx/htmlquery v1.3.6
 	github.com/antchfx/xmlquery v1.5.1
 	github.com/anthonynsimon/bild v0.15.0
@@ -54,10 +54,8 @@ require (
 )
 
 require (
-	github.com/CloudyKit/fastprinter v0.0.0-20251202014920-1725d2651bd4 // indirect
 	github.com/JohannesKaufmann/dom v0.2.0 // indirect
 	github.com/PuerkitoBio/goquery v1.12.0 // indirect
-	github.com/a-h/templ v0.3.1001 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/antchfx/xpath v1.3.6 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

@@ -6,12 +6,12 @@
 # Go Modules
 # -------------------------------------------------------------------
 [[licenses]]
-name = "jet"
-license = "Apache-2.0"
-author = "José Santos <henrique_1609@me.com>"
-url = "https://github.com/CloudyKit/jet"
+name = "templ"
+license = "MIT"
+author = "Adrian Hesketh"
+url = "https://github.com/a-h/templ"
 copyright = """
-Copyright 2016 José Santos <henrique_1609@me.com>
+Copyright (c) 2021 Adrian Hesketh
 """
 
 [[licenses]]

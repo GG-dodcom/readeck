@@ -849,17 +849,6 @@ func newBookmarkOrderForm() *bookmarkOrderForm {
 	}
 }
 
-func (f *bookmarkOrderForm) addToTemplateContext(r *http.Request, tr *locales.Locale, c server.TC) {
-	// FIXME: this can go at the end
-	if v := f.value(); len(v) > 0 {
-		c["CurrentOrder"] = v[0]
-	} else {
-		c["CurrentOrder"] = "-created"
-	}
-
-	c["OrderOptions"] = f.getOptions(r, tr)
-}
-
 func (f *bookmarkOrderForm) getOptions(r *http.Request, tr *locales.Locale) [][3]string {
 	qs := url.Values{}
 	for k, v := range r.URL.Query() {

@@ -210,11 +210,14 @@ func (_ Components) stylesheet() templ.ComponentFunc {
 	return func(ctx context.Context, w io.Writer) error {
 		fd, err := assets.StaticFilesFS().Open("email.css")
 		if err != nil {
+			// File is not present during tests and it's ok.
 			if errors.Is(err, os.ErrNotExist) {
 				return nil
 			}
 			return err
 		}
+		defer fd.Close()
+
 		if _, err = fmt.Fprint(w, "<style>\n"); err != nil {
 			return err
 		}
