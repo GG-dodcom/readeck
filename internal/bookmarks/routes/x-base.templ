@@ -20,7 +20,6 @@ templ (v Views) menu() {
 	@SideMenuTitle() {
 		{ L(ctx).Gettext("Bookmarks") }
 	}
-	{{ counters, hasCounters := checkCounters(ctx) }}
 	<form class="mt-2 ml-0.5 mr-1 flex" action={ URL(ctx, "/bookmarks") } method="get">
 		<input type="hidden" name="bf" value="1"/>
 		<div class="flex p-1 form-input rounded-full w-full">
@@ -40,6 +39,11 @@ templ (v Views) menu() {
 			</button>
 		</div>
 	</form>
+	@v.sideMenu()
+}
+
+templ (v Views) sideMenu() {
+	{{ counters, hasCounters := checkCounters(ctx) }}
 	<turbo-frame id="bookmarks-sidemenu">
 		<menu class="my-4">
 			@v.sideMenuItem(L(ctx).Gettext("All"), "o-library",

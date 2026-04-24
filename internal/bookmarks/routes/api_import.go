@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"codeberg.org/readeck/readeck/internal/auth"
+	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/bookmarks/importer"
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
@@ -100,6 +101,12 @@ func (api *apiRouter) bookmaksImportStatus(w http.ResponseWriter, r *http.Reques
 			progress,
 		),
 			"replace", "import-progress-"+trackID, nil)
+
+		if counters, err := bookmarks.Bookmarks.CountAll(auth.GetRequestUser(r)); err == nil {
+			ctx := withCounters(r.Context(), counters)
+			server.RenderTurboStreamComponent(w, r.WithContext(ctx), Views{}.sideMenu(),
+				"replace", "bookmarks-sidemenu", nil)
+		}
 		return
 	}
 
