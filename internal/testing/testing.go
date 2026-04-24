@@ -27,7 +27,6 @@ import (
 
 	"github.com/kinbiko/jsonassert"
 	"github.com/stretchr/testify/require"
-	"github.com/wneessen/go-mail"
 
 	"codeberg.org/readeck/readeck/configs"
 	"codeberg.org/readeck/readeck/internal/app"
@@ -335,8 +334,8 @@ func (ta *TestApp) Client(options ...ClientOption) *Client {
 	return c
 }
 
-// SendEmail implements email.sender interface and stores the last sent message.
-func (ta *TestApp) SendEmail(msg *mail.Msg) error {
+// SendEmail implements [email.sender] interface and stores the last sent message.
+func (ta *TestApp) SendEmail(msg *email.Message) error {
 	buf := new(bytes.Buffer)
 	msg.WriteTo(buf) // nolint:errcheck
 	ta.LastEmail = buf.String()

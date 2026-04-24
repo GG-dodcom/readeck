@@ -13,6 +13,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
@@ -174,36 +175,30 @@ func (h *authHandler) recover(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		mailTc := server.TC{
-			"SiteURL":   urls.AbsoluteURL(r, "/"),
-			"EmailAddr": f.Get("email").String(),
-		}
+		ctx := email.WithSiteURL(r.Context(), urls.AbsoluteURL(r, "/"))
+
+		to := f.Get("email").String()
+		var body string
 
 		if user != nil {
 			code := newCode(user.ID)
 			if err = code.save(f.prefix, f.ttl); err != nil {
 				return
 			}
-
-			mailTc["RecoverLink"] = urls.AbsoluteURL(r, "/login/recover", code.String())
+			recoverLink := urls.AbsoluteURL(r, "/login/recover", code.String())
+			body = recoverMsg(ctx, recoverLink)
+		} else {
+			body = recoverNoTokenMsg(ctx)
 		}
 
-		msg, err := email.NewMsg(
+		err = email.SendMessage(
+			ctx,
 			configs.Config.Email.FromNoReply.String(),
-			f.Get("email").String(),
+			to,
 			"[Readeck] Password Recovery",
-			email.WithMDTemplate(
-				"/emails/recover.jet.md",
-				server.TemplateVars(r),
-				mailTc,
-			),
+			email.WithMDText(body),
 		)
 		if err != nil {
-			server.Err(w, r, err)
-			return
-		}
-
-		if err = email.Sender.SendEmail(msg); err != nil {
 			server.Err(w, r, err)
 			return
 		}
@@ -293,4 +288,36 @@ func (h *authHandler) recover(w http.ResponseWriter, r *http.Request) {
 	}
 
 	server.RenderComponent(w, r, http.StatusOK, Views{}.recover(f, recoverErr))
+}
+
+func recoverMsg(ctx context.Context, recoverLink *url.URL) string {
+	return server.LocaleContext(ctx).Gettext(`
+Hi,
+
+You (or someone else) entered this email address when trying to
+change the password of a Readeck account (%[1]s).
+
+If you are expecting this email, please follow this link to set
+a new password for your readeck account.
+
+%[2]s
+`, email.GetSiteURL(ctx), recoverLink)
+}
+
+func recoverNoTokenMsg(ctx context.Context) string {
+	return server.LocaleContext(ctx).Gettext(`
+Hi,
+
+You (or someone else) entered this email address when trying to
+change the password of a Readeck account (%[1]s).
+
+However, this email address is not associated with any account and
+therefore, the attempted password change has failed.
+
+If you are a Readeck user on %[1]s and you are
+expecting this email, please try again using the email address
+you used when creating your account.
+
+If you are not a Readeck user, please ignore this message.
+`, email.GetSiteURL(ctx))
 }

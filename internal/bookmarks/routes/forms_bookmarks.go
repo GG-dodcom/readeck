@@ -20,7 +20,6 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	goquexp "github.com/doug-martin/goqu/v9/exp"
-	"github.com/wneessen/go-mail"
 	"golang.org/x/text/language"
 
 	"codeberg.org/readeck/readeck/internal/auth"
@@ -936,7 +935,7 @@ func (f *shareForm) sendBookmark(r *http.Request, b *bookmarks.Bookmark) (err er
 	var options []email.MessageOption
 	if u := auth.GetRequestUser(r); u != nil && u.Settings.EmailSettings.ReplyTo != "" {
 		options = []email.MessageOption{
-			func(msg *mail.Msg) error {
+			func(_ context.Context, msg *email.Message) error {
 				return msg.ReplyTo(u.Settings.EmailSettings.ReplyTo)
 			},
 		}

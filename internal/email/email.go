@@ -1,42 +1,59 @@
-// SPDX-FileCopyrightText: © 2021 Olivier Meunier <olivier@neokraft.net>
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Package email provides functions to send emails.
+// Package email provides functions to send email messages.
 package email
 
 import (
 	"bytes"
+	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"net/url"
 	"os"
+	"path"
+	"slices"
 	"time"
 
-	"github.com/CloudyKit/jet/v6"
+	"github.com/a-h/templ"
 	"github.com/aymerick/douceur/inliner"
 	"github.com/wneessen/go-mail"
 
-	"codeberg.org/readeck/readeck/assets"
 	"codeberg.org/readeck/readeck/configs"
-	"codeberg.org/readeck/readeck/internal/templates"
+	"codeberg.org/readeck/readeck/pkg/ctxr"
+	"codeberg.org/readeck/readeck/pkg/http/request"
 )
+
+const cr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
+
+type (
+	ctxAttachmentKey struct{}
+	ctxSiteURLKey    struct{}
+)
+
+// Context setters and getters.
+var (
+	withAttachments, getAttachments       = ctxr.WithGetter[*Attachments](ctxAttachmentKey{})
+	WithSiteURL, GetSiteURL, CheckSiteURL = ctxr.WithAll[*url.URL](ctxSiteURLKey{}) //nolint:revive
+)
+
+// sender defines an email sender.
+type sender interface {
+	SendEmail(*Message) error
+}
 
 // Sender is the default email sender. It's made public so it can be
 // overridden during tests.
 var Sender sender
 
-// views hold all the templates.
-var views *jet.Set
-
 // InitSender initializes the default email sender base on the
 // configuration.
 func InitSender() {
-	views = templates.Catalog(
-		os.DirFS(configs.Config.Customize.ExtraTemplates),
-	)
-
 	if Sender != nil { // Sender can be set by the test runner
 		return
 	}
@@ -45,10 +62,6 @@ func InitSender() {
 		Sender = &StdOutSender{}
 	} else if configs.Config.Email.Host != "" {
 		Sender = &SMTPSender{}
-	}
-
-	if Sender == nil {
-		return
 	}
 }
 
@@ -59,27 +72,79 @@ func CanSendEmail() bool {
 
 // MessageOption is a function that can manipulate a message and is called
 // during [NewMsg].
-type MessageOption func(msg *mail.Msg) error
+type MessageOption func(ctx context.Context, msg *Message) error
 
-// NewMsg creates a new [mail.Msg] with sender, recipient and subject.
+// Message is a wrapper around [mail.Msg].
+type Message struct {
+	*mail.Msg
+}
+
+// Attachment is a file attached to a message.
+type Attachment struct {
+	id    string
+	name  string
+	mtype string
+	r     io.Reader
+}
+
+// URL returns the attachment URL with "cid:" scheme.
+func (a *Attachment) URL() string {
+	return "cid:" + a.id
+}
+
+// Attachments is a list of [Attachment].
+type Attachments []Attachment
+
+// NewAttachment creates a new attachment with a random id.
+func NewAttachment(name, mtype string, r io.Reader) Attachment {
+	buf := new(bytes.Buffer)
+	io.Copy(buf, r) //nolint:errcheck
+	id := rndID()
+	return Attachment{
+		id:    id,
+		name:  id + path.Ext(name),
+		mtype: mtype,
+		r:     buf,
+	}
+}
+
+func rndID() string {
+	src := make([]byte, 22)
+	rand.Read(src)
+	for i := range src {
+		src[i] = cr[src[i]%byte(len(cr))]
+	}
+
+	return string(src)
+}
+
+// NewMessage returns a new [Message] with sender, recipient and subject.
 // It checks if we can send email and adds a User-Agent header.
-func NewMsg(from, to, subject string, options ...MessageOption) (*mail.Msg, error) {
+func NewMessage(ctx context.Context, from, to, subject string, options ...MessageOption) (*Message, error) {
 	if !CanSendEmail() {
 		return nil, errors.New("no email sender defined")
 	}
 
-	msg := mail.NewMsg()
+	msg := &Message{
+		Msg: mail.NewMsg(
+			mail.WithCharset(mail.CharsetUTF8),
+			mail.WithEncoding(mail.EncodingQP),
+		),
+	}
+
 	if err := msg.From(from); err != nil {
 		return nil, err
 	}
-	if err := msg.AddTo(to); err != nil {
+	if err := msg.To(to); err != nil {
 		return nil, err
 	}
-	msg.Subject(subject)
+
 	msg.SetUserAgent("Readeck // https://readeck.org/")
+	msg.SetMessageIDWithValue(rndID())
+	msg.Subject(subject)
 
 	for _, fn := range options {
-		if err := fn(msg); err != nil {
+		if err := fn(ctx, msg); err != nil {
 			return nil, err
 		}
 	}
@@ -87,122 +152,135 @@ func NewMsg(from, to, subject string, options ...MessageOption) (*mail.Msg, erro
 	return msg, nil
 }
 
-// WithMDTemplate is a [MessageOption] that adds a text/plain message part using
-// a markdown template.
-// The text is then converted to HTML and passed to [WithHTMLTemplate] so the message
-// gets an automatic HTML part as well.
-func WithMDTemplate(template string, vars jet.VarMap, data map[string]any) MessageOption {
-	return func(msg *mail.Msg) error {
-		tpl, err := views.GetTemplate(template)
-		if err != nil {
-			return err
-		}
-
-		// Render text part
-		txt := new(bytes.Buffer)
-		if err = tpl.Execute(txt, vars, data); err != nil {
-			return err
-		}
-
-		// Convert to HTML
+// WithMDText returns a [MessageOption] that adds a text/plain message part.
+// The text is converted to HTML (as Markdown) and passed to [WithComponent]
+// using [Components.Base] as a template, and added as an HTML part.
+// A generic footer is added to the text part.
+func WithMDText(body string) MessageOption {
+	return func(ctx context.Context, msg *Message) (err error) {
+		// Convert to HTML first
 		html := new(bytes.Buffer)
-		if err = markdown.Convert(txt.Bytes(), html); err != nil {
-			return err
+		if err = markdown.Convert([]byte(body), html); err != nil {
+			return fmt.Errorf("markdown conversion: %w", err)
 		}
 
-		// Add footer to text part
-		if tpl, err = views.GetTemplate("/emails/include/footer.jet.md"); err != nil {
-			return err
-		}
-		if err = tpl.Execute(txt, vars, data); err != nil {
-			return err
-		}
+		// Add the text/plain with signature
+		body += Components{}.TextFooter(ctx)
+		msg.AddAlternativeString(mail.TypeTextPlain, body)
 
-		// Add text part
-		msg.AddAlternativeString(mail.TypeTextPlain, txt.String())
-
-		// Add HTML part
-		data["HTML"] = html
-		return WithHTMLTemplate("/emails/include/markdown", vars, data)(msg)
+		// Add HTML
+		return WithComponent(Components{}.HTML(html))(ctx, msg)
 	}
 }
 
-// WithHTMLTemplate is a [MessageOption] that adds a text/html message part using a
-// given template.
-// A stylesheet is made available to the template and is later inlined in the
-// message for greater compatibility with email clients.
-func WithHTMLTemplate(template string, vars jet.VarMap, data map[string]any) MessageOption {
-	return func(msg *mail.Msg) error {
-		// Load the email CSS file.
-		var fd io.ReadCloser
-		var err error
-		fd, err = assets.StaticFilesFS().Open("email.css")
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				// If the file does not exist, just ignore it.
-				fd = io.NopCloser(new(bytes.Buffer))
-			} else {
-				return err
-			}
-		}
-		css, err := io.ReadAll(fd)
-		if err != nil {
-			fd.Close() // nolint:errcheck
-			return err
-		}
-		fd.Close() // nolint:errcheck
+// WithHTML adds an HTML part to the message.
+// When the message doesn't contain a text/plain part already,
+// the HTML is converted to text and added as a text/plain part.
+func WithHTML(html io.Reader) MessageOption {
+	return func(_ context.Context, msg *Message) error {
+		buf := new(bytes.Buffer)
 
-		// Render the given template.
-		data["CSS"] = string(css)
-
-		w := new(bytes.Buffer)
-		tpl, err := views.GetTemplate(template)
-		if err != nil {
-			return err
-		}
-		if err = tpl.Execute(w, vars, data); err != nil {
-			return err
-		}
-
-		// Create a text/plain version when there isn't one already.
-		// text/plain needs to be the first part.
-		hasTextPlain := false
-		for _, p := range msg.GetParts() {
-			if p.GetContentType() == mail.TypeTextPlain {
-				hasTextPlain = true
-				break
-			}
-		}
-		if !hasTextPlain {
-			txt, err := html2md4email.ConvertString(w.String())
+		// First, add the plain text version, if we don't have one already
+		if slices.IndexFunc(msg.GetParts(), func(p *mail.Part) bool {
+			return p.GetContentType() == mail.TypeTextPlain
+		}) == -1 {
+			txt, err := html2md4email.ConvertReader(io.TeeReader(html, buf))
 			if err != nil {
+				return fmt.Errorf("html conversion: %w", err)
+			}
+			msg.AddAlternativeString(mail.TypeTextPlain, string(txt))
+		} else {
+			if _, err := io.Copy(buf, html); err != nil {
 				return err
 			}
-			msg.AddAlternativeString(mail.TypeTextPlain, txt)
 		}
 
-		// Inline CSS in HTML tags.
-		html, err := inliner.Inline(w.String())
+		// Then, add the inlined HTML
+		inlined, err := inliner.Inline(buf.String())
 		if err != nil {
-			return err
+			return fmt.Errorf("style inliner: %w", err)
 		}
-
-		// Set HTML body
-		msg.AddAlternativeString(mail.TypeTextHTML, html)
+		msg.AddAlternativeString(mail.TypeTextHTML, inlined)
 		return nil
 	}
 }
 
-// sender defines an email sender.
-type sender interface {
-	SendEmail(*mail.Msg) error
+// WithComponent adds a [templ.Component] as a text/html part.
+// It uses [WithHTML].
+func WithComponent(component templ.Component) MessageOption {
+	return func(ctx context.Context, msg *Message) (err error) {
+		buf := new(bytes.Buffer)
+
+		// Add attachments to the context so we can later
+		// add them to the message.
+		files := Attachments{}
+		ctx = withAttachments(ctx, &files)
+
+		// Render component.
+		if err = component.Render(ctx, buf); err != nil {
+			return err
+		}
+
+		if err = WithHTML(buf)(ctx, msg); err != nil {
+			return err
+		}
+
+		for _, file := range files {
+			if err = msg.EmbedReader(
+				file.name,
+				file.r,
+				mail.WithFileContentType(mail.ContentType(file.mtype)),
+				mail.WithFileContentID(file.id),
+			); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+// SendMessage sends a message with [MessageOption]s.
+// The provided context is derived with [context.WithoutCancel],
+// making this function safe to be called as a goroutine.
+func SendMessage(ctx context.Context, from, to, subject string, options ...MessageOption) error {
+	ctx = context.WithoutCancel(ctx)
+	log := slog.Default()
+
+	if reqID, ok := request.CheckReqID(ctx); ok {
+		log = log.With(slog.String("@id", reqID))
+	}
+
+	log = log.With(
+		slog.String("from", from),
+		slog.String("to", to),
+		slog.String("subject", subject),
+	)
+
+	msg, err := NewMessage(ctx, from, to, subject, options...)
+	if err != nil {
+		log.Error("making email", slog.Any("err", err))
+		return err
+	}
+
+	if err = Send(msg); err != nil {
+		log.Error("sending email", slog.Any("err", err))
+		return err
+	}
+
+	log.Debug("email sent")
+	return nil
+}
+
+// Send sends a [mail.Msg] using the default sender.
+func Send(msg *Message) error {
+	return Sender.SendEmail(msg)
 }
 
 // StdOutSender implements EmailSender for stdout.
 type StdOutSender struct{}
 
 // SendEmail "sends" an email to stdout.
-func (s *StdOutSender) SendEmail(msg *mail.Msg) error {
+func (s *StdOutSender) SendEmail(msg *Message) error {
 	fmt.Fprintln(os.Stdout, "=== Outbound email ===================================================")
 	msg.WriteTo(os.Stdout) // nolint:errcheck
 	fmt.Fprintln(os.Stdout, "\n======================================================================")
@@ -213,7 +291,7 @@ func (s *StdOutSender) SendEmail(msg *mail.Msg) error {
 type SMTPSender struct{}
 
 // SendEmail sends an email using SMTP.
-func (s *SMTPSender) SendEmail(msg *mail.Msg) error {
+func (s *SMTPSender) SendEmail(msg *Message) error {
 	client, err := mail.NewClient(
 		configs.Config.Email.Host,
 		mail.WithPort(configs.Config.Email.Port),
@@ -245,5 +323,5 @@ func (s *SMTPSender) SendEmail(msg *mail.Msg) error {
 		client.SetTLSPolicy(mail.TLSOpportunistic)
 	}
 
-	return client.DialAndSend(msg)
+	return client.DialAndSend(msg.Msg)
 }

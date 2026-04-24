@@ -1,0 +1,112 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package email
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"strings"
+
+	"codeberg.org/readeck/readeck/assets"
+
+	C "codeberg.org/readeck/readeck/components"
+	"os"
+)
+
+type Components struct{}
+
+templ (c Components) Base(containerClasses ...string) {
+	<html>
+		<head>
+			<meta charset="UTF-8"/>
+			<meta http-equiv="Content-Security-Policy" content="connect-src 'none';"/>
+			<meta http-equiv="Content-Security-Policy" content="script-src 'none';"/>
+			<meta http-equiv="Content-Security-Policy" content="frame-src 'none'; child-src 'none';"/>
+			@c.stylesheet()
+		</head>
+		<body>
+			<div class="body">
+				<div class={ templ.Classes("container", containerClasses) }>
+					<div class="logo">
+						<img src={ img(ctx, assets.AssetMap()["img/logo-text.png"], "image/png") } alt=""/>
+					</div>
+					<div class="content">
+						{ children... }
+					</div>
+					<div class="footer" role="footer">
+						Readeck - Read-later and Bookmark manager
+						<br/>
+						if u, ok := CheckSiteURL(ctx); ok {
+							<a href={ u.String() }>{ u.String() }</a>
+							<br/>
+						}
+						<a href="https://readeck.org/">https://readeck.org/</a>
+					</div>
+				</div>
+			</div>
+		</body>
+	</html>
+}
+
+templ (c Components) HTML(r io.Reader) {
+	@c.Base("narrow") {
+		@C.HTML(r)
+	}
+}
+
+// TextFooter returns a text footer than can be added to
+// text/plain messages when using [SendTextMessage].
+func (_ Components) TextFooter(ctx context.Context) string {
+	res := new(strings.Builder)
+	res.WriteString("\n-- \n")
+	res.WriteString("Readeck - Read-later and Bookmark manager\n")
+	if u, ok := CheckSiteURL(ctx); ok {
+		res.WriteString(u.String() + "\n")
+	}
+	res.WriteString("https://readeck.org/\n")
+
+	return res.String()
+}
+
+func (_ Components) stylesheet() templ.ComponentFunc {
+	return func(ctx context.Context, w io.Writer) error {
+		fd, err := assets.StaticFilesFS().Open("email.css")
+		if err != nil {
+			// File is not present during tests and it's ok.
+			if errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
+			return err
+		}
+		defer fd.Close()
+
+		if _, err = fmt.Fprint(w, "<style>\n"); err != nil {
+			return err
+		}
+		if _, err = io.Copy(w, fd); err != nil {
+			return err
+		}
+		if _, err = fmt.Fprint(w, "\n</style>"); err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
+func img(ctx context.Context, name, mtype string) string {
+	fd, err := assets.StaticFilesFS().Open(name)
+	if err != nil {
+		return ""
+	}
+	defer fd.Close()
+
+	files := getAttachments(ctx)
+	file := NewAttachment(name, mtype, fd)
+	*files = append(*files, file)
+
+	return file.URL()
+}

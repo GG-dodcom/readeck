@@ -1,0 +1,50 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package converter
+
+import (
+	"codeberg.org/readeck/readeck/internal/email"
+	"strings"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+templ (c *emailComponent) renderer() {
+	{{ dir := Tern(func() bool { return c.item.TextDirection != "" }, c.item.TextDirection, "ltr") }}
+	@email.Components{}.Base() {
+		<h1 class="title" dir={ dir }>{ c.item.Title }</h1>
+		if c.item.Description != "" {
+			<p class="desc" dir={ dir }>{ c.item.Description }</p>
+		}
+		<ul class="info">
+			<li>
+				<strong>{ Tern(func() bool {return c.item.SiteName != ""}, c.item.SiteName, "no site name") }</strong>
+			</li>
+			<li>
+				<a href={ c.item.URL }>{ c.item.URL }</a>
+			</li>
+			if c.item.Published != nil {
+				<li>{ L(ctx).Gettext("Published on %s", Strftime(ctx, *c.item.Published, "%e %B %Y")) }</li>
+			}
+			if len(c.item.Authors) > 0 {
+				<li>{ L(ctx).Gettext("By %s", strings.Join(c.item.Authors, ", ")) }</li>
+			}
+			<li><a href={ c.item.URL }>{ c.item.Domain }</a></li>
+			if c.item.ReadingTime > 0 {
+				<li>{ L(ctx).Ngettext("About %d minute read", "About %d minutes read", c.item.ReadingTime, c.item.ReadingTime) }</li>
+			}
+		</ul>
+		if c.image.Name != "" && (c.item.DocumentType == "photo" || c.item.DocumentType == "video") {
+			<div class="main photo">
+				<img src={ c.image.Name } alt="" width={ c.image.Size[0] } height={ c.image.Size[1] }/>
+			</div>
+		}
+		if _, ok := c.item.Files["article"]; ok {
+			<div class="main prose" lang={ c.item.Lang } dir={ dir }>
+				@HTML(c.html)
+			</div>
+		}
+	}
+}
