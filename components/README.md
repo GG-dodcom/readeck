@@ -82,3 +82,26 @@ import (
 	F "codeberg.org/readeck/readeck/components/forms"
 )
 ```
+
+## Editor setup
+
+Templ provides [tools](https://templ.guide/developer-tools/ide-support) you can install on your IDE.
+
+Here's a configuration example for the VS Code extension:
+
+```json
+{
+	"emmet.includeLanguages": {
+		"templ": "html",
+	},
+	"tailwindCSS.includeLanguages": {
+		"templ": "html",
+	},
+	"[templ]": {
+		"editor.formatOnSave": true,
+		"editor.defaultFormatter": "a-h.templ",
+		"editor.tabSize": 2,
+		"editor.useTabStops": true,
+	},
+}
+```
