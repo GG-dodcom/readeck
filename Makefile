@@ -73,6 +73,9 @@ setup:
 templ:
 	$(GO) run $(TEMPL_PKG) generate
 
+templ/fmt:
+	$(GO) run $(TEMPL_PKG) fmt -fail .
+
 # Build the server
 .PHONY: build
 build:
