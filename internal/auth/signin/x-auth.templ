@@ -29,6 +29,7 @@ templ (_ Views) base(title string) {
 		<main class="w-full max-w-sm p-8 mt-6 mx-auto bg-gray-100 text-gray-dark rounded-md shadow-md" id="content">
 			{ children... }
 		</main>
+		@CustomTemplate("auth/footer.html.tmpl", nil)
 	}
 }
 

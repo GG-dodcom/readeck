@@ -283,6 +283,7 @@ func runServer(_ context.Context, args []string) error { // nolint:gocognit,gocy
 
 // InitServer setups all the routes.
 func InitServer(s *server.Server) error {
+	components.InitCustomTemplates()
 	server.DefaultErrorComponent = components.DefaultError
 
 	// Init session store

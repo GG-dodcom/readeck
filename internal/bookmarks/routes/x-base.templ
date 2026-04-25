@@ -80,6 +80,7 @@ templ (v Views) sideMenu() {
 			@v.sideMenuItem(L(ctx).Gettext("Collections"), "o-collection",
 				"/bookmarks/collections", PathIs(ctx, "/bookmarks/collections", "/bookmarks/collections/*"), 0)
 		</menu>
+		@CustomTemplate("bookmarks/sidebar.html.tmpl", nil)
 		if server.GetUser(ctx).Settings.AddonReminder && counters.Total > 0 && PathIs(ctx, "/bookmarks", "/bookmarks/unread") {
 			<div
 				class="hidden chrome:hidden firefox:hidden chrome:block firefox:block border rounded mt-8 p-2 bg-app-bg text-sm"

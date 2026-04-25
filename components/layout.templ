@@ -33,6 +33,7 @@ templ (c *Layout) BasePage(title string) {
 			<link rel="manifest" href={ URL(ctx, "/manifest.webmanifest") }/>
 			<meta name="theme-color" content="#064c5c"/>
 			@c.Head
+			@CustomTemplate("layout/head.html.tmpl", nil)
 		</head>
 		<body
 			class="
@@ -63,9 +64,13 @@ templ (c *Layout) Menu(menuBtn templ.Component) {
 			@Icon("o-menu")
 		}
 		<div class="logo">
-			<a href={ URL(ctx, "/") } title={ L(ctx).Gettext("Home page") }>
-				@Icon("o-logo-square", WithIconClass(), WithIconSvgClass("h-11 w-11"))
-			</a>
+			if HasCustomTemplate("layout/menu-icon.html.tmpl") {
+				@CustomTemplate("layout/menu-icon.html.tmpl", nil)
+			} else {
+				<a href={ URL(ctx, "/") } title={ L(ctx).Gettext("Home page") }>
+					@Icon("o-logo-square", WithIconClass(), WithIconSvgClass("h-11 w-11"))
+				</a>
+			}
 		</div>
 		<div class="mainmenu">
 			<menu class="grow">

@@ -34,6 +34,7 @@ templ (v Views) userProfile(f *profileForm) {
 				</p>
 			</form>
 		}
+		@CustomTemplate("profile/extra.html.tmpl", nil)
 		<form action={ URL(ctx) } method="post">
 			@F.Errors(f)
 			<fieldset class="mb-6">
