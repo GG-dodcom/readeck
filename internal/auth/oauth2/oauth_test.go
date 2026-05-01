@@ -203,6 +203,20 @@ func TestAuthorizationCodeFlow(t *testing.T) {
 		)
 
 		client.RT(t,
+			WithName("missing fields"),
+			WithMethod(http.MethodPost),
+			WithTarget("/api/oauth/token"),
+			WithBody(url.Values{
+				"grant_type": []string{"authorization_code"},
+			}),
+			AssertStatus(400),
+			AssertJSON(`{
+				"error":"invalid_request",
+				"error_description":"error on field \"code\": field is required"
+			}`),
+		)
+
+		client.RT(t,
 			WithName("token challenge ko"),
 			WithMethod(http.MethodPost),
 			WithTarget("/api/oauth/token"),
@@ -439,6 +453,36 @@ func TestDeviceCodeFlow(t *testing.T) {
 		)
 
 		client.RT(t,
+			WithName("invalid grant type"),
+			WithMethod(http.MethodPost),
+			WithTarget("/api/oauth/token"),
+			WithBody(map[string]any{
+				"grant_type":  "something",
+				"device_code": deviceCode,
+				"client_id":   clientID,
+			}),
+			AssertStatus(400),
+			AssertJSON(`{
+				"error":"invalid_request",
+				"error_description":"error on field \"grant_type\": something is not one of \"authorization_code\", \"urn:ietf:params:oauth:grant-type:device_code\""
+			}`),
+		)
+
+		client.RT(t,
+			WithName("missing fields"),
+			WithMethod(http.MethodPost),
+			WithTarget("/api/oauth/token"),
+			WithBody(map[string]any{
+				"grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+			}),
+			AssertStatus(400),
+			AssertJSON(`{
+				"error":"invalid_request",
+				"error_description":"error on field \"client_id\": field is required"
+			}`),
+		)
+
+		client.RT(t,
 			WithName("retrieve token"),
 			WithMethod(http.MethodPost),
 			WithTarget("/api/oauth/token"),
@@ -576,6 +620,25 @@ func TestDeviceCodeFlow(t *testing.T) {
 			AssertJSON(`{"error": "expired_token"}`),
 		)
 	})
+
+	t.Run("scope error", func(t *testing.T) {
+		clientID := registerClient(t, client)
+		client.RT(t,
+			WithName("device code request"),
+			WithMethod(http.MethodPost),
+			WithTarget("/api/oauth/device"),
+
+			WithBody(url.Values{
+				"client_id": {clientID},
+				"scope":     {"abc   def ", "xyz"},
+			}),
+			AssertStatus(400),
+			AssertJSON(`{
+				"error": "invalid_scope",
+				"error_description":"abc is not one of \"bookmarks:read\", \"bookmarks:write\", \"profile:read\", def is not one of \"bookmarks:read\", \"bookmarks:write\", \"profile:read\", xyz is not one of \"bookmarks:read\", \"bookmarks:write\", \"profile:read\""
+			}`),
+		)
+	})
 }
 
 func TestClientRegistration(t *testing.T) {
@@ -628,14 +691,46 @@ func TestClientRegistration(t *testing.T) {
 				WithMethod(http.MethodPost),
 				WithTarget("/api/oauth/client"),
 				WithBody(map[string]any{
-					"client_name":   "test",
-					"client_uri":    test,
-					"redirect_uris": []string{"https://example.org/callback"},
+					"client_name":      "test",
+					"client_uri":       test,
+					"software_id":      "abc",
+					"software_version": "1.0",
+					"redirect_uris":    []string{"https://example.org/callback"},
 				}),
 				AssertStatus(400),
 				AssertJSON(`{
 					"error": "invalid_client_metadata",
 					"error_description": "error on field \"client_uri\": invalid client URI"
+				}`),
+			))
+		}
+
+		client.Sequence(t, seq...)
+	})
+
+	t.Run("invalid logo uri", func(t *testing.T) {
+		tests := []string{
+			"something",
+			"data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=",
+		}
+		seq := []*RequestTest{}
+		for i, test := range tests {
+			seq = append(seq, RT(
+				WithName(strconv.Itoa(i+1)),
+				WithMethod(http.MethodPost),
+				WithTarget("/api/oauth/client"),
+				WithBody(map[string]any{
+					"client_name":      "test",
+					"client_uri":       "https://example.org/",
+					"logo_uri":         test,
+					"software_id":      "abc",
+					"software_version": "1.0",
+					"redirect_uris":    []string{"https://example.org/callback"},
+				}),
+				AssertStatus(400),
+				AssertJSON(`{
+					"error":"invalid_client_metadata",
+					"error_description":"error on field \"logo_uri\": invalid logo URI"
 				}`),
 			))
 		}
@@ -669,6 +764,61 @@ func TestClientRegistration(t *testing.T) {
 		AssertJSON(`{
 			"error": "invalid_client_metadata",
 			"error_description": "<<PRESENCE>>"
+		}`),
+	)
+
+	client.RT(t,
+		WithName("invalid grant types"),
+		WithMethod(http.MethodPost),
+		WithTarget("/api/oauth/client"),
+		WithBody(map[string]any{
+			"client_name":   "test",
+			"client_uri":    "https://example.org/",
+			"redirect_uris": []string{"https://example.org/callback"},
+			"grant_types":   []string{"something"},
+		}),
+		AssertStatus(400),
+		AssertJSON(`{
+			"error": "invalid_client_metadata",
+			"error_description":"error on field \"grant_types\": something is not one of \"authorization_code\", \"urn:ietf:params:oauth:grant-type:device_code\""
+		}`),
+	)
+
+	client.RT(t,
+		WithName("invalid auth method"),
+		WithMethod(http.MethodPost),
+		WithTarget("/api/oauth/client"),
+		WithBody(map[string]any{
+			"client_name":                "test",
+			"client_uri":                 "https://example.org/",
+			"software_id":                "abc",
+			"software_version":           "1.0.0",
+			"redirect_uris":              []string{"https://example.org/callback"},
+			"token_endpoint_auth_method": "something",
+		}),
+		AssertStatus(400),
+		AssertJSON(`{
+			"error": "invalid_client_metadata",
+			"error_description":"error on field \"token_endpoint_auth_method\": something is not one of \"none\""
+		}`),
+	)
+
+	client.RT(t,
+		WithName("invalid response types"),
+		WithMethod(http.MethodPost),
+		WithTarget("/api/oauth/client"),
+		WithBody(map[string]any{
+			"client_name":      "test",
+			"client_uri":       "https://example.org/",
+			"software_id":      "abc",
+			"software_version": "1.0.0",
+			"redirect_uris":    []string{"https://example.org/callback"},
+			"response_types":   []string{"something"},
+		}),
+		AssertStatus(400),
+		AssertJSON(`{
+			"error": "invalid_client_metadata",
+			"error_description":"error on field \"response_types\": something is not one of \"code\""
 		}`),
 	)
 

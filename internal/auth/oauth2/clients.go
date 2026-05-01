@@ -12,7 +12,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/auth/tokens"
 	"codeberg.org/readeck/readeck/internal/bus"
 	"codeberg.org/readeck/readeck/internal/server"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 const (
@@ -74,8 +74,7 @@ func (c *oauthClient) toClientInfo() *tokens.ClientInfo {
 // clientCreate creates a new client that is stored in the K/V store
 // for [clientTTL] duration.
 func (api *oauthAPI) clientCreate(w http.ResponseWriter, r *http.Request) {
-	f := newClientForm(server.Locale(r))
-	forms.Bind(f, r)
+	f := forms.BindAs[clientForm](r)
 
 	if !f.IsValid() {
 		server.Err(w, r, f.getError())

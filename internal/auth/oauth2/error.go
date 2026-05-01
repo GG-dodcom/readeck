@@ -10,11 +10,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 
 	"codeberg.org/readeck/readeck/internal/server"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 var (
@@ -136,15 +138,16 @@ func (e oauthError) redirect(w http.ResponseWriter, r *http.Request, u *url.URL,
 }
 
 // newFormError converts an invalid form to an [oauthError].
-func newFormError(f forms.Binder) oauthError {
+func newFormError(f forms.FormBinder) oauthError {
 	for _, err := range f.Errors() {
 		return errInvalidRequest.withDescription(err.Error())
 	}
 
-	for _, field := range f.Fields() {
+	for _, name := range slices.Sorted(maps.Keys(f.Fields())) {
+		field := f.Fields()[name]
 		if len(field.Errors()) > 0 {
 			return errInvalidRequest.withDescription(
-				fmt.Sprintf(`error on field "%s": %s`, field.Name(), field.Errors()),
+				fmt.Sprintf(`error on field "%s": %s`, name, field.Errors()),
 			)
 		}
 	}
