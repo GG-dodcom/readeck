@@ -11,6 +11,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/auth"
 	"codeberg.org/readeck/readeck/locales"
 	"codeberg.org/readeck/readeck/pkg/ctxr"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 type (
@@ -35,6 +36,7 @@ func LoadLocale(next http.Handler) http.Handler {
 
 		tr = locales.LoadTranslation(lang)
 		ctx := withLocale(r.Context(), tr)
+		ctx = forms.WithTranslator(ctx, tr)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
