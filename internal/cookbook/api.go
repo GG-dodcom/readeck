@@ -5,7 +5,6 @@
 package cookbook
 
 import (
-	"context"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -26,7 +25,7 @@ import (
 	"codeberg.org/readeck/readeck/pkg/extract/contents"
 	"codeberg.org/readeck/readeck/pkg/extract/contentscripts"
 	"codeberg.org/readeck/readeck/pkg/extract/meta"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 	"codeberg.org/readeck/readeck/pkg/http/accept"
 )
 
@@ -52,15 +51,9 @@ func newCookbookAPI(s *server.Server) *cookbookAPI {
 }
 
 type extractForm struct {
-	*forms.Form
-}
-
-func newExtractForm() *extractForm {
-	return &extractForm{forms.Must(
-		context.Background(),
-		forms.NewTextField("url", forms.Required, forms.MaxLen(1024), forms.IsURL("http", "https")),
-		forms.NewFileField("html"),
-	)}
+	forms.Form
+	URL  forms.TextField `json:"url"  validate:"required max_len:1024 is_url"`
+	HTML forms.FileField `json:"html"`
 }
 
 func (api *cookbookAPI) getExtractor(uri string, r *http.Request) *extract.Extractor {
@@ -169,25 +162,22 @@ func (api *cookbookAPI) getExtractResult(ex *extract.Extractor) *extractResult {
 }
 
 func (api *cookbookAPI) extract(w http.ResponseWriter, r *http.Request) {
-	f := newExtractForm()
-	forms.Bind(f, r)
+	f := forms.BindAs[extractForm](r)
 
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
 	}
 
-	ex := api.getExtractor(f.Get("url").String(), r)
+	ex := api.getExtractor(f.URL.Value(), r)
 
-	if !f.Get("html").IsEmpty() {
-		opener := f.Get("html").(forms.TypedField[forms.FileOpener]).V()
-
+	if f.HTML.IsBound() {
 		resource := bookmark_tasks.MultipartResource{
-			URL:    f.Get("url").String(),
+			URL:    f.URL.Value(),
 			Header: http.Header{"Content-Type": {"text/html"}},
 		}
-		if err := bookmark_routes.LoadMultipartResource(opener, &resource); err != nil {
-			f.AddErrors("html", err)
+		if err := bookmark_routes.LoadMultipartResource(f.HTML.Value(), &resource); err != nil {
+			f.HTML.AddErrors(err)
 			server.Render(w, r, http.StatusUnprocessableEntity, f)
 			return
 		}

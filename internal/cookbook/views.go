@@ -5,7 +5,6 @@
 package cookbook
 
 import (
-	"context"
 	"io"
 	"iter"
 	"maps"
@@ -17,7 +16,7 @@ import (
 
 	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/server"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 type cookbookViews struct {
@@ -44,23 +43,20 @@ func newCookbookViews(api *cookbookAPI) *cookbookViews {
 }
 
 func (v *cookbookViews) uiView(w http.ResponseWriter, r *http.Request) {
-	f := newCookbookForm()
-	ef := newCookbookForm()
-	forms.BindURL(ef, r)
-	ef.IsValid()
+	f := forms.New[cookbookForm](r.Context())
+	ef := forms.BindAs[cookbookForm](r)
 
 	server.RenderComponent(w, r, 200, Views{}.ui(f, ef))
 }
 
 func (v *cookbookViews) extractView(w http.ResponseWriter, r *http.Request) {
-	f := newExtractForm()
-	forms.BindURL(f, r)
+	f := forms.BindAs[extractForm](r)
 
 	var res *extractResult
 	var html io.Reader
 
-	if f.IsValid() && f.Get("url").String() != "" {
-		ex := v.getExtractor(f.Get("url").String(), r)
+	if f.URL.IsBound() && f.IsValid() {
+		ex := v.getExtractor(f.URL.Value(), r)
 		res = v.getExtractResult(ex)
 		html = strings.NewReader(bookmarks.ExtractHTMLBody(res.HTML))
 	}
@@ -68,21 +64,33 @@ func (v *cookbookViews) extractView(w http.ResponseWriter, r *http.Request) {
 	server.RenderComponent(w, r, 200, Views{}.extract(f, res, html))
 }
 
-func newCookbookForm() *forms.Form {
-	return forms.Must(
-		context.Background(),
-		forms.NewTextField("text", forms.Required, forms.IsEmail),
-		forms.NewTextField("select", forms.Default("choice 2"), forms.Choices(
-			forms.Choice("Choice 1", "choice 1"),
-			forms.Choice("Choice 2", "choice 2"),
-			forms.Choice("Choice 3", "choice 3"),
-		)),
-		forms.NewTextListField("choices", forms.Default([]string{"b"}), forms.Required, forms.Choices(
+type cookbookForm struct {
+	forms.Form
+	Text     forms.TextField     `json:"text"       validate:"required is_email"`
+	Select   forms.TextField     `json:"select"     validate:"single_choice"`
+	Choices  forms.TextListField `json:"checkboxes" validate:"required multiple_choices"`
+	Checkbox forms.BooleanField  `json:"checkbox"`
+	File     forms.FileField     `json:"file"`
+}
+
+func (f *cookbookForm) GetTaggedValidator(name, _ string, tc *forms.TagContext) (forms.Validator, bool) {
+	switch name {
+	case "single_choice":
+		forms.Choices(tc.Field,
+			forms.Choice("Choice 1", "1"),
+			forms.Choice("Choice 2", "2"),
+			forms.Choice("Choice 3", "3"),
+		)
+		return nil, true
+	case "multiple_choices":
+		forms.Choices(tc.Field,
 			forms.Choice("Choice A", "a"),
 			forms.Choice("Choice B", "b"),
 			forms.Choice("Choice C", "c"),
-		)),
-	)
+		)
+		return nil, true
+	}
+	return nil, false
 }
 
 func orderedMap[T any](data map[string]T) iter.Seq2[string, T] {

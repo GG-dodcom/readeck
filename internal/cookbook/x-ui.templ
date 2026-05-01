@@ -5,13 +5,11 @@
 package cookbook
 
 import (
-	"codeberg.org/readeck/readeck/pkg/forms"
-
 	. "codeberg.org/readeck/readeck/components"
-	F "codeberg.org/readeck/readeck/components/forms"
+	F "codeberg.org/readeck/readeck/components/forms/v2"
 )
 
-templ (v Views) ui(form, formErr *forms.Form) {
+templ (v Views) ui(form, formErr *cookbookForm) {
 	@v.base("User Interface") {
 		<div class="max-w-std">
 			<h1 class="title text-h2">User Interface</h1>
@@ -115,62 +113,61 @@ templ (v Views) ui(form, formErr *forms.Form) {
 					<p>Revealed content</p>
 				</details>
 			}
-			<hr class="my-8"/>
 			<h2 class="title text-h3">Form Fields</h2>
-			@F.TextField(form.Get("text"),
+			@F.TextField(&form.Text,
 				F.Name("text"),
 				F.Label("Text Field"),
 				F.Classes("field-h"),
 			)
-			@F.TextField(form.Get("text"),
+			@F.TextField(&form.Text,
 				F.Name("required"),
 				F.Required(true),
 				F.Label("Required Field"),
 				F.Classes("field-h"),
 				F.Help("This field's help text"),
 			)
-			@F.PasswordField(form.Get("text"),
+			@F.PasswordField(&form.Text,
 				F.Name("password"),
 				F.Label("Password Field"),
 				F.Classes("field-h"),
 				F.InputAttr("autocomplete", "off"),
 			)
-			@F.DateField(form.Get("text"),
+			@F.DateField(&form.Text,
 				F.Name("date"),
 				F.Label("Date Field"),
 				F.Classes("field-h"),
 			)
-			@F.TextAreaField(form.Get("text"),
+			@F.TextAreaField(&form.Text,
 				F.Name("textarea"),
 				F.Label("Textarea"),
 				F.Classes("field-h"),
 			)
-			@F.SelectField[string](form.Get("select"),
+			@F.SelectField[string](&form.Select,
 				F.Name("select"),
 				F.Label("Select"),
 				F.Classes("field-h"),
 			)
-			@F.CheckboxField(form.Get("text"),
+			@F.CheckboxField(&form.Checkbox,
 				F.Name("checkbox"),
 				F.Label("Checkbox"),
 				F.Classes("field-h"),
 			)
-			@F.MultiSelectField[string](form.Get("choices"),
+			@F.MultiSelectField[string](&form.Choices,
 				F.Name("checkboxes"),
 				F.Label("Checkboxes"),
 				F.Classes("field-h"),
 			)
-			@F.MultiSelectField[string](form.Get("select"),
+			@F.MultiSelectField[string](&form.Select,
 				F.Name("radio"),
 				F.Label("Radio"),
 				F.Classes("field-h"),
 			)
-			@F.TimeTokenField(form.Get("text"),
+			@F.TimeTokenField(&form.Text,
 				F.Name("timetoken"),
 				F.Label("Time Token"),
 				F.Classes("field-h"),
 			)
-			@F.FiledDropField(form.Get("text"),
+			@F.FiledDropField(&form.File,
 				F.Name("dropzone"),
 				F.Label("Drop Zone Field"),
 				F.Classes("field-h"),
@@ -178,12 +175,12 @@ templ (v Views) ui(form, formErr *forms.Form) {
 			<hr class="my-8"/>
 			<h2 class="title text-h3">Form with errors</h2>
 			@F.Errors(formErr)
-			@F.TextField(formErr.Get("text"),
+			@F.TextField(&formErr.Text,
 				F.Name("err-text"),
 				F.Label("Text Field"),
 				F.Classes("field-h"),
 			)
-			@F.MultiSelectField[string](formErr.Get("choices"),
+			@F.MultiSelectField[string](&formErr.Choices,
 				F.Name("err-checkboxes"),
 				F.Label("Checkboxes"),
 				F.Classes("field-h"),
