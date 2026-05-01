@@ -68,8 +68,8 @@ func (api *adminAPI) withUserList(next http.Handler) http.Handler {
 
 		ds := users.Users.Query().
 			Order(goqu.I("username").Asc()).
-			Limit(uint(pf.Limit())).
-			Offset(uint(pf.Offset()))
+			Limit(uint(pf.Limit.Value())).
+			Offset(uint(pf.Offset.Value()))
 
 		res, err := newUserList(r.Context(), ds)
 		if err != nil {

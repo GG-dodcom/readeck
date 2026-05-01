@@ -158,8 +158,8 @@ func (api *profileAPI) withTokenList(t tokenType) func(next http.Handler) http.H
 					exp.DateTime(goqu.C("last_used").Table("t")).Desc().NullsLast(),
 					exp.DateTime(goqu.C("created").Table("t")).Desc(),
 				).
-				Limit(uint(pf.Limit())).
-				Offset(uint(pf.Offset()))
+				Limit(uint(pf.Limit.Value())).
+				Offset(uint(pf.Offset.Value()))
 
 			switch t {
 			case userToken:

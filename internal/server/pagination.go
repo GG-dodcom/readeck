@@ -12,50 +12,27 @@ import (
 	"strconv"
 
 	"codeberg.org/readeck/readeck/internal/server/urls"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 // PaginationForm is a default form for pagination.
 type PaginationForm struct {
-	*forms.Form
-}
-
-func newPaginationForm(tr forms.Translator) *PaginationForm {
-	return &PaginationForm{forms.Must(
-		forms.WithTranslator(context.Background(), tr),
-		forms.NewIntegerField("limit", forms.Gte(0), forms.Lte(100)),
-		forms.NewIntegerField("offset", forms.Gte(0)),
-	)}
-}
-
-// Limit returns the current limit or zero if none was given.
-func (f *PaginationForm) Limit() int {
-	return f.Get("limit").(forms.TypedField[int]).V()
-}
-
-// Offset returns the current offset or 0 if none was given.
-func (f *PaginationForm) Offset() int {
-	return f.Get("offset").(forms.TypedField[int]).V()
-}
-
-// SetLimit sets the limit's value. It's used to set a default limit before binding the form.
-func (f *PaginationForm) SetLimit(v int) {
-	f.Get("limit").Set(v)
+	forms.Form
+	Limit  forms.IntegerField `json:"limit"  validate:"gte:0 lte:100"`
+	Offset forms.IntegerField `json:"offset" validate:"gte:0"`
 }
 
 // GetPageParams returns the pagination parameters from the query string.
 func GetPageParams(r *http.Request, defaultLimit int) *PaginationForm {
-	f := newPaginationForm(Locale(r))
-	f.Get("limit").Set(0)
-	f.Get("offset").Set(0)
-	forms.BindURL(f, r)
+	f := forms.New[PaginationForm](r.Context())
+	forms.BindValues(r.URL.Query(), f)
 
 	if !f.IsValid() {
 		return nil
 	}
 
-	if f.Get("limit").(*forms.IntegerField).V() == 0 {
-		f.SetLimit(defaultLimit)
+	if f.Limit.Value() == 0 {
+		f.Limit.Set(defaultLimit)
 	}
 
 	return f

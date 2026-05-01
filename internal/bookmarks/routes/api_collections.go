@@ -99,8 +99,8 @@ func (api *apiRouter) withColletionList(next http.Handler) http.Handler {
 			)
 
 		ds = ds.Order(goqu.I("name").Asc()).
-			Limit(uint(pf.Limit())).
-			Offset(uint(pf.Offset()))
+			Limit(uint(pf.Limit.Value())).
+			Offset(uint(pf.Offset.Value()))
 
 		res, err := dataset.NewCollectionList(r.Context(), ds)
 		if err != nil {

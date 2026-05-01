@@ -687,8 +687,8 @@ func (api *apiRouter) withBookmarkListSelectDataset(next http.Handler) http.Hand
 		}
 
 		ds = ds.
-			Limit(uint(pf.Limit())).
-			Offset(uint(pf.Offset()))
+			Limit(uint(pf.Limit.Value())).
+			Offset(uint(pf.Offset.Value()))
 
 		// Apply sorting given by a query string
 		if order, ok := checkBookmarkOrder(r.Context()); ok {
@@ -798,8 +798,8 @@ func (api *apiRouter) withAnnotationList(next http.Handler) http.Handler {
 			)
 
 		ds = ds.
-			Limit(uint(pf.Limit())).
-			Offset(uint(pf.Offset())).
+			Limit(uint(pf.Limit.Value())).
+			Offset(uint(pf.Offset.Value())).
 			Order(exp.DateTime(goqu.I("annotation_created")).Desc())
 
 		res, err := dataset.NewAnnotationList(r.Context(), ds)
