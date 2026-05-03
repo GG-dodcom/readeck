@@ -6,7 +6,7 @@ package onboarding
 
 import (
 	. "codeberg.org/readeck/readeck/components"
-	F "codeberg.org/readeck/readeck/components/forms"
+	F "codeberg.org/readeck/readeck/components/forms/v2"
 )
 
 type Views struct{}
@@ -28,12 +28,12 @@ templ (_ Views) onboarding(f *onboardingForm) {
 			</p>
 			<form action={ URL(ctx) } method="post">
 				@F.Errors(f)
-				@F.TextField(f.Get("username"),
+				@F.TextField(&f.Username,
 					F.Label(L(ctx).Gettext("Username")),
 					F.Required(true),
 					F.Classes("max"),
 				)
-				@F.PasswordField(f.Get("password"),
+				@F.PasswordField(&f.Password,
 					F.Label(L(ctx).Gettext("Password")),
 					F.Required(true),
 					F.Classes("max"),
@@ -41,7 +41,7 @@ templ (_ Views) onboarding(f *onboardingForm) {
 					F.Help(L(ctx).Gettext("must be at least 8 characters long")),
 				)
 				<hr class="my-8"/>
-				@F.TextField(f.Get("email"),
+				@F.TextField(&f.Email,
 					F.Label(L(ctx).Gettext("Email address")),
 					F.Classes("max"),
 				)

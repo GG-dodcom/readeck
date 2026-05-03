@@ -5,42 +5,22 @@
 package onboarding
 
 import (
-	"context"
-	"strings"
-
 	"codeberg.org/readeck/readeck/internal/auth/users"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 type onboardingForm struct {
-	*forms.Form
-}
-
-func newOnboardingForm(tr forms.Translator) *onboardingForm {
-	return &onboardingForm{forms.Must(
-		forms.WithTranslator(context.Background(), tr),
-		forms.NewTextField("username", forms.Trim, forms.Required, forms.MaxLen(128), users.IsValidUsername),
-		forms.NewTextField("email", forms.Trim, forms.Skip, forms.MaxLen(128), users.IsValidUserEmail),
-		forms.NewTextField("password", forms.Required, users.IsValidPassword),
-	)}
-}
-
-func (f *onboardingForm) Validate() {
-	username := f.Get("username").String()
-	email := f.Get("email").String()
-
-	// A username can be an email address only if both match
-	if strings.ContainsRune(username, '@') && username != email {
-		f.AddErrors("username", users.ErrInvalidUsername)
-		return
-	}
+	forms.Form
+	Username forms.TextField `json:"username" validate:"trim required max_len:128 is_valid_username"`
+	Email    forms.TextField `json:"email"    validate:"trim skip max_len:128 is_valid_email"`
+	Password forms.TextField `json:"password" validate:"required is_valid_password"`
 }
 
 func (f *onboardingForm) createUser(language string) (*users.User, error) {
 	u := &users.User{
-		Username: f.Get("username").String(),
-		Email:    f.Get("email").String(),
-		Password: f.Get("password").String(),
+		Username: f.Username.Value(),
+		Email:    f.Email.Value(),
+		Password: f.Password.Value(),
 		Group:    "admin",
 		Settings: &users.UserSettings{
 			Lang: language,
@@ -53,7 +33,7 @@ func (f *onboardingForm) createUser(language string) (*users.User, error) {
 
 	err := users.Users.Create(u)
 	if err != nil {
-		f.AddErrors("", forms.ErrUnexpected)
+		f.AddErrors(forms.ErrUnexpected)
 	}
 
 	return u, err

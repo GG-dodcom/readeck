@@ -15,7 +15,7 @@ import (
 	"codeberg.org/readeck/readeck/configs"
 	"codeberg.org/readeck/readeck/internal/auth/users"
 	"codeberg.org/readeck/readeck/internal/server"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 // SetupRoutes mounts the routes for the onboarding domain.
@@ -54,10 +54,10 @@ func (h *viewHandler) onboarding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := newOnboardingForm(server.Locale(r))
+	f := forms.New[onboardingForm](r.Context())
 
 	if r.Method == http.MethodPost {
-		forms.Bind(f, r)
+		forms.Bind(r, f)
 		if f.IsValid() {
 			user, err := f.createUser(server.Locale(r).Tag.String())
 			if err != nil {
