@@ -25,19 +25,13 @@ import (
 	"codeberg.org/readeck/readeck/internal/email"
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 const (
 	rCodeSize     = 6
 	rVerifierSize = 12
 )
-
-type recoverForm struct {
-	*forms.Form
-	ttl    time.Duration
-	prefix string
-}
 
 // recoverCode is the data stored in the K/V store.
 // We only store the user ID and a hash of the code+verifier.
@@ -117,41 +111,8 @@ func (c *recoverCode) key() string {
 	return base64.RawURLEncoding.EncodeToString(c.code[:])
 }
 
-func newRecoverForm(tr forms.Translator) *recoverForm {
-	return &recoverForm{
-		Form: forms.Must(
-			forms.WithTranslator(context.Background(), tr),
-			forms.NewIntegerField("step",
-				forms.Required,
-				forms.TypedValidator(func(v int) bool {
-					return 0 <= v || v <= 3
-				}, errors.New("invalid step")),
-			),
-			forms.NewTextField("email",
-				forms.Trim,
-				forms.When(func(f forms.Field, _ string) bool {
-					step := forms.GetForm(f).Get("step").(forms.TypedField[int]).V()
-					return step == 0 || step == 1
-				}).
-					True(forms.Required),
-				forms.MaxLen(128),
-			),
-			forms.NewTextField("password",
-				forms.When(func(f forms.Field, _ string) bool {
-					step := forms.GetForm(f).Get("step").(forms.TypedField[int]).V()
-					return step == 2 || step == 3
-				}).
-					True(forms.Required, users.IsValidPassword),
-			),
-		),
-		ttl:    time.Duration(1 * time.Hour),
-		prefix: "recover_code",
-	}
-}
-
 func (h *authHandler) recover(w http.ResponseWriter, r *http.Request) {
-	f := newRecoverForm(server.Locale(r))
-	f.Get("step").Set(0)
+	f := newRecoverForm(r.Context())
 
 	var recoverErr error
 	userCode := chi.URLParam(r, "code")
@@ -162,12 +123,12 @@ func (h *authHandler) recover(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		user, err := users.Users.GetOne(goqu.C("email").Eq(f.Get("email").String()))
+		user, err := users.Users.GetOne(goqu.C("email").Eq(f.Email.Value()))
 
 		defer func() {
 			if err != nil {
 				server.Log(r).Error("recover step 0", slog.Any("err", err))
-				f.AddErrors("", forms.ErrUnexpected)
+				f.AddErrors(forms.ErrUnexpected)
 			}
 		}()
 
@@ -177,7 +138,7 @@ func (h *authHandler) recover(w http.ResponseWriter, r *http.Request) {
 
 		ctx := email.WithSiteURL(r.Context(), urls.AbsoluteURL(r, "/"))
 
-		to := f.Get("email").String()
+		to := f.Email.Value()
 		var body string
 
 		if user != nil {
@@ -203,7 +164,7 @@ func (h *authHandler) recover(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		f.Get("step").Set(1)
+		f.Step.Set(1)
 	}
 
 	step2 := func() {
@@ -236,11 +197,11 @@ func (h *authHandler) recover(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err != nil {
 				server.Log(r).Error("password update", slog.Any("err", err))
-				f.AddErrors("", forms.ErrUnexpected)
+				f.AddErrors(forms.ErrUnexpected)
 			}
 		}()
 
-		if err = user.SetPassword(f.Get("password").String()); err != nil {
+		if err = user.SetPassword(f.Password.Value()); err != nil {
 			return
 		}
 		user.SetSeed()
@@ -255,18 +216,18 @@ func (h *authHandler) recover(w http.ResponseWriter, r *http.Request) {
 		if err = code.delete(f.prefix); err != nil {
 			return
 		}
-		f.Get("step").Set(3)
+		f.Step.Set(3)
 	}
 
 	switch r.Method {
 	case http.MethodGet:
 		if userCode != "" {
-			f.Get("step").Set(2)
+			f.Step.Set(2)
 			step2()
 		}
 	case http.MethodPost:
-		forms.Bind(f, r)
-		switch f.Get("step").Value() {
+		forms.Bind(r, f)
+		switch f.Step.Value() {
 		case 0:
 			step0()
 		case 1:

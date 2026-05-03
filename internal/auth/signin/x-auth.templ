@@ -5,10 +5,8 @@
 package signin
 
 import (
-	"codeberg.org/readeck/readeck/pkg/forms"
-
 	. "codeberg.org/readeck/readeck/components"
-	F "codeberg.org/readeck/readeck/components/forms"
+	F "codeberg.org/readeck/readeck/components/forms/v2"
 )
 
 type Views struct{}
@@ -43,8 +41,8 @@ templ (v Views) signIn(f *loginForm) {
 			data-action="login-form#validate"
 		>
 			@F.Errors(f)
-			<input type="hidden" name="redirect" value={ f.Get("redirect").String() }/>
-			@F.TextField(f.Get("username"),
+			<input type="hidden" name={ f.Redirect.Name() } value={ f.Redirect.Value() }/>
+			@F.TextField(&f.Username,
 				F.Label(L(ctx).Gettext("Username or email address")),
 				F.Classes("max"),
 				F.InputAttrs(templ.Attributes{
@@ -53,7 +51,7 @@ templ (v Views) signIn(f *loginForm) {
 					"autocomplete":           "username",
 				}),
 			)
-			@F.PasswordField(f.Get("password"),
+			@F.PasswordField(&f.Password,
 				F.Label(L(ctx).Gettext("Password")),
 				F.Classes("max"),
 				F.InputAttrs(templ.Attributes{
@@ -73,14 +71,14 @@ templ (v Views) signIn(f *loginForm) {
 	}
 }
 
-templ (v Views) mfa(f *forms.Form) {
+templ (v Views) mfa(f *totpForm) {
 	{{ title := L(ctx).Gettext("Two-factor authentication") }}
 	@v.base(title) {
 		<h2 class="text-h3 mb-8 text-center">{ title }</h2>
 		<form action={ URL(ctx, "/login/mfa") } method="post">
 			@F.Errors(f)
-			<input type="hidden" name="redirect" value={ f.Get("redirect").String() }/>
-			@F.TextField(f.Get("code"),
+			<input type="hidden" name={ f.Redirect.Name() } value={ f.Redirect.Value() }/>
+			@F.TextField(&f.Code,
 				F.Label(L(ctx).Gettext("Passcode")),
 				F.Classes("max"),
 				F.InputClasses("form-input w-full text-center text-lg font-bold"),
@@ -108,7 +106,7 @@ templ (v Views) mfa(f *forms.Form) {
 templ (v Views) recover(f *recoverForm, err error) {
 	{{
 		title := L(ctx).Gettext("Password recovery")
-		step := f.Get("step").(*forms.IntegerField).V()
+		step := f.Step.Value()
 	}}
 	@v.base(title) {
 		<h2 class="text-h3 mb-8 text-center">{ title }</h2>
@@ -125,7 +123,7 @@ templ (v Views) recover(f *recoverForm, err error) {
             to recover your password.
           `) }
 					</p>
-					@F.TextField(f.Get("email"),
+					@F.TextField(&f.Email,
 						F.Label(L(ctx).Gettext("Email address")),
 						F.Classes("max"),
 					)
@@ -146,7 +144,7 @@ templ (v Views) recover(f *recoverForm, err error) {
             We have sent an email to
             <strong>%s</strong>
             with further instructions.
-          `, templ.EscapeString(f.Get("email").String())))
+          `, templ.EscapeString(f.Email.Value())))
 					</p>
 				}
 			case 2:
@@ -158,7 +156,7 @@ templ (v Views) recover(f *recoverForm, err error) {
 					<form action="" method="post">
 						@F.Errors(f)
 						<input type="hidden" name="step" value={ step }/>
-						@F.PasswordField(f.Get("password"),
+						@F.PasswordField(&f.Password,
 							F.Label(L(ctx).Gettext("New password")),
 							F.Classes("max"),
 							F.Help(L(ctx).Gettext("must be at least 8 characters long")),
