@@ -109,7 +109,6 @@
     text-wrap: balance;
 
     a {
-      @apply overflow-hidden text-ellipsis;
       @apply block font-semibold text-left;
     }
   }
@@ -295,6 +294,10 @@
     &--title {
       @apply p-2;
 
+      a {
+        @apply line-clamp-3;
+      }
+
       a::after {
         @apply absolute top-0 bottom-0 left-0 right-0;
         z-index: 1;
@@ -314,7 +317,7 @@
       line-height: 0;
 
       > strong {
-        @apply leading-none overflow-hidden text-ellipsis;
+        @apply leading-none truncate;
       }
       > span {
         @apply text-nowrap;
@@ -488,9 +491,6 @@
       @apply text-sm text-gray-600;
       @apply pt-1 pr-2;
 
-      > strong {
-        @apply overflow-hidden text-ellipsis;
-      }
       > span {
         @apply text-nowrap;
       }
@@ -530,8 +530,17 @@
         "ico spinner deleted deleted deleted";
       grid-template-columns: auto auto auto 1fr auto;
 
+      &--title a {
+        @apply line-clamp-2;
+      }
+
       &--spinner {
         @apply text-left;
+      }
+    }
+    @container bookmark-list (width > 500px) {
+      &--title a {
+        @apply truncate;
       }
     }
   }
@@ -593,9 +602,13 @@
     }
 
     &--title {
-      @apply px-2 pb-1 pt-4 text-white overflow-hidden;
+      @apply px-2 pb-1 pt-4 text-white;
       @apply bg-gradient-to-t from-black/70 to-black/0;
       text-shadow: 2px 2px 4px theme("colors.black");
+
+      a {
+        @apply line-clamp-3;
+      }
 
       a::after {
         @apply absolute top-0 bottom-0 left-0 right-0;
