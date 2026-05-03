@@ -24,7 +24,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/auth/users"
 	"codeberg.org/readeck/readeck/internal/sessions"
 	"codeberg.org/readeck/readeck/pkg/ctxr"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 	"codeberg.org/readeck/readeck/pkg/http/request"
 )
 
@@ -283,7 +283,10 @@ func (p *ForwardedAuthProvider) Handler(next http.Handler) http.Handler {
 		}
 
 		// Load user
-		f := users.NewProvisioningForm(Locale(r))
+		f := forms.New[users.ProvisioningForm](
+			forms.WithTranslator(r.Context(), Locale(r)),
+		)
+
 		user, update, err := f.LoadUser(username, email, group)
 		if err != nil {
 			if fe, ok := errors.AsType[forms.Errors](err); ok {

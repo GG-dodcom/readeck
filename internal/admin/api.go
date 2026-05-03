@@ -20,7 +20,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
 	"codeberg.org/readeck/readeck/pkg/ctxr"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 type (
@@ -132,14 +132,13 @@ func (api *adminAPI) userInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *adminAPI) userCreate(w http.ResponseWriter, r *http.Request) {
-	f := users.NewUserForm(server.Locale(r))
-	forms.Bind(f, r)
+	f := forms.BindAs[userForm](r)
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
 	}
 
-	u, err := f.CreateUser()
+	u, err := f.createUser()
 	if err != nil {
 		server.Err(w, r, err)
 		return
@@ -151,18 +150,18 @@ func (api *adminAPI) userCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *adminAPI) userUpdate(w http.ResponseWriter, r *http.Request) {
-	f := users.NewUserForm(server.Locale(r))
-
 	u := getUser(r.Context())
+
+	f := forms.New[userForm](r.Context())
 	f.SetUser(u)
 
-	forms.Bind(f, r)
+	forms.Bind(r, f)
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
 	}
 
-	updated, err := f.UpdateUser(u)
+	updated, err := f.updateUser(u)
 	if err != nil {
 		server.Err(w, r, err)
 		return

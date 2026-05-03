@@ -10,21 +10,16 @@ type translator interface {
 	Pgettext(ctx, str string, vars ...any) string
 }
 
-func pgettext(_, s string) string {
-	// dummy pgettext for string extraction
-	return s
-}
+var roleMap = map[string]func(tr translator) string{
+	"user":  func(tr translator) string { return tr.Pgettext("role", "user") },
+	"staff": func(tr translator) string { return tr.Pgettext("role", "staff") },
+	"admin": func(tr translator) string { return tr.Pgettext("role", "admin") },
 
-var roleMap = map[string]string{
-	"user":  pgettext("role", "user"),
-	"staff": pgettext("role", "staff"),
-	"admin": pgettext("role", "admin"),
-
-	"profile:read":    pgettext("role", "Profile : Read Only"),
-	"bookmarks:read":  pgettext("role", "Bookmarks : Read Only"),
-	"bookmarks:write": pgettext("role", "Bookmarks : Write Only"),
-	"admin:read":      pgettext("role", "Admin : Read Only"),
-	"admin:write":     pgettext("role", "Admin : Write Only"),
+	"profile:read":    func(tr translator) string { return tr.Pgettext("role", "Profile : Read Only") },
+	"bookmarks:read":  func(tr translator) string { return tr.Pgettext("role", "Bookmarks : Read Only") },
+	"bookmarks:write": func(tr translator) string { return tr.Pgettext("role", "Bookmarks : Write Only") },
+	"admin:read":      func(tr translator) string { return tr.Pgettext("role", "Admin : Read Only") },
+	"admin:write":     func(tr translator) string { return tr.Pgettext("role", "Admin : Write Only") },
 }
 
 // GroupList returns a list of available groups identified by a permission name
@@ -39,7 +34,7 @@ func GroupList(tr translator, name string, user *User) [][2]string {
 
 		label := g
 		if n, ok := roleMap[g]; ok {
-			label = tr.Pgettext("role", n)
+			label = n(tr)
 		}
 
 		res = append(res, [2]string{g, label})
@@ -55,7 +50,7 @@ func GroupNames(tr translator, groups []string) []string {
 	for i, g := range groups {
 		res[i] = g
 		if n, ok := roleMap[g]; ok {
-			res[i] = tr.Pgettext("role", n)
+			res[i] = n(tr)
 		}
 	}
 

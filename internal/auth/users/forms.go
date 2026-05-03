@@ -5,23 +5,16 @@
 package users
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/doug-martin/goqu/v9"
 
 	"codeberg.org/readeck/readeck/configs"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 	"codeberg.org/readeck/readeck/pkg/glob"
-)
-
-type (
-	ctxUserFormKey struct{}
 )
 
 // Error definitions.
@@ -31,265 +24,95 @@ var (
 	ErrBlockedEmailAddr = forms.ErrInvalidEmail
 )
 
-// IsValidPassword is the password validation rule.
-var IsValidPassword = forms.TypedValidator(func(v string) bool {
-	if strings.TrimSpace(v) == "" {
-		return false
-	}
-	return len(v) >= 8
-}, errors.New("password must be at least 8 character long"))
-
-// IsValidUsername is the username validator.
-// A valid username contains at least 3 characters from [a-z0-9_-]
-// and start with a letter.
-var IsValidUsername = forms.ValueValidatorFunc[string](func(f forms.Field, v string) error {
-	if f.IsNil() {
-		return nil
-	}
-
-	if len(v) < 3 {
-		return ErrInvalidUsername
-	}
-
-	for _, x := range v {
-		if unicode.Is(unicode.C, x) || unicode.Is(unicode.Space, x) {
-			return ErrInvalidUsername
-		}
-	}
-
-	for _, blocked := range configs.Config.Accounts.UsernameDenyList {
-		if glob.Glob(blocked, v) {
-			return ErrBlockedUsername
-		}
-	}
-
-	return nil
-})
-
-// IsValidUserEmail is the user's email address validator.
-var IsValidUserEmail = forms.ValueValidatorFunc[string](func(f forms.Field, v string) error {
-	if err := forms.IsEmail.ValidateValue(f, v); err != nil {
-		return err
-	}
-
-	for _, blocked := range configs.Config.Accounts.EmailDenyList {
-		if glob.Glob(blocked, v) {
-			return ErrBlockedEmailAddr
-		}
-	}
-
-	return nil
-})
-
-// UserForm is the form used for user creation and update.
-type UserForm struct {
-	*forms.Form
-}
-
-// NewUserForm returns a UserForm instance.
-func NewUserForm(tr forms.Translator) *UserForm {
-	hasUser := func() *forms.ConditionValidator[string] {
-		return forms.When(func(f forms.Field, _ string) bool {
-			u, _ := forms.GetForm(f).Context().Value(ctxUserFormKey{}).(*User)
-			return u != nil
-		})
-	}
-
-	availableGroups := [][2]string{
-		{"none", tr.Pgettext("role", "no group")},
-	}
-	availableGroups = append(availableGroups, GroupList(tr, "@group", nil)...)
-
-	return &UserForm{forms.Must(
-		forms.WithTranslator(context.Background(), tr),
-		forms.NewTextField("username",
-			forms.Trim,
-			hasUser().
-				True(forms.RequiredOrNil).
-				False(forms.Required),
-			forms.MaxLen(128),
-			IsValidUsername,
-		),
-		forms.NewTextField("password",
-			hasUser().
-				False(forms.Required),
-			forms.ValueValidatorFunc[string](func(f forms.Field, v string) error {
-				if f.IsBound() && v != "" && strings.TrimSpace(v) == "" {
-					return forms.Gettext("password is empty")
+func init() {
+	forms.RegisterTaggedValidator(func(name, _ string, tc *forms.TagContext) (forms.Validator, bool) {
+		switch name {
+		case "is_valid_password":
+			return forms.TypedValidator(
+				func(v string) bool {
+					if strings.TrimSpace(v) == "" {
+						return false
+					}
+					return len(v) >= 8
+				},
+				forms.Gettext("password must be at least 8 character long"),
+			), true
+		case "is_valid_email":
+			return forms.ValueValidatorFunc[string](func(f forms.Binder, v string) error {
+				if err := forms.IsEmail.ValidateValue(f, v); err != nil {
+					return err
 				}
+
+				for _, blocked := range configs.Config.Accounts.EmailDenyList {
+					if glob.Glob(blocked, v) {
+						return ErrBlockedEmailAddr
+					}
+				}
+
 				return nil
-			}),
-		),
-		forms.NewTextField("email",
-			forms.Trim,
-			hasUser().
-				True(forms.RequiredOrNil).
-				False(forms.Required),
-			forms.MaxLen(128),
-			IsValidUserEmail,
-		),
-		forms.NewTextField("group",
-			forms.Trim,
-			forms.Default("user"),
-			forms.ChoicesPairs(availableGroups),
-			hasUser().False(forms.Required),
-		),
-	)}
-}
+			}), true
+		case "is_valid_username":
+			return forms.ValueValidatorFunc[string](func(f forms.Binder, v string) error {
+				if f.IsNil() {
+					return nil
+				}
 
-// SetUser adds a user to the form's context.
-func (f *UserForm) SetUser(u *User) {
-	ctx := context.WithValue(f.Context(), ctxUserFormKey{}, u)
-	f.SetContext(ctx)
+				if len(v) < 3 {
+					return ErrInvalidUsername
+				}
 
-	f.Get("username").Set(u.Username)
-	f.Get("email").Set(u.Email)
-	f.Get("group").Set(u.Group)
-}
+				for _, x := range v {
+					if unicode.Is(unicode.C, x) || unicode.Is(unicode.Space, x) {
+						return ErrInvalidUsername
+					}
+				}
 
-// Bind prepares the form before data binding.
-// It changes some validators in case of user update.
-func (f *UserForm) Bind() {
-	f.Form.Bind()
+				for _, blocked := range configs.Config.Accounts.UsernameDenyList {
+					if glob.Glob(blocked, v) {
+						return ErrBlockedUsername
+					}
+				}
 
-	u, _ := f.Context().Value(ctxUserFormKey{}).(*User)
-	if u == nil {
-		// set default group
-		f.Get("group").Set("user")
-		return
-	}
-}
+				if !strings.ContainsRune(v, '@') {
+					return nil
+				}
 
-// Validate performs extra form validation.
-func (f *UserForm) Validate() {
-	u, _ := f.Context().Value(ctxUserFormKey{}).(*User)
+				// Username contains "@". There must be an email field and both
+				// values must be equal.
+				email, ok := tc.Form.Fields()["email"]
+				if !ok || email.V() != f.V() {
+					return ErrInvalidUsername
+				}
 
-	// A username can be an email address only if both match
-	// TODO: when forms/v2 lands, make this part of a shared BaseUserForm
-	// used by all user forms (admin, profile, onboarding)
-	username := f.Get("username").String()
-	email := f.Get("email").String()
-	if strings.ContainsRune(username, '@') && username != email {
-		f.AddErrors("username", ErrInvalidUsername)
-		return
-	}
+				return nil
+			}), true
+		case "group_choices":
+			g := GroupList(forms.GetTranslator(tc.Context), "@group", nil)
+			choices := make([]forms.ValueChoice[string], 0, len(g)+1)
+			choices = append(choices, forms.Choice(
+				forms.GetTranslator(tc.Context).Pgettext("role", "no group"),
+				"none",
+			))
 
-	userQuery := Users.Query().
-		Where(goqu.C("username").Eq(f.Get("username").String()))
-	emailQuery := Users.Query().
-		Where(goqu.C("email").Eq(f.Get("email").String()))
-
-	if u != nil {
-		userQuery = userQuery.Where(goqu.C("id").Neq(u.ID))
-		emailQuery = emailQuery.Where(goqu.C("id").Neq(u.ID))
-	}
-
-	// Check that username is not already in use
-	if c, err := userQuery.Count(); err != nil {
-		f.AddErrors("", errors.New("validation process error"))
-	} else if c > 0 {
-		f.AddErrors("username", errors.New("username is already in use"))
-	}
-
-	// Check that email is not already in use
-	if c, err := emailQuery.Count(); err != nil {
-		f.AddErrors("", errors.New("validation process error"))
-	} else if c > 0 {
-		f.AddErrors("email", errors.New("email address is already in use"))
-	}
-}
-
-// CreateUser performs the user creation.
-func (f *UserForm) CreateUser() (*User, error) {
-	u := &User{
-		Username: f.Get("username").String(),
-		Email:    f.Get("email").String(),
-		Password: f.Get("password").String(),
-		Group:    f.Get("group").String(),
-	}
-
-	err := Users.Create(u)
-	if err != nil {
-		f.AddErrors("", forms.ErrUnexpected)
-	}
-
-	return u, err
-}
-
-// UpdateUser performs a user update and returns a mapping of
-// updated fields.
-func (f *UserForm) UpdateUser(u *User) (res map[string]any, err error) {
-	if !f.IsBound() {
-		err = errors.New("form is not bound")
-		return
-	}
-
-	res = make(map[string]any)
-	for _, field := range f.Fields() {
-		switch field.Name() {
-		case "password":
-			if field.IsNil() || strings.TrimSpace(field.String()) == "" {
-				continue
+			for _, x := range g {
+				choices = append(choices, forms.Choice(x[1], x[0]))
 			}
-			p, err := u.HashPassword(field.String())
-			if err != nil {
-				f.AddErrors("", forms.ErrUnexpected)
-				return nil, err
-			}
-			res[field.Name()] = p
+			forms.Choices(tc.Field, choices...)
+			tc.Field.(*forms.TextField).Set("user")
+
+			return nil, true
 		default:
-			if field.IsBound() && !field.IsNil() {
-				res[field.Name()] = field.Value()
-			}
+			return nil, false
 		}
-	}
-
-	if len(res) > 0 {
-		res["updated"] = time.Now().UTC()
-		res["seed"] = u.SetSeed()
-		if err = u.Update(res); err != nil {
-			f.AddErrors("", forms.ErrUnexpected)
-			return
-		}
-		if _, ok := res["password"]; ok {
-			res["password"] = "-"
-		}
-	}
-	res["id"] = u.ID
-	delete(res, "seed")
-	return
+	})
 }
 
-// ProvisioningForm is the form used for retrieving an existing or new user
-// based on its username and email address.
+// ProvisioningForm is a form that can provision a new user.
 type ProvisioningForm struct {
-	*forms.Form
-}
-
-// NewProvisioningForm returns a new [NewProvisioningForm].
-func NewProvisioningForm(tr forms.Translator) *ProvisioningForm {
-	availableGroups := [][2]string{
-		{"none", tr.Pgettext("role", "no group")},
-	}
-	availableGroups = append(availableGroups, GroupList(tr, "@group", nil)...)
-
-	return &ProvisioningForm{forms.Must(
-		forms.WithTranslator(context.Background(), tr),
-		forms.NewTextField("username", forms.MaxLen(128), IsValidUsername),
-		forms.NewTextField("email", forms.MaxLen(128), IsValidUserEmail),
-		forms.NewTextField("group", forms.RequiredOrNil, forms.ChoicesPairs(availableGroups)),
-	)}
-}
-
-// Validate performs extra form validations.
-func (f *ProvisioningForm) Validate() {
-	// A username can be an email address only if both match
-	username := f.Get("username").String()
-	email := f.Get("email").String()
-	if strings.ContainsRune(username, '@') && username != email {
-		f.AddErrors("username", ErrInvalidUsername)
-		return
-	}
+	forms.Form
+	Username forms.TextField `json:"username" validate:"trim is_valid_username"`
+	Email    forms.TextField `json:"email"    validate:"trim is_valid_email"`
+	Group    forms.TextField `json:"group"    validate:"required_or_nil group_choices"`
 }
 
 // LoadUser loads a user based on its username or email.
@@ -304,18 +127,21 @@ func (f *ProvisioningForm) LoadUser(username, email, group string) (*User, goqu.
 		values.Set("group", group)
 	}
 
-	forms.BindValues(f, values)
+	forms.BindValues(values, f)
 
 	if !f.IsValid() {
 		if len(f.Errors()) > 0 {
 			return nil, nil, f.Errors()
 		}
-		for _, field := range f.Fields() {
+		for name, field := range f.Fields() {
 			if len(field.Errors()) > 0 {
-				return nil, nil, forms.Errors{fmt.Errorf("%s: %s", field.Name(), field.Errors())}
+				return nil, nil, forms.Errors{fmt.Errorf("%s: %s", name, field.Errors())}
 			}
 		}
 	}
+
+	username = f.Username.Value()
+	email = f.Email.Value()
 
 	res := []*User{}
 	err := Users.Query().Where(
