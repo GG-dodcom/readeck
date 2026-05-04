@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -24,7 +25,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/auth/users"
 	"codeberg.org/readeck/readeck/internal/db"
 	"codeberg.org/readeck/readeck/pkg/base58"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 func init() {
@@ -284,32 +285,26 @@ func runUser(_ context.Context, args []string) (err error) {
 	flags.setEmail(user)
 	flags.removeTOTP(user)
 
-	// Check username
-	field := forms.NewTextField("", users.IsValidUsername)
-	field.Set(user.Username)
-	if !field.IsValid() {
-		return field.Errors()
+	// Check username and email address
+	type userForm struct {
+		forms.Form
+		Username forms.TextField `json:"username" validate:"trim required_or_nil max_len:128 is_valid_username"`
+		Email    forms.TextField `json:"email"    validate:"trim required_or_nil max_len:128 is_valid_email"`
 	}
+	form := forms.New[userForm](context.Background())
+	forms.BindValues(url.Values{"username": {user.Username}, "email": {user.Email}}, form)
+	form.IsValid()
 
-	// Check email address
-	field = forms.NewTextField("", users.IsValidUserEmail)
-	field.Set(user.Email)
-	if !field.IsValid() {
-		return field.Errors()
+	if !form.Username.IsValid() {
+		return form.Username.Errors()
 	}
-
-	// Allow username as email address
-	if strings.ContainsRune(user.Username, '@') && user.Username != user.Email {
-		return users.ErrInvalidUsername
+	if !form.Email.IsValid() {
+		return form.Email.Errors()
 	}
 
 	if flags.DryRun {
 		flags.output(res)
 		return nil
-	}
-
-	if strings.ContainsRune(user.Username, '@') && user.Username != user.Email {
-		return users.ErrInvalidUsername
 	}
 
 	if user.ID == 0 {
