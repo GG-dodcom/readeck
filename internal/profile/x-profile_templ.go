@@ -19,7 +19,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/server"
 
 	. "codeberg.org/readeck/readeck/components"
-	F "codeberg.org/readeck/readeck/components/forms"
+	F "codeberg.org/readeck/readeck/components/forms/v2"
 )
 
 func (v Views) userProfile(f *profileForm) templ.Component {
@@ -170,7 +170,7 @@ func (v Views) userProfile(f *profileForm) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextField(f.Get("username"),
+			templ_7745c5c3_Err = F.TextField(&f.Username,
 				F.Label(L(ctx).Gettext("Username")),
 				F.Required(true),
 				F.Classes("field-h"),
@@ -179,7 +179,7 @@ func (v Views) userProfile(f *profileForm) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextField(f.Get("email"),
+			templ_7745c5c3_Err = F.TextField(&f.Email,
 				F.InputType("email"),
 				F.Label(L(ctx).Gettext("Email Address")),
 				F.Required(true),
@@ -189,7 +189,7 @@ func (v Views) userProfile(f *profileForm) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.SelectField[string](f.Get("settings_lang"),
+			templ_7745c5c3_Err = F.SelectField[string](&f.SettingsLang,
 				F.Label(L(ctx).Gettext("Language")),
 				F.Required(true),
 				F.Classes("field-h"),
@@ -245,7 +245,7 @@ func (v Views) userProfile(f *profileForm) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = F.TextField(f.Get("settings_email_reply_to"),
+				templ_7745c5c3_Err = F.TextField(&f.SettingsEmailReplyTo,
 					F.InputType("email"),
 					F.Label(L(ctx).Gettext("Reply To")),
 					F.Classes("field-h"),
@@ -254,7 +254,7 @@ func (v Views) userProfile(f *profileForm) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = F.TextField(f.Get("settings_email_epub_to"),
+				templ_7745c5c3_Err = F.TextField(&f.SettingsEmailEpubTo,
 					F.InputType("email"),
 					F.Label(L(ctx).Gettext("Send EPUB to")),
 					F.Classes("field-h"),

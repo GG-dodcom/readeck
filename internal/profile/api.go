@@ -20,7 +20,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
 	"codeberg.org/readeck/readeck/pkg/ctxr"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 type (
@@ -123,16 +123,14 @@ func (api *profileAPI) profileInfo(w http.ResponseWriter, r *http.Request) {
 // profileUpdate updates the current user profile information.
 func (api *profileAPI) profileUpdate(w http.ResponseWriter, r *http.Request) {
 	user := auth.GetRequestUser(r)
-	f := newProfileForm(server.Locale(r))
-	f.setUser(user)
-	forms.Bind(f, r)
+	f := forms.BindAs[profileForm](r, withProfileUser(user))
 
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
 	}
 
-	updated, err := f.updateUser(user)
+	updated, err := f.update()
 	if err != nil {
 		server.Err(w, r, err)
 		return

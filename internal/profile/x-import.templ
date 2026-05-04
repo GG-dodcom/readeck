@@ -6,7 +6,7 @@ package profile
 
 import (
 	. "codeberg.org/readeck/readeck/components"
-	F "codeberg.org/readeck/readeck/components/forms"
+	F "codeberg.org/readeck/readeck/components/forms/v2"
 )
 
 templ (v Views) importProfile(f *importForm) {
@@ -17,12 +17,12 @@ templ (v Views) importProfile(f *importForm) {
 		<p>{ L(ctx).Gettext("Import a file obtained through a previous profile export.") }</p>
 		<form class="my-8" action={ URL(ctx) } method="post" enctype="multipart/form-data">
 			@F.Errors(f)
-			@F.FiledDropField(f.Get("data"),
+			@F.FiledDropField(&f.Data,
 				F.Label(L(ctx).Gettext("File")),
 				F.Required(true),
 				F.Classes("field-h"),
 			)
-			@F.TextField(f.Get("check"),
+			@F.TextField(&f.Check,
 				F.Label(L(ctx).Gettext("Confirm your user name")),
 				F.Required(true),
 				F.Classes("field-h"),

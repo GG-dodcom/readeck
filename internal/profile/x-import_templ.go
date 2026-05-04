@@ -16,7 +16,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	. "codeberg.org/readeck/readeck/components"
-	F "codeberg.org/readeck/readeck/components/forms"
+	F "codeberg.org/readeck/readeck/components/forms/v2"
 )
 
 func (v Views) importProfile(f *importForm) templ.Component {
@@ -113,7 +113,7 @@ func (v Views) importProfile(f *importForm) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.FiledDropField(f.Get("data"),
+			templ_7745c5c3_Err = F.FiledDropField(&f.Data,
 				F.Label(L(ctx).Gettext("File")),
 				F.Required(true),
 				F.Classes("field-h"),
@@ -121,7 +121,7 @@ func (v Views) importProfile(f *importForm) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextField(f.Get("check"),
+			templ_7745c5c3_Err = F.TextField(&f.Check,
 				F.Label(L(ctx).Gettext("Confirm your user name")),
 				F.Required(true),
 				F.Classes("field-h"),
