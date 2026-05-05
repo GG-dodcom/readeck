@@ -29,6 +29,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/server/urls"
 	"codeberg.org/readeck/readeck/pkg/annotate"
 	"codeberg.org/readeck/readeck/pkg/forms"
+	forms2 "codeberg.org/readeck/readeck/pkg/forms/v2"
 	"codeberg.org/readeck/readeck/pkg/http/csp"
 	"codeberg.org/readeck/readeck/pkg/zipfs"
 )
@@ -381,8 +382,8 @@ func (api *apiRouter) bookmarkAnnotations(w http.ResponseWriter, r *http.Request
 
 func (api *apiRouter) annotationCreate(w http.ResponseWriter, r *http.Request) {
 	b := getBookmark(r.Context())
-	f := newAnnotationForm(server.Locale(r))
-	forms.Bind(f, r)
+	f := forms2.New[annotationForm](r.Context()) // newAnnotationForm(server.Locale(r))
+	forms2.Bind(r, f)
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
@@ -419,17 +420,17 @@ func (api *apiRouter) annotationUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := newAnnotationUpdateForm(server.Locale(r))
-	forms.Bind(f, r)
+	f := forms2.New[annotationUpdateForm](r.Context()) // newAnnotationUpdateForm(server.Locale(r))
+	forms2.Bind(r, f)
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
 	}
 
 	annotation := b.Annotations.Get(id)
-	annotation.Color = f.Get("color").String()
-	if !f.Get("note").IsNil() {
-		annotation.Note = f.Get("note").String()
+	annotation.Color = f.Color.Value()
+	if f.Note.IsBound() {
+		annotation.Note = f.Note.Value()
 	}
 	update := map[string]any{
 		"annotations": b.Annotations,

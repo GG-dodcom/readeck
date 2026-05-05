@@ -5,7 +5,6 @@
 package routes
 
 import (
-	"context"
 	"strings"
 	"time"
 
@@ -15,43 +14,35 @@ import (
 	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
 	"codeberg.org/readeck/readeck/pkg/base58"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
+type annotationUpdateForm struct {
+	forms.Form
+	Color forms.TextField `json:"color" validate:"trim required max_len:32"`
+	Note  forms.TextField `json:"note"  validate:"trim max_len:1024"`
+}
+
 type annotationForm struct {
-	*forms.Form
-}
-
-func newAnnotationUpdateForm(tr forms.Translator) *forms.Form {
-	return forms.Must(
-		forms.WithTranslator(context.Background(), tr),
-		forms.NewTextField("color", forms.Trim, forms.Required, forms.MaxLen(32)),
-		forms.NewTextField("note", forms.Trim, forms.MaxLen(1024)),
-	)
-}
-
-func newAnnotationForm(tr forms.Translator) *annotationForm {
-	return &annotationForm{forms.Must(
-		forms.WithTranslator(context.Background(), tr),
-		forms.NewTextField("start_selector", forms.Required, forms.Trim, forms.MaxLen(256)),
-		forms.NewIntegerField("start_offset", forms.Required, forms.Gte(0)),
-		forms.NewTextField("end_selector", forms.Required, forms.Trim, forms.MaxLen(256)),
-		forms.NewIntegerField("end_offset", forms.Required, forms.Gte(0)),
-		forms.NewTextField("color", forms.Required, forms.Trim, forms.MaxLen(32)),
-		forms.NewTextField("note", forms.Trim, forms.MaxLen(1024)),
-	)}
+	forms.Form
+	StartSelector forms.TextField    `json:"start_selector" validate:"trim required max_len:256"`
+	StartOffset   forms.IntegerField `json:"start_offset"   validate:"required gte:0"`
+	EndSelector   forms.TextField    `json:"end_selector"   validate:"trim required max_len:256"`
+	EndOffset     forms.IntegerField `json:"end_offset"     validate:"required gte:0"`
+	Color         forms.TextField    `json:"color"          validate:"trim required max_len:32"`
+	Note          forms.TextField    `json:"note"           validate:"trim max_len:1024"`
 }
 
 func (f *annotationForm) addToBookmark(bi *dataset.Bookmark) (*bookmarks.BookmarkAnnotation, error) {
 	annotation := &bookmarks.BookmarkAnnotation{
 		ID:            base58.NewUUID(),
-		StartSelector: f.Get("start_selector").String(),
-		StartOffset:   f.Get("start_offset").Value().(int),
-		EndSelector:   f.Get("end_selector").String(),
-		EndOffset:     f.Get("end_offset").Value().(int),
-		Color:         f.Get("color").String(),
+		StartSelector: f.StartSelector.Value(),
+		StartOffset:   f.StartOffset.Value(),
+		EndSelector:   f.EndSelector.Value(),
+		EndOffset:     f.EndOffset.Value(),
+		Color:         f.Color.Value(),
 		Created:       time.Now().UTC(),
-		Note:          f.Get("note").String(),
+		Note:          f.Note.Value(),
 	}
 
 	// Try to insert the new annotation
