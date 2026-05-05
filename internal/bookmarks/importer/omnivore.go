@@ -22,13 +22,19 @@ import (
 
 	"codeberg.org/readeck/readeck/internal/bookmarks/tasks"
 	"codeberg.org/readeck/readeck/internal/db/types"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 type omnivoreAPIAdapter struct {
 	Endpoint string `json:"url"`
 	Token    string `json:"token"`
 	articles *omnivoreAPISearchResult
+}
+
+type omnivoreAPIAdapterForm struct {
+	BaseImportForm
+	URL   forms.TextField `json:"url"   validate:"trim required max_len:128 is_url"`
+	Token forms.TextField `json:"token" validate:"trim required max_len:64"`
 }
 
 type omnivoreAPISearchResult struct {
@@ -136,37 +142,29 @@ func (n *omnivoreAPINode) Resources() []tasks.MultipartResource {
 	}
 }
 
-func (adapter *omnivoreAPIAdapter) Name(_ forms.Translator) string {
+func (adapter *omnivoreAPIAdapter) Name(context.Context) string {
 	return "Omnivore"
 }
 
-func (adapter *omnivoreAPIAdapter) Form() forms.Binder {
-	f := forms.Must(
-		context.Background(),
-		forms.NewTextField("url",
-			forms.Trim,
-			forms.Required,
-			forms.MaxLen(128),
-			forms.IsURL(allowedSchemes...),
-		),
-		forms.NewTextField("token", forms.Trim, forms.Required, forms.MaxLen(64)),
-	)
-	f.Get("url").Set("https://omnivore.app/")
+func (adapter *omnivoreAPIAdapter) Form(ctx context.Context) importBinder {
+	f := forms.New[omnivoreAPIAdapterForm](ctx)
+	f.URL.Set("https://omnivore.app/")
 
 	return f
 }
 
-func (adapter *omnivoreAPIAdapter) Params(f forms.Binder) ([]byte, error) {
-	if !f.IsValid() {
+func (adapter *omnivoreAPIAdapter) Params(form forms.FormBinder) ([]byte, error) {
+	if !form.IsValid() {
 		return nil, nil
 	}
+	f := form.(*omnivoreAPIAdapterForm)
 
-	endpoint, _ := url.Parse(f.Get("url").String())
+	endpoint, _ := url.Parse(f.URL.Value())
 	endpoint.Fragment = ""
 	endpoint = endpoint.JoinPath("/api/graphql")
 
 	adapter.Endpoint = endpoint.String()
-	adapter.Token = f.Get("token").String()
+	adapter.Token = f.Token.Value()
 
 	err := adapter.checkToken(f)
 	if !f.IsValid() {
@@ -231,7 +229,7 @@ func (adapter *omnivoreAPIAdapter) Next() (BookmarkImporter, error) {
 	return &item.Node, nil
 }
 
-func (adapter *omnivoreAPIAdapter) checkToken(f forms.Binder) error {
+func (adapter *omnivoreAPIAdapter) checkToken(f *omnivoreAPIAdapterForm) error {
 	body := `{"query":"query Viewer{me {id name}}"}`
 	req, _ := http.NewRequest(http.MethodPost, adapter.Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -239,13 +237,13 @@ func (adapter *omnivoreAPIAdapter) checkToken(f forms.Binder) error {
 
 	rsp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		f.AddErrors("", err)
+		f.AddErrors(err)
 		return nil
 	}
 	defer rsp.Body.Close() //nolint:errcheck
 
 	if rsp.StatusCode != http.StatusOK {
-		f.AddErrors("token", forms.Gettext("Invalid API Key"))
+		f.Token.AddErrors(forms.Gettext("Invalid API Key"))
 		return nil
 	}
 
@@ -329,8 +327,7 @@ func (adapter *omnivoreAPIAdapter) fetchArticles(first int, after string) error 
 	}
 
 	body := new(bytes.Buffer)
-	enc := json.NewEncoder(body)
-	_ = enc.Encode(payload)
+	_ = json.NewEncoder(body).Encode(payload)
 
 	req, _ := http.NewRequest(http.MethodPost, adapter.Endpoint, body)
 	req.Header.Set("Content-Type", "application/json")

@@ -14,7 +14,7 @@ import (
 	"slices"
 
 	"codeberg.org/readeck/readeck/pkg/csvstruct"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 type csvBaseAdapter[S any, T BookmarkImporter] struct {
@@ -24,20 +24,18 @@ type csvBaseAdapter[S any, T BookmarkImporter] struct {
 	buildItemFn func(*S) (T, error)
 }
 
-func (adapter *csvBaseAdapter[S, T]) Form() forms.Binder {
-	return forms.Must(
-		context.Background(),
-		forms.NewFileField("data", forms.Required),
-	)
+func (adapter *csvBaseAdapter[S, T]) Form(ctx context.Context) importBinder {
+	return forms.New[FileImportForm](ctx)
 }
 
-func (adapter csvBaseAdapter[S, T]) Params(form forms.Binder) ([]byte, error) {
+func (adapter csvBaseAdapter[S, T]) Params(form forms.FormBinder) ([]byte, error) {
 	if !form.IsValid() {
 		return nil, nil
 	}
+	f := form.(*FileImportForm)
 
 	// Open the iterator. Any error at this stage is fatal.
-	seq, err := adapter.openFileFn(form.Get("data").(*forms.FileField).V())
+	seq, err := adapter.openFileFn(f.Data.Value())
 	if err != nil {
 		return nil, err
 	}
@@ -46,17 +44,17 @@ func (adapter csvBaseAdapter[S, T]) Params(form forms.Binder) ([]byte, error) {
 		// Errors during iteration stop the process but with a message
 		// in the form field.
 		if err != nil {
-			form.AddErrors("data", errInvalidFile)
+			f.Data.AddErrors(errInvalidFile)
 			return nil, nil
 		}
 		if err = adapter.loadItems(cr); err != nil {
-			form.AddErrors("data", err)
+			f.Data.AddErrors(err)
 			return nil, nil
 		}
 	}
 
 	if len(adapter.Items) == 0 {
-		form.AddErrors("data", errInvalidFile)
+		f.Data.AddErrors(errInvalidFile)
 		return nil, nil
 	}
 

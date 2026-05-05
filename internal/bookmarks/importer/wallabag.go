@@ -23,13 +23,22 @@ import (
 
 	"codeberg.org/readeck/readeck/internal/bookmarks/tasks"
 	"codeberg.org/readeck/readeck/internal/db/types"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 type wallabagAdapter struct {
 	Endpoint string `json:"url"`
 	Token    string `json:"token"`
 	articles *wallabagArticleList
+}
+
+type wallabagAdapterForm struct {
+	BaseImportForm
+	URL          forms.TextField `json:"url"           validate:"trim required max_len:128 is_url"`
+	Username     forms.TextField `json:"username"      validate:"trim required max_len:256"`
+	Password     forms.TextField `json:"password"      validate:"required"`
+	ClientID     forms.TextField `json:"client_id"     validate:"trim required max_len:256"`
+	ClientSecret forms.TextField `json:"client_secret" validate:"trim required max_len:256"`
 }
 
 type wallabagArticleList struct {
@@ -144,32 +153,21 @@ func (wa *wallabagArticle) Resources() []tasks.MultipartResource {
 	}
 }
 
-func (adapter *wallabagAdapter) Name(_ forms.Translator) string {
+func (adapter *wallabagAdapter) Name(context.Context) string {
 	return "Wallabag"
 }
 
-func (adapter *wallabagAdapter) Form() forms.Binder {
-	return forms.Must(
-		context.Background(),
-		forms.NewTextField("url",
-			forms.Trim,
-			forms.Required,
-			forms.MaxLen(128),
-			forms.IsURL(allowedSchemes...),
-		),
-		forms.NewTextField("username", forms.Trim, forms.Required, forms.MaxLen(256)),
-		forms.NewTextField("password", forms.Required),
-		forms.NewTextField("client_id", forms.Trim, forms.Required, forms.MaxLen(256)),
-		forms.NewTextField("client_secret", forms.Trim, forms.Required, forms.MaxLen(256)),
-	)
+func (adapter *wallabagAdapter) Form(ctx context.Context) importBinder {
+	return forms.New[wallabagAdapterForm](ctx)
 }
 
-func (adapter *wallabagAdapter) Params(f forms.Binder) ([]byte, error) {
-	if !f.IsValid() {
+func (adapter *wallabagAdapter) Params(form forms.FormBinder) ([]byte, error) {
+	if !form.IsValid() {
 		return nil, nil
 	}
+	f := form.(*wallabagAdapterForm)
 
-	endpoint, _ := url.Parse(f.Get("url").String())
+	endpoint, _ := url.Parse(f.URL.Value())
 	endpoint.Fragment = ""
 	if endpoint.Path != "" {
 		endpoint.Path = strings.TrimSuffix(path.Clean(endpoint.Path), "/")
@@ -246,15 +244,14 @@ func (adapter *wallabagAdapter) Next() (BookmarkImporter, error) {
 	return &item, nil
 }
 
-func (adapter *wallabagAdapter) authenticate(f forms.Binder) error {
+func (adapter *wallabagAdapter) authenticate(f *wallabagAdapterForm) error {
 	body := new(bytes.Buffer)
-	enc := json.NewEncoder(body)
-	_ = enc.Encode(map[string]string{
+	_ = json.NewEncoder(body).Encode(map[string]string{
 		"grant_type":    "password",
-		"client_id":     f.Get("client_id").String(),
-		"client_secret": f.Get("client_secret").String(),
-		"username":      f.Get("username").String(),
-		"password":      f.Get("password").String(),
+		"client_id":     f.ClientID.Value(),
+		"client_secret": f.ClientSecret.Value(),
+		"username":      f.Username.Value(),
+		"password":      f.Password.Value(),
 	})
 
 	req, _ := http.NewRequest(http.MethodPost, adapter.Endpoint+"/oauth/v2/token", body)
@@ -262,18 +259,18 @@ func (adapter *wallabagAdapter) authenticate(f forms.Binder) error {
 
 	rsp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		f.AddErrors("", err)
+		f.AddErrors(err)
 		return nil
 	}
 	defer rsp.Body.Close() //nolint:errcheck
 
 	if rsp.StatusCode == http.StatusNotFound {
-		f.AddErrors("", forms.Gettext("Invalid URL"))
+		f.AddErrors(forms.Gettext("Invalid URL"))
 		return nil
 	}
 
 	if rsp.StatusCode != http.StatusOK {
-		f.AddErrors("", forms.Gettext("Invalid credentials"))
+		f.AddErrors(forms.Gettext("Invalid credentials"))
 		return nil
 	}
 
@@ -284,7 +281,7 @@ func (adapter *wallabagAdapter) authenticate(f forms.Binder) error {
 
 	var ok bool
 	if adapter.Token, ok = res["access_token"]; !ok {
-		f.AddErrors("", forms.Gettext("No access token found"))
+		f.AddErrors(forms.Gettext("No access token found"))
 		return nil
 	}
 

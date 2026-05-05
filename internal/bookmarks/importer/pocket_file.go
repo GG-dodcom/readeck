@@ -6,6 +6,7 @@ package importer
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/csv"
 	"errors"
 	"io"
@@ -17,7 +18,7 @@ import (
 	"time"
 
 	"codeberg.org/readeck/readeck/internal/db/types"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 var (
@@ -38,11 +39,11 @@ type pocketBookmarkItem struct {
 }
 
 type pocketEntry struct {
-	Title     string `csv:"title" case:"ignore"`
-	URL       string `csv:"url" case:"ignore"`
+	Title     string `csv:"title"      case:"ignore"`
+	URL       string `csv:"url"        case:"ignore"`
 	TimeAdded string `csv:"time_added" case:"ignore"`
-	Tags      string `csv:"tags" case:"ignore"`
-	Status    string `csv:"status" case:"ignore"`
+	Tags      string `csv:"tags"       case:"ignore"`
+	Status    string `csv:"status"     case:"ignore"`
 }
 
 func newPocketAdapter() *pocketFileAdapter {
@@ -54,7 +55,7 @@ func newPocketAdapter() *pocketFileAdapter {
 	}
 }
 
-func (adapter *pocketFileAdapter) Name(_ forms.Translator) string {
+func (adapter *pocketFileAdapter) Name(_ context.Context) string {
 	return "Pocket"
 }
 

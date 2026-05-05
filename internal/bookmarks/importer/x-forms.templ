@@ -5,15 +5,15 @@
 package importer
 
 import (
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 
 	. "codeberg.org/readeck/readeck/components"
-	F "codeberg.org/readeck/readeck/components/forms"
+	F "codeberg.org/readeck/readeck/components/forms/v2"
 )
 
 type formViews struct{}
 
-templ (_ formViews) form(f forms.Binder) {
+templ (_ formViews) form(f forms.FormBinder) {
 	<form action={ URL(ctx) } method="post" enctype="multipart/form-data">
 		@F.Errors(f)
 		{ children... }
@@ -26,42 +26,42 @@ templ (_ formViews) form(f forms.Binder) {
 	</form>
 }
 
-templ (v formViews) fileForm(f forms.Binder) {
+templ (v formViews) fileForm(f *FileImportForm) {
 	@v.form(f) {
-		@F.FiledDropField(f.Get("data"),
+		@F.FiledDropField(&f.Data,
 			F.Label(L(ctx).Gettext("File")),
 			F.Required(true),
 			F.Classes("field-h"),
 		)
-		@v.options(f)
+		@v.options(&f.BaseImportForm)
 		{ children... }
 	}
 }
 
-templ (v formViews) options(f forms.Binder) {
+templ (v formViews) options(f *BaseImportForm) {
 	<h2>{ L(ctx).Gettext("Options") }</h2>
-	@F.TextField(f.Get("label"),
+	@F.TextField(&f.Label,
 		F.Label(L(ctx).Gettext("Label")),
 		F.Classes("field-h"),
 		F.Help(L(ctx).Gettext("A label to add to all imported bookmarks")),
 	)
-	@F.CheckboxField(f.Get("ignore_duplicates"),
+	@F.CheckboxField(&f.IgnoreDuplicates,
 		F.Label(L(ctx).Gettext("Ignore links already in your bookmarks")),
 		F.Classes("field-h"),
 	)
-	@F.CheckboxField(f.Get("archive"),
+	@F.CheckboxField(&f.Archive,
 		F.Label(L(ctx).Gettext("Archive all links")),
 		F.Classes("field-h"),
 		F.Help(L(ctx).Gettext("Moves all links to archive, regardless of their original status")),
 	)
-	@F.CheckboxField(f.Get("mark_read"),
+	@F.CheckboxField(&f.MarkRead,
 		F.Label(L(ctx).Gettext("Mark all links as read")),
 		F.Classes("field-h"),
 		F.Help(L(ctx).Gettext("Marks all links as read, regardless of their original status")),
 	)
 }
 
-templ (_ *browserAdapter) Component(f forms.Binder) {
+templ (_ *browserAdapter) Component(form forms.FormBinder) {
 	<h1 class="title text-h2">{ L(ctx).Gettext("Import your Browser's Bookmarks") }</h1>
 	<div class="prose mb-8">
 		<p>
@@ -84,8 +84,9 @@ templ (_ *browserAdapter) Component(f forms.Binder) {
 			</li>
 		</ul>
 	</div>
-	@formViews{}.fileForm(f) {
-		@F.CheckboxField(f.Get("labels_from_titles"),
+	{{ f := form.(*browserAdapterForm) }}
+	@formViews{}.fileForm(&f.FileImportForm) {
+		@F.CheckboxField(&f.LabelsFromTitles,
 			F.Label(L(ctx).Gettext("Convert section titles to labels")),
 			F.Classes("field-h"),
 			F.Help(L(ctx).Gettext("Adds a label on links, based on their section title")),
@@ -93,7 +94,7 @@ templ (_ *browserAdapter) Component(f forms.Binder) {
 	}
 }
 
-templ (_ *csvAdapter) Component(f forms.Binder) {
+templ (_ *csvAdapter) Component(form forms.FormBinder) {
 	<h1 class="title text-h2">{ L(ctx).Gettext("Import Links from a CSV File") }</h1>
 	<div class="prose mb-8">
 		<p>
@@ -102,7 +103,7 @@ templ (_ *csvAdapter) Component(f forms.Binder) {
 			) }
 		</p>
 	</div>
-	@formViews{}.fileForm(f)
+	@formViews{}.fileForm(form.(*FileImportForm))
 	<h2 class="mt-8 title text-h3">{ L(ctx).Gettext("CSV Format") }</h2>
 	<div class="prose mb-8">
 		<p>
@@ -156,7 +157,7 @@ templ (_ *csvAdapter) Component(f forms.Binder) {
 	</div>
 }
 
-templ (_ *goodlinksAdapter) Component(f forms.Binder) {
+templ (_ *goodlinksAdapter) Component(form forms.FormBinder) {
 	<h1 class="title text-h2">{ L(ctx).Gettext("Import Links from a GoodLinks export file") }</h1>
 	<div class="prose mb-8">
 		<p>
@@ -165,22 +166,10 @@ templ (_ *goodlinksAdapter) Component(f forms.Binder) {
 			) }
 		</p>
 	</div>
-	@formViews{}.fileForm(f)
+	@formViews{}.fileForm(form.(*FileImportForm))
 }
 
-templ (_ *pinboardAdapter) Component(f forms.Binder) {
-	<h1 class="title text-h2">{ L(ctx).Gettext("Import Links from a Pinboard JSON backup file") }</h1>
-	<div class="prose mb-8">
-		<p>
-			{ L(ctx).Gettext(
-				"Upload a JSON file obtained from your Pinboard account.",
-			) }
-		</p>
-	</div>
-	@formViews{}.fileForm(f)
-}
-
-templ (_ *linkwardenAdapter) Component(f forms.Binder) {
+templ (_ *linkwardenAdapter) Component(form forms.FormBinder) {
 	<h1 class="title text-h2">{ L(ctx).Gettext("Import Bookmarks from a Linkwarden export file") }</h1>
 	<div class="prose mb-8">
 		<p>
@@ -189,10 +178,10 @@ templ (_ *linkwardenAdapter) Component(f forms.Binder) {
 			) }
 		</p>
 	</div>
-	@formViews{}.fileForm(f)
+	@formViews{}.fileForm(form.(*FileImportForm))
 }
 
-templ (_ *omnivoreAPIAdapter) Component(f forms.Binder) {
+templ (_ *omnivoreAPIAdapter) Component(form forms.FormBinder) {
 	<h1 class="title text-h2">{ L(ctx).Gettext("Import your Omnivore Articles") }</h1>
 	<div class="prose mb-8">
 		<p>
@@ -202,23 +191,36 @@ templ (_ *omnivoreAPIAdapter) Component(f forms.Binder) {
 			`) }
 		</p>
 	</div>
-	@formViews{}.form(f) {
-		@F.TextField(f.Get("url"),
+	{{ f := form.(*omnivoreAPIAdapterForm) }}
+	@formViews{}.form(form) {
+		@F.TextField(&f.URL,
 			F.Label(L(ctx).Gettext("Omnivore URL")),
 			F.Required(true),
 			F.Classes("field-h"),
 			F.Help(L(ctx).Gettext("URL of your Omnivore homepage")),
 		)
-		@F.TextField(f.Get("token"),
+		@F.TextField(&f.Token,
 			F.Label(L(ctx).Gettext("API Key")),
 			F.Required(true),
 			F.Classes("field-h"),
 		)
-		@formViews{}.options(f)
+		@formViews{}.options(&f.BaseImportForm)
 	}
 }
 
-templ (_ *pocketFileAdapter) Component(f forms.Binder) {
+templ (_ *pinboardAdapter) Component(form forms.FormBinder) {
+	<h1 class="title text-h2">{ L(ctx).Gettext("Import Links from a Pinboard JSON backup file") }</h1>
+	<div class="prose mb-8">
+		<p>
+			{ L(ctx).Gettext(
+				"Upload a JSON file obtained from your Pinboard account.",
+			) }
+		</p>
+	</div>
+	@formViews{}.fileForm(form.(*FileImportForm))
+}
+
+templ (_ *pocketFileAdapter) Component(form forms.FormBinder) {
 	<h1 class="title text-h2">{ L(ctx).Gettext("Import your Pocket Articles") }</h1>
 	<div class="prose mb-8">
 		<p>
@@ -242,19 +244,20 @@ templ (_ *pocketFileAdapter) Component(f forms.Binder) {
 			`) }
 		}
 	</div>
+	{{ f := form.(*FileImportForm) }}
 	@formViews{}.form(f) {
-		@F.FiledDropField(f.Get("data"),
+		@F.FiledDropField(&f.Data,
 			F.Label(L(ctx).Gettext("File")),
 			F.Required(true),
 			F.Classes("field-h"),
 			F.Help(L(ctx).Gettext("Note: upload the ZIP file directly, not its contents")),
 		)
-		@formViews{}.options(f)
+		@formViews{}.options(&f.BaseImportForm)
 		{ children... }
 	}
 }
 
-templ (_ *readwiseAdapter) Component(f forms.Binder) {
+templ (_ *readwiseAdapter) Component(form forms.FormBinder) {
 	<h1 class="title text-h2">{ L(ctx).Gettext("Import Links from Readwise Reader CSV export") }</h1>
 	<div class="prose mb-8">
 		<p>
@@ -263,7 +266,7 @@ templ (_ *readwiseAdapter) Component(f forms.Binder) {
 			) }
 		</p>
 	</div>
-	@formViews{}.fileForm(f)
+	@formViews{}.fileForm(form.(*FileImportForm))
 	<h2 class="mt-8 title text-h3">{ L(ctx).Gettext("Which information is imported") }</h2>
 	<div class="prose">
 		<ul>
@@ -281,7 +284,7 @@ templ (_ *readwiseAdapter) Component(f forms.Binder) {
 	</div>
 }
 
-templ (_ *textAdapter) Component(f forms.Binder) {
+templ (_ *textAdapter) Component(form forms.FormBinder) {
 	<h1 class="title text-h2">{ L(ctx).Gettext("Import Links from a Text File") }</h1>
 	<div class="prose mb-8">
 		<p>
@@ -291,10 +294,10 @@ templ (_ *textAdapter) Component(f forms.Binder) {
 			`) }
 		</p>
 	</div>
-	@formViews{}.fileForm(f)
+	@formViews{}.fileForm(form.(*FileImportForm))
 }
 
-templ (_ *wallabagAdapter) Component(f forms.Binder) {
+templ (_ *wallabagAdapter) Component(form forms.FormBinder) {
 	<h1 class="title text-h2">{ L(ctx).Gettext("Import your Wallabag Articles") }</h1>
 	<div class="prose mb-8">
 		<p>
@@ -310,34 +313,35 @@ templ (_ *wallabagAdapter) Component(f forms.Binder) {
 			) }
 		</p>
 	</div>
+	{{ f := form.(*wallabagAdapterForm) }}
 	@formViews{}.form(f) {
-		@F.TextField(f.Get("url"),
+		@F.TextField(&f.URL,
 			F.Label(L(ctx).Gettext("Wallabag URL")),
 			F.Required(true),
 			F.Classes("field-h"),
 			F.Help(L(ctx).Gettext("URL of your Wallabag homepage")),
 		)
-		@F.TextField(f.Get("username"),
+		@F.TextField(&f.Username,
 			F.Label(L(ctx).Gettext("Username")),
 			F.Required(true),
 			F.Classes("field-h"),
 		)
-		@F.PasswordField(f.Get("password"),
+		@F.PasswordField(&f.Password,
 			F.Label(L(ctx).Gettext("Password")),
 			F.Required(true),
 			F.Classes("field-h"),
 			F.InputAttr("autocomplete", "off"),
 		)
-		@F.TextField(f.Get("client_id"),
+		@F.TextField(&f.ClientID,
 			F.Label(L(ctx).Gettext("Client ID")),
 			F.Required(true),
 			F.Classes("field-h"),
 		)
-		@F.TextField(f.Get("client_secret"),
+		@F.TextField(&f.ClientSecret,
 			F.Label(L(ctx).Gettext("Client Secret")),
 			F.Required(true),
 			F.Classes("field-h"),
 		)
-		@formViews{}.options(f)
+		@formViews{}.options(&f.BaseImportForm)
 	}
 }

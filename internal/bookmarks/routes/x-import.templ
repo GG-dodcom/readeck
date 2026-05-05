@@ -6,7 +6,7 @@ package routes
 
 import (
 	"codeberg.org/readeck/readeck/internal/bookmarks/importer"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 
 	. "codeberg.org/readeck/readeck/components"
 )
@@ -180,8 +180,8 @@ templ (v importViews) progress(trackID string, isRunning bool, progress importer
 	</turbo-frame>
 }
 
-templ (v importViews) form(adapter importer.ImportLoader, f forms.Binder) {
-	@v.base(adapter.Name(L(ctx)) + " - " + L(ctx).Gettext("Import")) {
-		@adapter.Component(f)
+templ (v importViews) form(adapter importer.ImportLoader, form forms.FormBinder) {
+	@v.base(adapter.Name(ctx) + " - " + L(ctx).Gettext("Import")) {
+		@adapter.Component(form)
 	}
 }

@@ -5,7 +5,6 @@
 package routes
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
@@ -16,7 +15,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/bookmarks/importer"
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 const maxUploadSize = 4 << 20
@@ -35,11 +34,8 @@ func (api *apiRouter) bookmarksImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := importer.NewImportForm(
-		forms.WithTranslator(context.Background(), server.Locale(r)),
-		adapter,
-	)
-	forms.Bind(f, r)
+	f := adapter.Form(r.Context())
+	forms.Bind(r, f)
 
 	// If the form is valid, we can load the adapter parameters.
 	var data []byte
@@ -60,19 +56,18 @@ func (api *apiRouter) bookmarksImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ignoreDuplicates := f.Get("ignore_duplicates").(forms.TypedField[bool]).V()
-
 	// Create the import task
+	options := f.Options()
 	trackID := importer.GetTrackID(server.GetReqID(r))
 	err = importer.ImportBookmarksTask.Run(trackID, importer.ImportParams{
 		Source:          source,
 		Data:            data,
 		UserID:          auth.GetRequestUser(r).ID,
 		RequestID:       server.GetReqID(r),
-		AllowDuplicates: !ignoreDuplicates,
-		Label:           f.Get("label").String(),
-		Archive:         f.Get("archive").(forms.TypedField[bool]).V(),
-		MarkRead:        f.Get("mark_read").(forms.TypedField[bool]).V(),
+		Label:           options.Label,
+		AllowDuplicates: !options.IgnoreDuplicates,
+		Archive:         options.Archive,
+		MarkRead:        options.MarkRead,
 	})
 	if err != nil {
 		server.Err(w, r, err)

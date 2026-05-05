@@ -6,6 +6,7 @@ package importer
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -14,7 +15,7 @@ import (
 	"time"
 
 	"codeberg.org/readeck/readeck/internal/db/types"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 const (
@@ -32,11 +33,11 @@ type readwiseAdapter struct {
 }
 
 type readwiseEntry struct {
-	Title    string `csv:"Title" case:"ignore"`
-	URL      string `csv:"URL" case:"ignore"`
+	Title    string `csv:"Title"         case:"ignore"`
+	URL      string `csv:"URL"           case:"ignore"`
 	Tags     string `csv:"Document tags" case:"ignore"`
-	Created  string `csv:"Saved date" case:"ignore"`
-	Location string `csv:"Location" case:"ignore"`
+	Created  string `csv:"Saved date"    case:"ignore"`
+	Location string `csv:"Location"      case:"ignore"`
 }
 
 type readwiseBookmarkItem struct {
@@ -57,8 +58,8 @@ func newReadwiseAdapter() *readwiseAdapter {
 	}
 }
 
-func (adapter *readwiseAdapter) Name(tr forms.Translator) string {
-	return tr.Gettext("Readwise Reader CSV")
+func (adapter *readwiseAdapter) Name(ctx context.Context) string {
+	return forms.GetTranslator(ctx).Gettext("Readwise Reader CSV")
 }
 
 func newReadwiseBookmarkItem(e *readwiseEntry) (*readwiseBookmarkItem, error) {
