@@ -51,13 +51,6 @@ func videoPlayerHandler(w http.ResponseWriter, r *http.Request) {
 
 	srcURL, _ := url.Parse(f.Get("src").String())
 
-	ctx := server.TC{
-		"Src":    f.Get("src").String(),
-		"Type":   f.Get("type").String(),
-		"Width":  f.Get("w").Value(),
-		"Height": f.Get("h").Value(),
-	}
-
 	// Set appropriate CSP values for this ressource to work
 	// as a video play in an iframe.
 	policy := server.GetCSPHeader(r)
@@ -70,5 +63,10 @@ func videoPlayerHandler(w http.ResponseWriter, r *http.Request) {
 	policy.Write(w.Header())
 	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 
-	server.RenderTemplate(w, r, 200, "videoplayer/index", ctx)
+	server.RenderComponent(w, r, http.StatusOK, Views{}.player(
+		f.Get("src").String(),
+		f.Get("type").String(),
+		f.Get("w").(*forms.IntegerField).V(),
+		f.Get("h").(*forms.IntegerField).V(),
+	))
 }

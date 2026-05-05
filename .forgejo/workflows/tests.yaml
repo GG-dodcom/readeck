@@ -29,6 +29,8 @@ jobs:
       - name: Setup project
         run: |
           make setup
+          make templ
+          git diff --exit-code
 
       #
       # Linters
@@ -41,6 +43,7 @@ jobs:
       - name: Lint sources
         shell: bash
         run: |
+          make templ/fmt
           make lint
 
       - name: Lint web

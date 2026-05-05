@@ -1,0 +1,146 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package routes
+
+import (
+	"net/url"
+
+	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+templ (v Views) labelInfoHead(label string) {
+	{{ q := url.Values{"labels": {`"` + label + `"`}} }}
+	<link
+		rel="alternate"
+		href={ string(URL(ctx, "/api/bookmarks/feed")) + "?" + q.Encode() }
+		type="application/atom+xml"
+		title="Atom Feed"
+	/>
+	<meta name="turbo-refresh-scroll" content="preserve"/>
+}
+
+templ (v Views) labelList(labels dataset.LabelList) {
+	{{ title := L(ctx).Gettext("Bookmarks Labels") }}
+	@SideMenuLayout(title, v.menu()) {
+		<h1 class="title text-h2">{ title }</h1>
+		<p class="mb-4">
+			{ L(ctx).Gettext(`
+        Labels let your organize your bookmarks the way you want.
+        You can set anything to a label, including emojis!
+    `) }
+		</p>
+		<ul class="grid lg:grid-cols-3 xl:grid-cols-4 gap-4">
+			for _, x := range labels {
+				<li>
+					<a
+						href={ labelLink(ctx, x.Name) }
+						class="
+              h-full flex items-center gap-1 border rounded-xl
+              py-2 px-4 font-semibold
+              hf:bg-yellow-100
+            "
+					>
+						<span class="flex-grow [overflow-wrap:anywhere]">{ x.Name }</span>
+						<span class="py-0.5 px-2 bg-gray-200 text-xs rounded-lg">{ x.Count }</span>
+					</a>
+				</li>
+			}
+		</ul>
+	}
+}
+
+templ (v Views) labelInfo(label string, bl *dataset.BookmarkList, isDeleted bool) {
+	{{
+		layout := NewLayout()
+		layout.Head = v.labelInfoHead(label)
+	}}
+	@layout.SideMenuLayout(L(ctx).Gettext("Label")+" - "+label, v.menu(), layout.SideMenuWrapper()) {
+		<form
+			action={ URL(ctx) }
+			method="post"
+			class="flex flex-wrap items-center gap-2"
+			data-controller="inplace-input"
+			data-inplace-input-hidden-class="hidden"
+		>
+			<h1 class="flex flex-grow items-center gap-2 group title mb-0 text-h2 max-md:w-full">
+				// JS context
+				<span class="font-normal">
+					<a href={ URL(ctx, "/bookmarks/labels") } class="link">
+						{ L(ctx).Gettext("Labels") }
+					</a> /
+				</span>
+				<span
+					class="no-js:hidden text-h2 mr-2 cursor-pointer hover:outline-std"
+					data-inplace-input-target="editable"
+				>
+					{ label }
+				</span>
+				// Classic input field shown in no-JS
+				<input
+					type="text"
+					name="name"
+					value={ label }
+					class="js:hidden form-input font-semibold w-full max-w-md"
+					data-inplace-input-target="value"
+				/>
+				<button
+					type="submit"
+					class="text-h2 text-gray-300 group-hover:text-primary group-fw:text-primary"
+					data-inplace-input-target="button"
+				>
+					@Icon("o-pencil", WithIconSvgClass("w-6"),
+						WithIconAttrs(templ.Attributes{"data-inplace-input-target": "iconOff"}))
+					@Icon("o-check-on", WithIconClass("hidden"), WithIconSvgClass("w-6"),
+						WithIconAttrs(templ.Attributes{"data-inplace-input-target": "iconOn"}))
+				</button>
+			</h1>
+			@Components{}.listActions() {
+				{{ q := url.Values{"name": {label}} }}
+				if !isDeleted {
+					<button
+						class="btn-outlined btn-danger py-1"
+						formaction={ string(URL(ctx, "./delete")) + "?" + q.Encode() }
+						formmethod="post"
+					>
+						@Icon("o-trash")
+						{ " " }
+						{ L(ctx).Gettext("Delete") }
+					</button>
+					if HasPermission(ctx, "api:bookmarks", "export") {
+						{{
+							q := url.Values{"labels": {`"` + label + `"`}}
+							if of, ok := checkOrderForm(ctx); ok {
+								q[of.fieldName] = of.value()
+							}
+						}}
+						@Components{}.exportMenu(q)
+					}
+				}
+			}
+		</form>
+		if isDeleted {
+			{{ q := url.Values{"name": {label}} }}
+			<form action={ string(URL(ctx, "./delete")) + "?" + q.Encode() } method="post" class="mb-4">
+				@Message() {
+					{ L(ctx).Gettext("Label will be removed in a few seconds.") }
+					&nbsp;
+					<button class="btn btn-primary" name="cancel" value="1">
+						{ L(ctx).Gettext("Cancel") }
+					</button>
+				}
+			</form>
+		}
+		<turbo-frame
+			id="bookmark-list"
+			data-controller="turbo-refresh"
+			data-turbo-refresh-interval-value="10"
+			data-turbo-refresh-on-value="[data-bookmark-deleted='true']"
+		>
+			@Components{}.bookmarkList(bl)
+		</turbo-frame>
+	}
+}

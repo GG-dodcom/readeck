@@ -78,9 +78,5 @@ func (h *viewHandler) onboarding(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
 
-	ctx := server.TC{
-		"Form": f,
-	}
-
-	server.RenderTemplate(w, r, http.StatusOK, "auth/onboarding", ctx)
+	server.RenderComponent(w, r, http.StatusOK, Views{}.onboarding(f))
 }

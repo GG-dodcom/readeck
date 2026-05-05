@@ -53,24 +53,19 @@ func (e HTMLEmailExporter) Export(ctx context.Context, _ io.Writer, r *http.Requ
 	}
 	b := bookmarkList.Items[0]
 
-	tc, err := e.getTemplateContext(ctx, b)
+	ctx = email.WithSiteURL(ctx, urls.AbsoluteURL(r, "/"))
+	component, err := newEmailComponent(ctx, e, b)
 	if err != nil {
 		return err
 	}
 
 	// Prepare message
-	msg, err := email.NewMsg(
+	msg, err := email.NewMessage(
+		ctx,
 		configs.Config.Email.FromNoReply.String(),
 		e.to,
 		"[Readeck] "+utils.ShortText(b.Title, 80),
-		append(
-			e.options,
-			email.WithHTMLTemplate(
-				"/emails/bookmark",
-				server.TemplateVars(r),
-				tc,
-			),
-		)...,
+		append(e.options, email.WithComponent(component))...,
 	)
 	if err != nil {
 		return err
@@ -116,17 +111,22 @@ func (e HTMLEmailExporter) Export(ctx context.Context, _ io.Writer, r *http.Requ
 		}
 	}
 
-	return email.Sender.SendEmail(msg)
+	return email.Send(msg)
 }
 
-func (e HTMLEmailExporter) getTemplateContext(ctx context.Context, b *dataset.Bookmark) (map[string]any, error) {
+type emailComponent struct {
+	html  io.Reader
+	item  *dataset.Bookmark
+	image *bookmarks.BookmarkFile
+}
+
+func newEmailComponent(ctx context.Context, e HTMLEmailExporter, b *dataset.Bookmark) (*emailComponent, error) {
 	ctx = dataset.WithURLReplacer(ctx, func(_ *bookmarks.Bookmark) func(name string) string {
 		return func(name string) string {
 			return "cid:" + e.cidPrefix + "." + path.Base(name)
 		}
 	})
 	ctx = dataset.WithAnnotationTag(ctx, "mark", nil)
-
 	html, err := e.GetArticle(ctx, b.Bookmark)
 	if err != nil {
 		return nil, err
@@ -138,12 +138,15 @@ func (e HTMLEmailExporter) getTemplateContext(ctx context.Context, b *dataset.Bo
 		image.Name = "cid:" + e.cidPrefix + "." + path.Base(image.Name)
 	}
 
-	return map[string]any{
-		"HTML":    html,
-		"Item":    b,
-		"Image":   image,
-		"SiteURL": urls.AbsoluteURLContext(ctx, "/").String(),
+	return &emailComponent{
+		html:  html,
+		item:  b,
+		image: image,
 	}, nil
+}
+
+func (c *emailComponent) Render(ctx context.Context, w io.Writer) error {
+	return c.renderer().Render(ctx, w)
 }
 
 // EPUBEmailExporter is a content exporter that send converted bookmarks as EPUB attachment
@@ -169,21 +172,14 @@ func (e EPUBEmailExporter) Export(ctx context.Context, _ io.Writer, r *http.Requ
 	}
 	b := bookmarkList.Items[0]
 
-	msg, err := email.NewMsg(
+	ctx = email.WithSiteURL(ctx, urls.AbsoluteURL(r, "/"))
+
+	msg, err := email.NewMessage(
+		ctx,
 		configs.Config.Email.FromNoReply.String(),
 		e.to,
 		"[Readeck EPUB] "+utils.ShortText(b.Title, 80),
-		append(
-			e.options,
-			email.WithMDTemplate(
-				"/emails/bookmark_epub.jet.md",
-				server.TemplateVars(r),
-				map[string]any{
-					"Item":    b,
-					"SiteURL": urls.AbsoluteURL(r, "/").String(),
-				},
-			),
-		)...,
+		append(e.options, email.WithMDText(e.msg(ctx, b.Title)))...,
 	)
 	if err != nil {
 		return err
@@ -202,5 +198,13 @@ func (e EPUBEmailExporter) Export(ctx context.Context, _ io.Writer, r *http.Requ
 		return err
 	}
 
-	return email.Sender.SendEmail(msg)
+	return email.Send(msg)
+}
+
+func (EPUBEmailExporter) msg(ctx context.Context, title string) string {
+	return server.LocaleContext(ctx).Gettext(`
+Hi,
+
+Here is your ebook for: **%s**
+`, title)
 }

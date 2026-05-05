@@ -15,13 +15,6 @@ import (
 
 // All route related context keys and functions must live here.
 
-// Base template context.
-type (
-	ctxBaseContextKey struct{}
-)
-
-var withBaseContext, getBaseContext, checkBaseContext = ctxr.WithAll[server.TC](ctxBaseContextKey{})
-
 // Bookmark context keys.
 type (
 	ctxAnnotationListKey     struct{}
@@ -31,10 +24,12 @@ type (
 	ctxBookmarkListKey       struct{}
 	ctxBookmarkListTaggerKey struct{}
 	ctxBookmarkOrderKey      struct{}
+	ctxCountersKey           struct{}
 	ctxDefaultLimitKey       struct{}
 	ctxFiltersKey            struct{}
 	ctxLabelKey              struct{}
 	ctxLabelListKey          struct{}
+	ctxOrderFormKey          struct{}
 	ctxSharedEmailKey        struct{}
 	ctxSharedLinkKey         struct{}
 )
@@ -47,10 +42,12 @@ var (
 	withBookmarkList, getBookmarkList                 = ctxr.WithGetter[*dataset.BookmarkList](ctxBookmarkListKey{})
 	withBookmarkListTaggers, checkBookmarkListTaggers = ctxr.WithChecker[[]server.Etagger](ctxBookmarkListTaggerKey{})
 	withBookmarkOrder, checkBookmarkOrder             = ctxr.WithChecker[orderExpressionList](ctxBookmarkOrderKey{})
+	withCounters, checkCounters                       = ctxr.WithChecker[bookmarks.CountResult](ctxCountersKey{})
 	withDefaultLimit, checkDefaultLimit               = ctxr.WithChecker[int](ctxDefaultLimitKey{})
 	withFilterForm, checkFilterForm                   = ctxr.WithChecker[*filterForm](ctxFiltersKey{})
 	withLabel, getLabel                               = ctxr.WithGetter[string](ctxLabelKey{})
 	withLabelList, getLabelList                       = ctxr.WithGetter[dataset.LabelList](ctxLabelListKey{})
+	withOrderForm, checkOrderForm                     = ctxr.WithChecker[*bookmarkOrderForm](ctxOrderFormKey{})
 	withSharedEmail, getSharedEmail                   = ctxr.WithGetter[dataset.SharedEmail](ctxSharedEmailKey{})
 	withSharedLink, getSharedLink                     = ctxr.WithGetter[dataset.SharedLink](ctxSharedLinkKey{})
 )

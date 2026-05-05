@@ -20,7 +20,6 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	goquexp "github.com/doug-martin/goqu/v9/exp"
-	"github.com/wneessen/go-mail"
 	"golang.org/x/text/language"
 
 	"codeberg.org/readeck/readeck/internal/auth"
@@ -723,7 +722,7 @@ func (f *filterForm) IsActive() bool {
 	return false
 }
 
-func (f *filterForm) GetQueryString() string {
+func (f filterForm) getQueryParams() url.Values {
 	q := url.Values{}
 	for _, field := range f.Fields() {
 		if field.IsNil() {
@@ -739,7 +738,11 @@ func (f *filterForm) GetQueryString() string {
 		}
 	}
 
-	return q.Encode()
+	return q
+}
+
+func (f *filterForm) GetQueryString() string {
+	return f.getQueryParams().Encode()
 }
 
 // setMarked sets the IsMarked property.
@@ -846,13 +849,7 @@ func newBookmarkOrderForm() *bookmarkOrderForm {
 	}
 }
 
-func (f *bookmarkOrderForm) addToTemplateContext(r *http.Request, tr *locales.Locale, c server.TC) {
-	if v := f.value(); len(v) > 0 {
-		c["CurrentOrder"] = v[0]
-	} else {
-		c["CurrentOrder"] = "-created"
-	}
-
+func (f *bookmarkOrderForm) getOptions(r *http.Request, tr *locales.Locale) [][3]string {
 	qs := url.Values{}
 	for k, v := range r.URL.Query() {
 		if k == "sort" {
@@ -867,7 +864,7 @@ func (f *bookmarkOrderForm) addToTemplateContext(r *http.Request, tr *locales.Lo
 		return [3]string{name, r.URL.Path + "?" + qs.Encode(), label}
 	}
 
-	c["OrderOptions"] = [][3]string{
+	return [][3]string{
 		setOption("-created", tr.Pgettext("sort", "Added, most recent first")),
 		setOption("created", tr.Pgettext("sort", "Added, oldest first")),
 		setOption("-published", tr.Pgettext("sort", "Published, most recent first")),
@@ -927,7 +924,7 @@ func (f *shareForm) sendBookmark(r *http.Request, b *bookmarks.Bookmark) (err er
 	var options []email.MessageOption
 	if u := auth.GetRequestUser(r); u != nil && u.Settings.EmailSettings.ReplyTo != "" {
 		options = []email.MessageOption{
-			func(msg *mail.Msg) error {
+			func(_ context.Context, msg *email.Message) error {
 				return msg.ReplyTo(u.Settings.EmailSettings.ReplyTo)
 			},
 		}

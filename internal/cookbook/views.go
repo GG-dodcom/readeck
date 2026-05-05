@@ -6,8 +6,11 @@ package cookbook
 
 import (
 	"context"
-	"log/slog"
+	"io"
+	"iter"
+	"maps"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -27,64 +30,42 @@ func newCookbookViews(api *cookbookAPI) *cookbookViews {
 	v := &cookbookViews{r, api}
 
 	r.With(server.WithPermission("cookbook", "read")).Group(func(r chi.Router) {
-		r.Get("/", v.namedTemplateView("prose"))
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			server.RenderComponent(w, r, 200, Views{}.prose())
+		})
+		r.Get("/colors", func(w http.ResponseWriter, r *http.Request) {
+			server.RenderComponent(w, r, 200, Views{}.colors())
+		})
 		r.Get("/ui", v.uiView)
-		r.Get("/{name}", v.templateView)
 		r.Get("/extract", v.extractView)
 	})
 
 	return v
 }
 
-func (v *cookbookViews) templateView(w http.ResponseWriter, r *http.Request) {
-	template := "cookbook/" + chi.URLParam(r, "name")
-	_, err := server.GetTemplate(template)
-	if err != nil {
-		server.Log(r).Error("can't load template", slog.Any("err", err))
-		server.Status(w, r, http.StatusNotFound)
-		return
-	}
-
-	server.RenderTemplate(w, r, 200, template, nil)
-}
-
-func (v *cookbookViews) namedTemplateView(name string) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		chi.RouteContext(r.Context()).URLParams.Add("name", name)
-		v.templateView(w, r)
-	}
-}
-
 func (v *cookbookViews) uiView(w http.ResponseWriter, r *http.Request) {
 	f := newCookbookForm()
 	ef := newCookbookForm()
 	forms.BindURL(ef, r)
+	ef.IsValid()
 
-	ctx := server.TC{
-		"Form":    f,
-		"FormErr": ef,
-	}
-
-	server.RenderTemplate(w, r, 200, "cookbook/ui", ctx)
+	server.RenderComponent(w, r, 200, Views{}.ui(f, ef))
 }
 
 func (v *cookbookViews) extractView(w http.ResponseWriter, r *http.Request) {
 	f := newExtractForm()
 	forms.BindURL(f, r)
 
-	ctx := server.TC{
-		"Form":   f,
-		"Result": nil,
-	}
+	var res *extractResult
+	var html io.Reader
 
 	if f.IsValid() && f.Get("url").String() != "" {
 		ex := v.getExtractor(f.Get("url").String(), r)
-		res := v.getExtractResult(ex)
-		ctx["Result"] = res
-		ctx["HTML"] = strings.NewReader(bookmarks.ExtractHTMLBody(res.HTML))
+		res = v.getExtractResult(ex)
+		html = strings.NewReader(bookmarks.ExtractHTMLBody(res.HTML))
 	}
 
-	server.RenderTemplate(w, r, 200, "cookbook/extract", ctx)
+	server.RenderComponent(w, r, 200, Views{}.extract(f, res, html))
 }
 
 func newCookbookForm() *forms.Form {
@@ -102,4 +83,15 @@ func newCookbookForm() *forms.Form {
 			forms.Choice("Choice C", "c"),
 		)),
 	)
+}
+
+func orderedMap[T any](data map[string]T) iter.Seq2[string, T] {
+	return func(yield func(string, T) bool) {
+		keys := slices.SortedFunc(maps.Keys(data), strings.Compare)
+		for _, k := range keys {
+			if !yield(k, data[k]) {
+				return
+			}
+		}
+	}
 }

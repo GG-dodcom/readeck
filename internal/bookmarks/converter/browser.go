@@ -9,20 +9,21 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
-	"golang.org/x/net/html"
-
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
-	"codeberg.org/readeck/readeck/internal/server"
 )
 
 // BrowserExporter is an [IterExporter] that produces a browser bookmark file.
 type BrowserExporter struct{}
 
+type browserExportSection struct {
+	name  string
+	items []*dataset.Bookmark
+}
+
 // IterExport implements [IterExporter].
-func (e BrowserExporter) IterExport(_ context.Context, w io.Writer, r *http.Request, bookmarkSeq *dataset.BookmarkIterator) error {
+func (e BrowserExporter) IterExport(ctx context.Context, w io.Writer, _ *http.Request, bookmarkSeq *dataset.BookmarkIterator) error {
 	if w, ok := w.(http.ResponseWriter); ok {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Disposition", fmt.Sprintf(
@@ -49,24 +50,9 @@ func (e BrowserExporter) IterExport(_ context.Context, w io.Writer, r *http.Requ
 		}
 	}
 
-	tpl, err := server.GetTemplate("bookmarks/export/browser.jet.html")
-	if err != nil {
-		return err
-	}
-
-	tc := map[string]any{
-		"Uncategorized": uncategorized,
-		"Favorite":      favorite,
-		"Archived":      archived,
-		"labelsToAttr": func(s []string) string {
-			res := make([]string, len(s))
-			for i, x := range s {
-				res[i] = strings.ReplaceAll(html.EscapeString(x), ",", "&#44;")
-			}
-
-			return strings.Join(res, ",")
-		},
-	}
-
-	return tpl.Execute(w, server.TemplateVars(r), tc)
+	return browserViews{}.export([]browserExportSection{
+		{"Favorite", favorite},
+		{"Archived", archived},
+		{"Uncategorized", uncategorized},
+	}).Render(ctx, w)
 }

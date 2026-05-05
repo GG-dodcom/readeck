@@ -1,0 +1,73 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package profile
+
+import . "codeberg.org/readeck/readeck/components"
+
+templ (v Views) exportProfile() {
+	{{
+		title := L(ctx).Gettext("Export")
+		formats := []struct {
+			name     string
+			iconName string
+			title    string
+			desc     string
+			url      templ.SafeURL
+		}{
+			{
+				name:     "browser",
+				iconName: "o-bookmarks",
+				title:    L(ctx).Gettext("Browser Bookmarks"),
+				desc:     L(ctx).Gettext("Bookmark List in Browser Bookmarks Format"),
+				url:      URL(ctx, "/api/bookmarks/export.html"),
+			},
+			{
+				name:     "csv",
+				iconName: "o-csv",
+				title:    L(ctx).Gettext("CSV File"),
+				desc:     L(ctx).Gettext("Bookmark List as Comma Separated Values"),
+				url:      URL(ctx, "/api/bookmarks/export.csv"),
+			},
+		}
+	}}
+	@v.base(title) {
+		<h1 class="title text-h2">{ title }</h1>
+		<h2 class="title text-h3">{ L(ctx).Gettext("Export your Readeck Profile") }</h2>
+		<form class="mb-8" action={ URL(ctx) } method="post">
+			<div class="btn-block">
+				<p>
+					{ L(ctx).Gettext(`
+            This lets you download a zip file containing all your profile's data, including
+            bookmarks, collections, etc.
+          `) }
+				</p>
+				<p>
+					<button class="btn btn-primary" type="submit">{ L(ctx).Gettext("Export Data") }</button>
+				</p>
+			</div>
+		</form>
+		if HasPermission(ctx, "api:bookmarks", "export") {
+			<h2 class="title text-h3">{ L(ctx).Gettext("Export Bookmarks") }</h2>
+			<p class="mb-4">{ L(ctx).Gettext("You can export your bookmark list in the following formats:") }</p>
+			@List() {
+				for _, format := range formats {
+					@ListItem("") {
+						<a class="p-4 flex gap-2 items-center hf:bg-gray-100" href={ format.url }>
+							@Icon(format.iconName,
+								WithIconSrc("img/logos.svg"),
+								WithIconClass("text-gray-600 group-hf:text-gray-800"),
+								WithIconSvgClass("h-10 w-10"),
+							)
+							<span class="grow flex flex-col gap-1">
+								<strong class="link">{ format.title }</strong>
+								<span class="text-app-fg">{ format.desc }</span>
+							</span>
+						</a>
+					}
+				}
+			}
+		}
+	}
+}

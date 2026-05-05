@@ -1,0 +1,483 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package routes
+
+import (
+	"strings"
+
+	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+	"codeberg.org/readeck/readeck/pkg/utils"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+type SidebarComponent struct{}
+
+templ (c SidebarComponent) sidebar(b *dataset.Bookmark) {
+	<turbo-frame id={ "bookmark-sidebar-" + b.ID } disabled>
+		@c.errorMessage(b)
+		<p class="hidden print:block mb-4 font-semibold text-primary-dark">{ b.URL }</p>
+		<div class="print:flex print:gap-8">
+			@c.articleImage(b)
+			@c.info(b)
+			<div class="hidden print:block ml-auto">
+				<img src={ QRCodeB64(b.Href, ColorPrimary, -2) } alt="" class="rounded"/>
+			</div>
+		</div>
+		@c.actions(b)
+		@c.labels(b)
+		if b.HasArticle {
+			@c.annotationList(b)
+		}
+		@c.linkList(b)
+	</turbo-frame>
+}
+
+templ (c SidebarComponent) errorMessage(b *dataset.Bookmark) {
+	if len(b.Errors) > 0 {
+		@Message(WithMessageType("error")) {
+			<details>
+				<summary class="font-semibold">{ L(ctx).Gettext("Errors occurred during extraction.") }</summary>
+				<ul class="mt-2 list-disc">
+					for _, err := range b.Errors {
+						<li class="ml-4">{ err }</li>
+					}
+				</ul>
+				<p class="mt-4 text-sm">
+					{ L(ctx).Gettext(`
+						Depending on the error, Readeck's browser extension may provide
+						a workaround.`,
+					) }
+				</p>
+				<p class="mt-4 text-center">
+					<a class="btn btn-primary rounded-full px-3" target="_blank" href="https://readeck.org/en/extension">
+						{ L(ctx).Gettext("Learn more") }
+					</a>
+				</p>
+				<p class="mt-4 text-sm text-right">
+					<button
+						class="underline text-red-900 hf:text-red-950"
+						data-controller="dialog"
+						data-dialog-select-value="#debug-info"
+						data-action="scroll-progress#skip dialog#open"
+					>{ L(ctx).Gettext("View log") }</button>
+				</p>
+			</details>
+		}
+	}
+}
+
+templ (c SidebarComponent) articleImage(b *dataset.Bookmark) {
+	if img, ok := b.Resources["image"]; ok && b.Type == "article" {
+		<div class="mb-4">
+			<span
+				class="
+						block relative overflow-hidden pt-16/9
+						print:overflow-visible
+						print:pt-0 print:static
+      		"
+			>
+				<img
+					src={ img.Src }
+					alt=""
+					class="
+							absolute top-0 h-full w-full object-cover object-center rounded
+          		print:w-52 print:h-auto print:static
+						"
+					width={ img.Width }
+					height={ img.Height }
+				/>
+			</span>
+		</div>
+	}
+}
+
+templ (c SidebarComponent) actions(b *dataset.Bookmark) {
+	{{
+		textRead := Tern(func() bool { return b.ReadProgress == 100 },
+			L(ctx).Gettext("Mark as unread"),
+			L(ctx).Gettext("Mark as read"))
+
+		textArch := Tern(func() bool { return b.IsArchived },
+			L(ctx).Gettext("Remove from archive"),
+			L(ctx).Gettext("Move to archive"))
+
+		textFav := Tern(func() bool { return b.IsMarked },
+			L(ctx).Gettext("Remove from favorites"),
+			L(ctx).Gettext("Add to favorites"))
+	}}
+	<turbo-frame id={ "bookmark-actions-" + b.ID }>
+		<div class="flex my-4 items-center gap-2 print:hidden">
+			if b.IsDeleted {
+				<span class="text-red-700" data-deleted="true">
+					{ L(ctx).Gettext("This bookmark will be removed in a few seconds.") }
+				</span>
+				<form action={ URL(ctx, "/bookmarks", b.ID, "update") } method="post">
+					<input type="hidden" name="cancel" value="1"/>
+					<input type="hidden" name="_to" value={ CurrentPath(ctx) }/>
+					<button
+						class="btn btn-primary ml-2"
+						type="submit"
+						name="is_deleted"
+						value="0"
+						data-controller="turbo-form"
+					>
+						@Icon("o-undo")
+						&nbsp;
+						{ L(ctx).Gettext("Undo") }
+					</button>
+				</form>
+			} else {
+				<form
+					action={ URL(ctx, "/bookmarks", b.ID, "update") }
+					method="post"
+					data-controller="turbo-form"
+					class="relative"
+				>
+					<input type="hidden" name="_to" value={ CurrentPath(ctx) }/>
+					<div class="btn-group btn-primary rounded-full">
+						<button
+							class="btn-outlined btn-primary pl-3"
+							name="read_progress"
+							value={ Tern(func() bool { return b.ReadProgress == 100 }, 0, 100) }
+							title={ textRead }
+							data-action="click->scroll-progress#setPosition"
+							data-scroll-progress-position-param={ Tern(func() bool { return b.ReadProgress == 100 }, 0, 100) }
+							data-scroll-progress-notify-param="0"
+						>
+							@Icon(Tern(func() bool { return b.ReadProgress == 100 }, "o-check-on", "o-check-off"))
+						</button>
+						<button
+							class="btn-outlined btn-primary"
+							name="is_marked"
+							value={ Tern(func() bool { return b.IsMarked }, 0, 1) }
+							title={ textFav }
+						>
+							@Icon(Tern(func() bool { return b.IsMarked }, "o-favorite-on", "o-favorite-off"))
+						</button>
+						<button
+							class="btn-outlined btn-primary"
+							name="is_archived"
+							value={ Tern(func() bool { return b.IsArchived }, 0, 1) }
+							title={ textArch }
+						>
+							@Icon(Tern(func() bool { return b.IsArchived }, "o-archive-on", "o-archive-off"))
+						</button>
+						<details class="menu" data-controller="menu">
+							<summary
+								class="btn-outlined btn-primary pr-3"
+								title={ L(ctx).Gettext("Export and Share") }
+							>
+								@Icon("o-share")
+							</summary>
+							<ul class="top-10 left-0">
+								<li>
+									<a class="link" href={ URL(ctx, "/api/bookmarks", b.ID, "article.epub") } download>
+										@Icon("o-ebook")
+										{ " " }
+										{ L(ctx).Gettext("Download EPUB") }
+									</a>
+								</li>
+								if HasPermission(ctx, "bookmarks", "share") {
+									<li>
+										<a
+											class="link"
+											href={ URL(ctx, "/bookmarks", b.ID, "/share/link") }
+											data-action="menu#toggle"
+										>
+											@Icon("o-link")
+											{ " " }
+											{ L(ctx).Gettext("Share by Link") }
+										</a>
+									</li>
+									if HasPermission(ctx, "email", "send") {
+										<li>
+											<a
+												class="link"
+												href={ URL(ctx, "/bookmarks", b.ID, "/share/email") + "?format=html" }
+												data-action="menu#toggle"
+											>
+												@Icon("o-email")
+												{ " " }
+												{ L(ctx).Gettext("Send article by Email") }
+											</a>
+										</li>
+										<li>
+											<a
+												class="link"
+												href={ URL(ctx, "/bookmarks", b.ID, "/share/email") + "?format=epub" }
+												data-action="menu#toggle"
+											>
+												@Icon("o-email")
+												{ " " }
+												{ L(ctx).Gettext("Send e-book by Email") }
+											</a>
+										</li>
+									}
+								}
+							</ul>
+						</details>
+					</div>
+				</form>
+				<form action={ URL(ctx, "/bookmarks", b.ID, "update") } method="post" class="ml-auto">
+					<input type="hidden" name="_to" value={ CurrentPath(ctx) }/>
+					<button
+						class="btn-outlined btn-danger leading-none rounded-full w-9 h-9 px-2"
+						name="is_deleted"
+						value="1"
+						title={ L(ctx).Gettext("Delete this bookmark") }
+						data-controller="turbo-form"
+					>
+						@Icon("o-trash")
+					</button>
+				</form>
+			}
+		</div>
+	</turbo-frame>
+	<div
+		class="print:hidden
+				[&>turbo-frame:not(.hidden)]:block [&>turbo-frame]:my-4 [&>turbo-frame]:p-4
+				[&>turbo-frame]:shadow-lg [&>turbo-frame]:bg-gray-100
+				[&_p]:text-sm [&_img]:my-4 [&_img]:mx-auto [&_button]:w-full
+  		"
+	>
+		<turbo-frame id={ "bookmark-share-" + b.ID } class="hidden"></turbo-frame>
+	</div>
+}
+
+templ (c SidebarComponent) info(b *dataset.Bookmark) {
+	<ul class="mb-4">
+		<li class="flex items-center gap-1 mb-2">
+			if img, ok := b.Resources["icon"]; ok {
+				<img
+					class="bookmark-icon"
+					alt=""
+					src={ img.Src }
+					width={ img.Width }
+					height={ img.Height }
+				/>
+			}
+			{{ siteName := Tern(func() bool { return b.SiteName != "" }, b.SiteName, L(ctx).Gettext("no site name")) }}
+			<strong
+				class="overflow-hidden text-ellipsis"
+				title={ siteName }
+				dir={ Tern(func() bool { return b.TextDirection != "" }, b.TextDirection, "ltr") }
+			>{ siteName }</strong>
+		</li>
+		@c.lineIcon("o-download") {
+			<span class="text-gray-700 inline-flex items-center gap-2 group" title={ Strftime(ctx, b.Created, "%c") }>
+				{ Strftime(ctx, b.Created, "%e %B %Y") }
+				<button
+					class="opacity-0 group-hfw:opacity-100 text-gray-300 hf:text-gray-700"
+					title="diagnosis"
+					data-controller="dialog"
+					data-dialog-select-value="#debug-info"
+					data-action="scroll-progress#skip dialog#open"
+				>
+					@Icon("o-terminal")
+				</button>
+			</span>
+		}
+		if b.Published != nil {
+			@c.lineIcon("o-calendar") {
+				{ L(ctx).Gettext("Published on %s", Strftime(ctx, *b.Published, "%e %B %Y")) }
+			}
+		}
+		if len(b.Authors) > 0 {
+			@c.lineIcon("o-pen") {
+				{ L(ctx).Gettext("By %s", strings.Join(b.Authors, ", ")) }
+			}
+		}
+		@c.lineIcon("o-link-ext") {
+			<a href={ b.URL } class="link" target="_blank">{ b.Domain }</a>
+		}
+		if b.ReadingTime > 0 {
+			@c.lineIcon("o-clock") {
+				{ L(ctx).Ngettext("About %d minute read", "About %d minutes read", b.ReadingTime, b.ReadingTime) }
+			}
+		}
+	</ul>
+}
+
+templ (c SidebarComponent) labels(b *dataset.Bookmark) {
+	<h3
+		class={
+			"mb-2 title text-lg",
+			templ.KV("print:hidden", len(b.Labels) == 0),
+		}
+	>
+		@Icon("o-label")
+		{ " " }
+		{ L(ctx).Gettext("Labels") }
+	</h3>
+	@c.labelForm(b)
+}
+
+templ (c SidebarComponent) labelForm(b *dataset.Bookmark) {
+	<turbo-frame id={ "bookmark-labels-" + b.ID } class="group block mb-4">
+		<form
+			action={ URL(ctx, "/bookmarks", b.ID, "update") }
+			method="post"
+			data-controller="turbo-form"
+		>
+			<input type="hidden" name="_to" value={ CurrentPath(ctx) }/>
+			<button type="submit" class="hidden"></button>
+			<div>
+				@c.labelList(b)
+				<div class="flex gap-2 items-center mt-2 print:hidden">
+					<div
+						class="relative flex-grow"
+						data-controller="autocomplete"
+						data-autocomplete-url-value={ URL(ctx, "/api/bookmarks/@complete") + "?type=label" }
+						data-autocomplete-item-class="p-2 whitespace-nowrap hf:bg-primary hf:text-white cursor-pointer"
+						data-autocomplete-selected-class="bg-primary text-white"
+					>
+						<input
+							type="text"
+							name="add_labels"
+							placeholder={ L(ctx).Gettext("Add a label") }
+							class="bg-transparent border-gray-300 border-b p-1 w-full"
+							autocapitalize="off"
+							data-turbo-empty-submit-end="1"
+							data-autocomplete-target="input"
+						/>
+						<input type="hidden" name="label_id" data-autocomplete-target="hidden"/>
+						<ul
+							hidden
+							class="absolute z-50 border shadow bg-gray-50 min-w-full max-w-full max-h-48 overflow-y-auto rounded"
+							data-autocomplete-target="results"
+						></ul>
+					</div>
+					<button
+						type="submit"
+						class="
+							bg-gray-200 text-white text-sm whitespace-nowrap p-1 rounded
+       				border border-transparent hf:border-btn-primary-hover
+       				group-hfw:bg-btn-primary
+						"
+					>
+						{ L(ctx).Gettext("Add label") }
+					</button>
+				</div>
+			</div>
+		</form>
+	</turbo-frame>
+}
+
+templ (c SidebarComponent) labelList(b *dataset.Bookmark) {
+	<ul class="inline" id={ "bookmark-label-list-" + b.ID }>
+		for _, x := range b.Labels {
+			<li class="inline-flex items-center text-sm bg-gray-100 py-1 px-1.5 mr-1 mb-1 border rounded-md">
+				<a
+					data-turbo="false"
+					href={ labelLink(ctx, x) }
+					class="hf:text-primary"
+				>
+					{ x }
+				</a>
+				<button
+					class="ml-1 text-gray-600 hf:text-red-700 print:hidden"
+					type="submit"
+					name="remove_labels"
+					value={ x }
+					title={ L(ctx).Gettext("Remove label") }
+				>
+					@Icon("o-cross", WithIconSvgClass("w-5"))
+				</button>
+			</li>
+		}
+	</ul>
+}
+
+templ (c SidebarComponent) annotationList(item *dataset.Bookmark) {
+	<turbo-frame id={ "bookmark-annotation-list-" + item.ID } class="print:hidden">
+		<h3 class="mb-2 title text-lg">
+			@Icon("o-highlight")
+			{ " " }
+			{ L(ctx).Gettext("Highlights") }
+		</h3>
+		<div class="group">
+			if len(item.Annotations) == 0 {
+				<p class="mb-4">{ L(ctx).Gettext("Start selecting text in the article to create a new highlight.") }</p>
+			} else {
+				<ul class="mb-4" data-controller="request scrollto">
+					for _, a := range item.Annotations {
+						<li
+							class="mb-3 flex p-2 rd-annotation bg-opacity-20 hfw:bg-opacity-80 rounded border group/btn"
+							data-annotation-color={ Tern(func() bool { return a.Color != "" }, a.Color, "yellow") }
+						>
+							<a
+								class="grow flex flex-col"
+								href={ "#annotation-" + a.ID }
+								data-action="scrollto#scroll:prevent panel#close:prevent"
+							>
+								if a.Note != "" {
+									<p class="flex items-baseline gap-1 border-b pb-2 mb-2 font-semibold">
+										@Icon("o-note")
+										<span class="grow">{ a.Note }</span>
+									</p>
+								}
+								<blockquote class="text-sm italic">{ utils.ShortText(a.Text, 100) }</blockquote>
+							</a>
+							<span class="no-js:hidden flex-shrink-0">
+								<button
+									class="
+                    block -mt-4 -mr-4 text-gray-600 opacity-0
+                    group-hover/btn:opacity-100 group-focus-within/btn:opacity-100
+                    hf:text-red-700 touch:opacity-75 touch:active:text-red-700
+                  "
+									data-action="click->request#fetch"
+									data-request-url-param={ URL(ctx, "/api/bookmarks", item.ID, "annotations", a.ID) }
+									data-request-method-param="delete"
+									data-request-event-name-param="annotation-removed"
+									aria-label={ L(ctx).Gettext("Delete highlight") }
+								>
+									@Icon("o-cross", WithIconClass("svgicon rounded-full bg-app-bg"), WithIconSvgClass("w-5 align-bottom"))
+								</button>
+							</span>
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	</turbo-frame>
+}
+
+templ (c SidebarComponent) linkList(b *dataset.Bookmark) {
+	if b.HasArticle && len(b.Links) > 0 && b.Links.HasPages() {
+		<details class="group mb-4 print:hidden">
+			<summary class="block mb-2 title text-lg hf:text-primary-dark">
+				@Icon("o-link")
+				<span class="underline decoration-dotted decoration-primary">{ L(ctx).Gettext("Links") }</span>
+			</summary>
+			<ul class="mb-4 list-disc list-outside pl-4">
+				for _, x := range b.Links.Pages() {
+					<li class="list-item mb-1 leading-none">
+						<a
+							class="link text-sm"
+							href={ x.URL }
+							rel="nofollow noopener noreferrer"
+							target="_blank"
+							title={ Tern(func() bool { return x.Title != "" }, x.Title, x.URL) }
+						>
+							{ Tern(func() bool { return x.Title != ""},
+								utils.ShortText(x.Title, 80),
+								utils.ShortURL(x.URL, 40),
+							) }
+						</a>
+					</li>
+				}
+			</ul>
+		</details>
+	}
+}
+
+templ (c SidebarComponent) lineIcon(icon string) {
+	<li class="flex items-baseline mb-1">
+		@Icon(icon, WithIconClass("svgicon w-4 ml-0.5 mr-1.5"))
+		{ " " }
+		{ children... }
+	</li>
+}

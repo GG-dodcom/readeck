@@ -1,0 +1,208 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package components
+
+// BasePage renders the layout's base page with head elements.
+templ (c *Layout) BasePage(title string) {
+	<!DOCTYPE html>
+	<html
+		lang={ L(ctx).Tag.String() }
+		class="overscroll-y-none scroll-pt-20 max-sm:scroll-pt-40"
+	>
+		<head>
+			<meta charset="UTF-8"/>
+			<title>{ title } - Readeck</title>
+			<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<meta name="csp-nonce" content={ CSPNonce(ctx) }/>
+			<meta name="robots" content="noindex nofollow noarchive"/>
+			<link rel="stylesheet" href={ Asset(ctx, "bundle.css") } nonce={ CSPNonce(ctx) }/>
+			<script type="module" src={ Asset(ctx, "bundle.js") } nonce={ CSPNonce(ctx) }></script>
+			<script nonce={ CSPNonce(ctx) }>
+				if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+					document.documentElement.classList.add('dark')
+				} else {
+					document.documentElement.classList.remove('dark')
+				}
+			</script>
+			<link rel="icon" href={ Asset(ctx, "img/fi/favicon.ico") } sizes="48x48"/>
+			<link rel="icon" href={ Asset(ctx, `img/fi/favicon.svg`) } sizes="any" type="image/svg+xml"/>
+			<link rel="apple-touch-icon" href={ Asset(ctx, `img/fi/apple-touch-icon.png`) }/>
+			<link rel="manifest" href={ URL(ctx, "/manifest.webmanifest") }/>
+			<meta name="theme-color" content="#064c5c"/>
+			@c.Head
+			@CustomTemplate("layout/head.html.tmpl", nil)
+		</head>
+		<body
+			class="
+				no-js bg-app-bg text-app-fg font-sans leading-tight tracking-normal
+				relative
+				print:text-black print:bg-white
+				overscroll-y-none
+			"
+			data-turbo="false"
+			data-turbo-prefetch="false"
+			data-controller="scroll-tracker"
+			data-scroll-tracker-down-class="scrolled-down"
+		>
+			<script nonce={ CSPNonce(ctx) }>
+				if ('noModule' in HTMLScriptElement.prototype) {
+					document.body.classList.remove("no-js")
+					document.body.classList.add("js")
+				}
+			</script>
+			{ children... }
+		</body>
+	</html>
+}
+
+templ (c *Layout) Menu(menuBtn templ.Component) {
+	<div class="layout-topnav" id="menu">
+		@menuBtn {
+			@Icon("o-menu")
+		}
+		<div class="logo">
+			if HasCustomTemplate("layout/menu-icon.html.tmpl") {
+				@CustomTemplate("layout/menu-icon.html.tmpl", nil)
+			} else {
+				<a href={ URL(ctx, "/") } title={ L(ctx).Gettext("Home page") }>
+					@Icon("o-logo-square", WithIconClass(), WithIconSvgClass("h-11 w-11"))
+				</a>
+			}
+		</div>
+		<div class="mainmenu">
+			<menu class="grow">
+				if HasPermission(ctx, "bookmarks", "read") {
+					@c.mainMenuItem(L(ctx).Gettext("Bookmarks"), "/bookmarks/unread", "o-library", PathIs(ctx, "/bookmarks", "/bookmarks/*"))
+				}
+			</menu>
+			if !IsAnonymous(ctx) {
+				<menu class="flex-shrink-0">
+					<li class="no-js:hidden">
+						<button
+							type="button"
+							data-controller="theme"
+							data-action="theme#toggleTheme"
+							title={ L(ctx).Gettext("Change color theme") }
+						>
+							<span data-theme-target="icon">
+								@Icon("o-theme-system")
+							</span>
+							<span class="sr-only">{ L(ctx).Gettext("Change color theme") }</span>
+							<template data-theme-target="iconLight">
+								@Icon("o-theme-light")
+							</template>
+							<template data-theme-target="iconDark">
+								@Icon("o-theme-dark")
+							</template>
+							<template data-theme-target="iconSystem">
+								@Icon("o-theme-system")
+							</template>
+						</button>
+					</li>
+					if HasPermission(ctx, "profile", "read") {
+						@c.mainMenuItem(L(ctx).Gettext("Settings"), "/profile", "o-settings", PathIs(ctx, "/admin", "/admin/*", "/profile", "/profile/*"))
+					}
+					@c.mainMenuItem(L(ctx).Gettext("Documentation"), "/docs/", "o-help", PathIs(ctx, "/docs/*"))
+				</menu>
+			}
+		</div>
+	</div>
+}
+
+templ (c *Layout) menuButton(name string) {
+	<button
+		type="button"
+		title={ name }
+		class="sidemenu--button"
+		data-action="click->panel#toggle"
+		data-panel-target="button"
+		aria-expanded="false"
+		aria-controls="sidemenu"
+	>
+		{ children... }
+		<span class="sr-only">{ name }</span>
+	</button>
+}
+
+templ (c *Layout) mainMenuItem(name, path, icon string, current bool) {
+	<li>
+		<a href={ URL(ctx, path) } title={ name } data-current={ current }>
+			@Icon(icon)
+			<span class="sr-only">{ name }</span>
+		</a>
+	</li>
+}
+
+// QuickAccessMenu renders an a11y menu.
+templ QuickAccessMenu(items [][2]string) {
+	if len(items) > 0 {
+		<ul label={ L(ctx).Gettext("Quick access menu") } class="a11y-nav">
+			for _, item := range items {
+				<li><a href={ "#" + item[0] } class="link">{ item[1] }</a></li>
+			}
+		</ul>
+	}
+}
+
+// SideMenuTitle renders a title used in side menus.
+templ SideMenuTitle() {
+	<h2
+		id="sidemenu-title"
+		class="h-topnav border-b border-gray-200 uppercase flex items-center justify-center"
+	>
+		{ children... }
+	</h2>
+}
+
+// SideMenuLayout renders a layout with a side menu.
+templ (c *Layout) SideMenuLayout(title string, sidemenu templ.Component, contentWrapper templ.Component) {
+	@c.BasePage(title) {
+		@QuickAccessMenu([][2]string{
+			{"menu", L(ctx).Gettext("Menu")},
+			{"sidemenu", L(ctx).Gettext("Secondary Menu")},
+			{"content", L(ctx).Gettext("Main content")},
+		})
+		<div
+			class="layout"
+			data-controller="panel"
+			data-panel-hidden-class="sidemenu--hidden"
+			data-panel-body-class="max-sm:overflow-hidden"
+		>
+			@c.Menu(c.menuButton(L(ctx).Gettext("Open Menu")))
+			<nav
+				id="sidemenu"
+				tabindex="-1"
+				data-panel-target="panel"
+				aria-labelledby="sidemenu-title"
+				data-action="keydown.esc->panel#toggle"
+				class="sidemenu sidemenu--hidden"
+			>
+				@c.menuButton(L(ctx).Gettext("Close menu")) {
+					@Icon("o-close", WithIconClass("inline-block"), WithIconSvgClass("w-8 h-8"))
+				}
+				@sidemenu
+			</nav>
+			@contentWrapper {
+				{ children... }
+			}
+		</div>
+	}
+}
+
+templ (c *Layout) SideMenuWrapper() {
+	<div class="layout-content" id="content">
+		@Flashes()
+		{ children... }
+	</div>
+}
+
+templ (c *Layout) SideMenuStdWrapper() {
+	<main class="layout-content max-w-std" id="content">
+		@Flashes()
+		@Breadcrumbs()
+		{ children... }
+	</main>
+}

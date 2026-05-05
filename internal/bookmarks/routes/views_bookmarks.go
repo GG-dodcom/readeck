@@ -5,8 +5,8 @@
 package routes
 
 import (
-	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -16,6 +16,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/go-chi/chi/v5"
 
+	"codeberg.org/readeck/readeck/components"
 	"codeberg.org/readeck/readeck/internal/auth"
 	"codeberg.org/readeck/readeck/internal/auth/users"
 	"codeberg.org/readeck/readeck/internal/bookmarks"
@@ -39,19 +40,13 @@ func (h *viewsRouter) withBaseContext(next http.Handler) http.Handler {
 			return
 		}
 
-		c := server.TC{
-			"Count": count,
-		}
-
-		ctx := withBaseContext(r.Context(), c)
+		ctx := withCounters(r.Context(), count)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
 func (h *viewsRouter) bookmarkList(w http.ResponseWriter, r *http.Request) {
 	f := newCreateForm(r)
-	tc := getBaseContext(r.Context())
-	tc["MaybeSearch"] = false
 
 	switch r.Method {
 	case http.MethodGet:
@@ -78,13 +73,6 @@ func (h *viewsRouter) bookmarkList(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-
-		// If the URL is not valid, set MaybeSearch so we can suggest it later
-		if len(f.Get("url").Errors()) > 0 && errors.Is(f.Get("url").Errors()[0], forms.ErrInvalidURL) {
-			// User entered a wrong URL, we can mark it.
-			tc["MaybeSearch"] = true
-		}
-
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
 
@@ -92,37 +80,31 @@ func (h *viewsRouter) bookmarkList(w http.ResponseWriter, r *http.Request) {
 	bl := getBookmarkList(r.Context())
 
 	tr := server.Locale(r)
-
-	tc["Form"] = f
-	tc["Pagination"] = bl.Pagination
-	tc["Bookmarks"] = bl.Items
-	tc["Filters"] = newContextFilterForm(r.Context(), tr)
 	title := tr.Gettext("All your Bookmarks")
+	filters := newContextFilterForm(r.Context(), tr)
 
-	if filters, ok := checkFilterForm(r.Context()); ok {
-		tc["Filters"] = filters
-		if filters.IsActive() {
-			title = tr.Gettext("Bookmark Search")
-		} else {
-			switch filters.title {
-			case filtersTitleUnread:
-				title = tr.Gettext("Unread Bookmarks")
-			case filtersTitleArchived:
-				title = tr.Gettext("Archived Bookmarks")
-			case filtersTitleFavorites:
-				title = tr.Gettext("Favorite Bookmarks")
-			case filtersTitleArticles:
-				title = tr.Gettext("Articles")
-			case filtersTitlePictures:
-				title = tr.Gettext("Pictures")
-			case filtersTitleVideos:
-				title = tr.Gettext("Videos")
-			}
+	if filters.IsActive() {
+		title = tr.Gettext("Bookmark Search")
+	} else {
+		switch filters.title {
+		case filtersTitleUnread:
+			title = tr.Gettext("Unread Bookmarks")
+		case filtersTitleArchived:
+			title = tr.Gettext("Archived Bookmarks")
+		case filtersTitleFavorites:
+			title = tr.Gettext("Favorite Bookmarks")
+		case filtersTitleArticles:
+			title = tr.Gettext("Articles")
+		case filtersTitlePictures:
+			title = tr.Gettext("Pictures")
+		case filtersTitleVideos:
+			title = tr.Gettext("Videos")
 		}
 	}
-	tc["PageTitle"] = title
 
-	server.RenderTemplate(w, r, 200, "/bookmarks/index", tc)
+	server.RenderComponent(w, r, http.StatusOK, Views{}.bookmarkList(
+		title, bl, f, filters,
+	))
 }
 
 func (h *viewsRouter) bookmarkInfo(w http.ResponseWriter, r *http.Request) {
@@ -134,17 +116,13 @@ func (h *viewsRouter) bookmarkInfo(w http.ResponseWriter, r *http.Request) {
 	item.Errors = b.Errors
 
 	if server.IsTurboRequest(r) {
-		server.RenderTurboStream(w, r,
-			"/bookmarks/components/card", "replace",
-			"bookmark-card-"+b.UID, item, nil)
+		server.RenderTurboStreamComponent(w, r,
+			Components{}.card(item),
+			"replace", "bookmark-card-"+b.UID, nil)
 		return
 	}
 
-	tc := getBaseContext(r.Context())
-	tc["Item"] = item
-
-	var err error
-	tc["HTML"], err = item.GetArticle()
+	html, err := item.GetArticle()
 	if err != nil {
 		server.Log(r).Error("", slog.Any("err", err))
 	}
@@ -156,7 +134,7 @@ func (h *viewsRouter) bookmarkInfo(w http.ResponseWriter, r *http.Request) {
 		policy.Write(w.Header())
 	}
 
-	server.RenderTemplate(w, r, 200, "/bookmarks/bookmark", tc)
+	server.RenderComponent(w, r, http.StatusOK, Views{}.bookmarkInfo(item, html))
 }
 
 func (h *viewsRouter) bookmarkCard(w http.ResponseWriter, r *http.Request) {
@@ -169,9 +147,9 @@ func (h *viewsRouter) bookmarkCard(w http.ResponseWriter, r *http.Request) {
 	b := getBookmark(r.Context())
 	item := dataset.NewBookmark(r.Context(), b)
 
-	server.RenderTurboStream(w, r,
-		"/bookmarks/components/card", "replace",
-		"bookmark-card-"+b.UID, item, nil)
+	server.RenderTurboStreamComponent(w, r,
+		Components{}.card(item),
+		"replace", "bookmark-card-"+b.UID, nil)
 }
 
 func (h *viewsRouter) diagnosis(w http.ResponseWriter, r *http.Request) {
@@ -182,7 +160,6 @@ func (h *viewsRouter) diagnosis(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	b := getBookmark(r.Context())
-	tc := getBaseContext(r.Context())
 
 	d, err := dataset.NewBokmarkDiagnosis(b)
 	if err != nil {
@@ -190,31 +167,16 @@ func (h *viewsRouter) diagnosis(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tc["Log"] = string(d.Log)
-	tc["Props"] = string(d.Props)
-	tc["LogLines"] = d.LogLines()
-
-	server.RenderTurboStream(w, r,
-		"/bookmarks/components/diagnosis", "replace",
-		"diagnostic-info", tc, nil)
+	server.RenderTurboStreamComponent(w, r,
+		Components{}.diagnosis(d),
+		"replace", "diagnosis-info", nil,
+	)
 }
 
 func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
 	b := getBookmark(r.Context())
-
-	tc := getBaseContext(r.Context())
-	tc.SetBreadcrumbs([][2]string{
-		{tr.Gettext("Bookmarks"), urls.AbsoluteURL(r, "/bookmarks").String()},
-		{utils.ShortText(b.Title, 50), urls.AbsoluteURL(r, "/bookmarks", b.UID).String()},
-		{tr.Gettext("Update")},
-	})
-
-	tc["Title"] = b.Title
-	tc["ID"] = b.UID
-
 	f := newUpdateForm(server.Locale(r))
-	tc["Form"] = f
 
 	status := http.StatusOK
 
@@ -258,9 +220,10 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 			_, withProgress := updated["read_progress"]
 
 			if withTitle || withDescription {
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/title_block", "replace",
-					"bookmark-title-"+b.UID, server.TC{"Item": item}, nil)
+				server.RenderTurboStreamComponent(w, r,
+					Components{}.titleBlock(item),
+					"replace", "bookmark-title-"+b.UID, nil,
+				)
 			}
 
 			var beforeP, afterP time.Time
@@ -272,9 +235,9 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if before.SiteName != b.SiteName || beforeP != afterP || !slices.Equal(before.Authors, b.Authors) {
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/sidebar", "replace",
-					"bookmark-sidebar-"+b.UID, server.TC{"Item": item}, nil)
+				server.RenderTurboStreamComponent(w, r,
+					SidebarComponent{}.sidebar(item),
+					"replace", "bookmark-sidebar-"+b.UID, nil)
 			}
 
 			if before.Lang != b.Lang || before.TextDirection != b.TextDirection {
@@ -282,35 +245,33 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					server.Log(r).Error("", slog.Any("err", err))
 				}
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/content_block", "replace",
-					"bookmark-content-"+b.UID, map[string]any{
-						"Item": item,
-						"HTML": buf,
-						"Out":  w,
-					},
-					nil,
-				)
+				server.RenderTurboStreamComponent(w, r,
+					Components{}.articleContent(item, buf),
+					"replace", "bookmark-content-"+b.UID,
+					map[string]string{
+						"method": "morph",
+					})
 			}
 
 			if !slices.Equal(before.Labels, b.Labels) {
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/labels", "replace",
-					"bookmark-label-list-"+b.UID, item, nil)
+				server.RenderTurboStreamComponent(w, r,
+					SidebarComponent{}.labelList(item),
+					"replace", "bookmark-label-list-"+b.UID, nil)
 			}
 
 			if withMarked || withArchived || withDeleted || withProgress {
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/actions", "replace",
-					"bookmark-actions-"+b.UID, item, nil)
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/card", "replace",
-					"bookmark-card-"+b.UID, item, nil)
+				server.RenderTurboStreamComponent(w, r,
+					SidebarComponent{}.actions(item),
+					"replace", "bookmark-actions-"+b.UID, nil)
+				server.RenderTurboStreamComponent(w, r,
+					Components{}.card(item),
+					"replace", "bookmark-card-"+b.UID, nil)
 			}
 			if withMarked || withArchived {
-				server.RenderTurboStream(w, r,
-					"/bookmarks/components/bottom_actions", "replace",
-					"bookmark-bottom-actions-"+b.UID, item, nil)
+				server.RenderTurboStreamComponent(w, r,
+					Components{}.bookmarkInfoBottomActions(item),
+					"replace", "bookmark-bottom-actions-"+b.UID, nil,
+				)
 			}
 
 			return
@@ -323,48 +284,48 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 			redir = f.Get("_to").String()
 		}
 		server.Redirect(w, r, redir)
-
+		return
 	}
 
 	if server.IsTurboRequest(r) {
 		w.WriteHeader(status)
-		server.RenderTurboStream(w, r,
-			"/bookmarks/components/bookmark_update", "replace",
-			"bookmark-update-"+b.UID, tc, nil,
+		server.RenderTurboStreamComponent(w, r,
+			Components{}.bookmarkUpdate(b, f),
+			"replace", "bookmark-update-"+b.UID, nil,
 		)
 		return
 	}
 
-	server.RenderTemplate(w, r, status, "bookmarks/bookmark_update", tc)
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
+		{tr.Gettext("Bookmarks"), urls.AbsoluteURL(r, "/bookmarks").String()},
+		{utils.ShortText(b.Title, 50), urls.AbsoluteURL(r, "/bookmarks", b.UID).String()},
+		{tr.Gettext("Update")},
+	})
+
+	server.RenderComponent(w, r.WithContext(ctx), status, Views{}.bookmarkUpdate(b, f))
 }
 
 func (h *viewsRouter) bookmarkShareLink(w http.ResponseWriter, r *http.Request) {
-	info := getSharedLink(r.Context())
-	ctx := server.TC{
-		"URL":     info.URL,
-		"Expires": info.Expires,
-		"Title":   info.Title,
-		"ID":      info.ID,
-	}
-
+	link := getSharedLink(r.Context())
 	if server.IsTurboRequest(r) {
-		server.RenderTurboStream(w, r,
-			"/bookmarks/components/share_link", "replace",
-			"bookmark-share-"+info.ID, info, nil)
+		server.RenderTurboStreamComponent(w, r,
+			Components{}.shareByLink(link),
+			"replace", "bookmark-share-"+link.ID, nil)
+
 		return
 	}
 
-	server.RenderTemplate(w, r, http.StatusCreated, "bookmarks/bookmark_share_link", ctx)
+	tr := server.Locale(r)
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
+		{tr.Gettext("Bookmarks"), urls.AbsoluteURL(r, "/bookmarks").String()},
+		{utils.ShortText(link.Title, 50), urls.AbsoluteURL(r, "/bookmarks", link.ID).String()},
+		{tr.Gettext("Share link")},
+	})
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.shareByLink(link))
 }
 
 func (h *viewsRouter) bookmarkShareEmail(w http.ResponseWriter, r *http.Request) {
 	info := getSharedEmail(r.Context())
-	tc := server.TC{
-		"Form":  info.Form,
-		"Title": info.Title,
-		"ID":    info.ID,
-		"Sent":  false,
-	}
 
 	// Get format from query string
 	if format := r.URL.Query().Get("format"); format != "" {
@@ -376,25 +337,27 @@ func (h *viewsRouter) bookmarkShareEmail(w http.ResponseWriter, r *http.Request)
 		info.Form.Get("email").Set(u.Settings.EmailSettings.EpubTo)
 	}
 
-	if r.Method == http.MethodPost {
-		tc["Sent"] = info.Error == nil && info.Form.IsValid()
-	}
-
 	if server.IsTurboRequest(r) {
-		server.RenderTurboStream(w, r,
-			"/bookmarks/components/share_email", "replace",
-			"bookmark-share-"+info.ID, tc, nil)
+		server.RenderTurboStreamComponent(w, r,
+			Components{}.shareByEmail(info), "replace",
+			"bookmark-share-"+info.ID, nil)
 		return
 	}
 
-	server.RenderTemplate(w, r, http.StatusOK, "bookmarks/bookmark_share_email", tc)
+	tr := server.Locale(r)
+	ctx := components.WithBreadcrumb(r.Context(), [][2]string{
+		{tr.Gettext("Bookmarks"), urls.AbsoluteURL(r, "/bookmarks").String()},
+		{utils.ShortText(info.Title, 50), urls.AbsoluteURL(r, "/bookmarks", info.ID).String()},
+		{tr.Gettext("Share by email")},
+	})
+	server.RenderComponent(w, r.WithContext(ctx), http.StatusOK, Views{}.shareByEmail(info))
 }
 
 func (h *viewsRouter) labelList(w http.ResponseWriter, r *http.Request) {
-	tc := getBaseContext(r.Context())
-	tc["Labels"] = getLabelList(r.Context())
-
-	server.RenderTemplate(w, r, 200, "/bookmarks/labels", tc)
+	server.RenderComponent(
+		w, r, http.StatusOK,
+		Views{}.labelList(getLabelList(r.Context())),
+	)
 }
 
 func (h *viewsRouter) labelInfo(w http.ResponseWriter, r *http.Request) {
@@ -427,13 +390,10 @@ func (h *viewsRouter) labelInfo(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
 
-	tc := getBaseContext(r.Context())
-	tc["Label"] = label
-	tc["Pagination"] = bl.Pagination
-	tc["Bookmarks"] = bl.Items
-	tc["IsDeleted"] = tasks.DeleteLabelTask.IsRunning(fmt.Sprintf("%d@%s", auth.GetRequestUser(r).ID, label))
-
-	server.RenderTemplate(w, r, 200, "/bookmarks/label", tc)
+	isDeleted := tasks.DeleteLabelTask.IsRunning(fmt.Sprintf("%d@%s", auth.GetRequestUser(r).ID, label))
+	server.RenderComponent(w, r, http.StatusOK, Views{}.labelInfo(
+		label, bl, isDeleted,
+	))
 }
 
 func (h *viewsRouter) labelDelete(w http.ResponseWriter, r *http.Request) {
@@ -460,106 +420,89 @@ func (h *viewsRouter) labelDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *viewsRouter) annotationList(w http.ResponseWriter, r *http.Request) {
-	al := getAnnotationList(r.Context())
-
-	server.SendPaginationHeaders(w, r, al.Pagination)
-
-	tc := getBaseContext(r.Context())
-	tc["Pagination"] = al.Pagination
-	tc["Annotations"] = al.Items
-
-	server.RenderTemplate(w, r, 200, "/bookmarks/annotation_list", tc)
-}
-
-func (h *publicViewsRouter) withBookmark(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		data := chi.URLParam(r, "id")
-		id, expires, err := bookmarks.DecodeID(data)
-		if err != nil {
-			server.Log(r).Warn("shared bookmark", slog.Any("err", err))
-			server.Status(w, r, 404)
-			return
-		}
-
-		expired := expires.Before(time.Now().UTC())
-		status := http.StatusOK
-		ct := server.TC{
-			"Expired": expired,
-		}
-
-		if !expired {
-			var bu struct {
-				User     *users.User         `db:"u"`
-				Bookmark *bookmarks.Bookmark `db:"b"`
-			}
-			ds := bookmarks.Bookmarks.
-				Query().
-				Join(goqu.T(db.TableUser).As("u"), goqu.On(goqu.I("u.id").Eq(goqu.I("b.user_id")))).
-				Where(
-					goqu.I("b.id").Eq(id),
-					goqu.I("b.state").Eq(bookmarks.StateLoaded),
-				)
-			found, err := ds.ScanStruct(&bu)
-
-			if !found || err != nil {
-				status = http.StatusNotFound
-			} else {
-				// Don't show the notes on a shared, public, page.
-				ctx := dataset.WithAnnotationTag(r.Context(),
-					dataset.AnnotationTag,
-					dataset.AnnotationCallback(false),
-				)
-
-				item := dataset.NewBookmark(ctx, bu.Bookmark)
-				if err := item.SetEmbed(); err != nil {
-					server.Err(w, r, err)
-					return
-				}
-				ct["Username"] = bu.User.Username
-				ct["Item"] = item
-
-				w.Header().Add("readeck-original", item.URL)
-				server.NewLink(item.URL).WithRel("original").Write(w)
-				server.NewLink(item.URL).WithRel("cite-as").Write(w)
-				server.WriteLastModified(w, r, bu.Bookmark)
-				server.WriteEtag(w, r, bu.Bookmark)
-			}
-		} else {
-			status = http.StatusGone
-		}
-
-		ct["Status"] = status
-
-		ctx := withBaseContext(r.Context(), ct)
-		server.WithCaching(next).ServeHTTP(w, r.WithContext(ctx))
-	})
+	server.RenderComponent(
+		w, r, http.StatusOK,
+		Views{}.annotationList(getAnnotationList(r.Context())),
+	)
 }
 
 func (h *publicViewsRouter) get(w http.ResponseWriter, r *http.Request) {
-	tc := getBaseContext(r.Context())
-	status := tc["Status"].(int)
+	// This uses custom error handlers so we can fail with [server.Status]
+	// when we need to.
+	// Status codes can be 404 or 410 (when expired).
 
-	if status == http.StatusOK {
-		item := tc["Item"].(*dataset.Bookmark)
-		article, err := item.GetArticle()
-		if err != nil {
-			server.Err(w, r, err)
-			return
-		}
+	data := chi.URLParam(r, "id")
+	id, expires, err := bookmarks.DecodeID(data)
+	if err != nil {
+		server.Log(r).Warn("shared bookmark", slog.Any("err", err))
+		server.Status(w, r, 404)
+		return
+	}
 
-		tc["HTML"] = article
+	var item *dataset.Bookmark
+	var user *users.User
+	expired := expires.Before(time.Now().UTC())
+	if expired {
+		server.Status(w, r, http.StatusGone)
+		return
+	}
+
+	var bu struct {
+		User     *users.User         `db:"u"`
+		Bookmark *bookmarks.Bookmark `db:"b"`
+	}
+	ds := bookmarks.Bookmarks.
+		Query().
+		Join(goqu.T(db.TableUser).As("u"), goqu.On(goqu.I("u.id").Eq(goqu.I("b.user_id")))).
+		Where(
+			goqu.I("b.id").Eq(id),
+			goqu.I("b.state").Eq(bookmarks.StateLoaded),
+		)
+	found, err := ds.ScanStruct(&bu)
+
+	if !found || err != nil {
+		server.Status(w, r, http.StatusNotFound)
+		return
+	}
+
+	// Don't show the notes on a shared, public, page.
+	ctx := dataset.WithAnnotationTag(r.Context(),
+		dataset.AnnotationTag,
+		dataset.AnnotationCallback(false),
+	)
+
+	item = dataset.NewBookmark(ctx, bu.Bookmark)
+	if err := item.SetEmbed(); err != nil {
+		server.Err(w, r, err)
+		return
+	}
+	user = bu.User
+
+	w.Header().Add("readeck-original", item.URL)
+	server.NewLink(item.URL).WithRel("original").Write(w)
+	server.NewLink(item.URL).WithRel("cite-as").Write(w)
+	server.WriteLastModified(w, r, bu.Bookmark)
+	server.WriteEtag(w, r, bu.Bookmark)
+
+	server.WithCaching(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var html io.Reader
 
 		// Harden CSP
 		policy := server.GetCSPHeader(r).Clone()
 		policy.Set("connect-src", csp.None)
 		policy.Set("form-action", csp.None)
 
+		if html, err = item.GetArticle(); err != nil {
+			server.Err(w, r, err)
+			return
+		}
+
 		// Relax CSP for video playback
 		if item.Type == "video" && item.EmbedHostname != "" {
 			policy.Add("frame-src", item.EmbedHostname)
 		}
-		policy.Write(w.Header())
-	}
 
-	server.RenderTemplate(w, r, status, "bookmarks/bookmark_public", tc)
+		policy.Write(w.Header())
+		server.RenderComponent(w, r, http.StatusOK, PublicViews{}.bookmark(user, item, html))
+	})).ServeHTTP(w, r)
 }

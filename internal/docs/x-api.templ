@@ -1,0 +1,56 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package docs
+
+import (
+	. "codeberg.org/readeck/readeck/components"
+	"strings"
+)
+
+templ (_ Views) apiScript() {
+	<script type="module" src={ Asset(ctx, "vendor/rapidoc.js") } nonce={ CSPNonce(ctx) }></script>
+}
+
+templ (v Views) api(schemaURL string, hideBadges []string) {
+	{{
+		layout := NewLayout()
+		layout.Head = v.apiScript()
+	}}
+	@layout.BasePage(L(ctx).Gettext("API Documentation")) {
+		<div class="max-w-full flex h-screen max-sm:flex-col">
+			@layout.Menu(templ.NopComponent)
+			<div class="grow md:overflow-y-auto" id="content" lang="en-US">
+				<rapi-doc
+					spec-url={ schemaURL }
+					allow-server-selection="false"
+					allow-spec-file-download="true"
+					allow-spec-file-load="false"
+					allow-spec-url-load="false"
+					default-schema-tab="schema"
+					info-description-headings-in-navbar="true"
+					load-fonts="false"
+					nav-bg-color="#ffffff"
+					persist-auth="true"
+					remove-endpoints-with-badge-label-as={ strings.Join(hideBadges, ",") }
+					render-style="focus"
+					schema-description-expanded="true"
+					schema-style="tree"
+					show-curl-before-try="true"
+					show-header="false"
+					show-method-in-nav-bar="as-colored-text"
+					sort-endpoints-by="none"
+					theme="light"
+				>
+					@Breadcrumbs()
+				</rapi-doc>
+			</div>
+		</div>
+		<script nonce={ CSPNonce(ctx) }>
+    if (window.innerWidth < 814) {
+      document.querySelector("rapi-doc").setAttribute("render-style", "view")
+    }
+    </script>
+	}
+}

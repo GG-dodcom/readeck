@@ -1,0 +1,85 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package converter
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"strings"
+
+	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+)
+
+type browserViews struct{}
+
+templ (v browserViews) export(sections []browserExportSection) {
+	// Welcome to 90s markup!
+	<!DOCTYPE NETSCAPE-Bookmark-file-1>
+	{ "\n" }
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+	{ "\n" }
+	<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; img-src data: *; object-src 'none'"/>
+	{ "\n" }
+	<title>Readeck Bookmarks</title>
+	{ "\n" }
+	<h1>Readeck Bookmarks</h1>
+	{ "\n" }
+	<dl>
+		<p>
+			for _, section := range sections {
+				<dt><h3>{ section.name }</h3></dt>
+				{ "\n" }
+				<dl>
+					<p>
+						for _, b := range section.items {
+							<dt>
+								@v.link(b)
+							</dt>
+							{ "\n" }
+						}
+					</p>
+					{ "\n" }
+				</dl>
+			}
+		</p>
+	</dl>
+}
+
+func (v browserViews) link(b *dataset.Bookmark) templ.Component {
+	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		_, err := fmt.Fprintf(
+			w,
+			`<a href="%s" add_date="%d" last_modified="%d"`,
+			templ.EscapeString(b.URL),
+			b.Created.UTC().Unix(),
+			b.Created.UTC().Unix(),
+		)
+		if err != nil {
+			return err
+		}
+
+		if tags := make([]string, len(b.Labels)); len(tags) > 0 {
+			for i, x := range b.Labels {
+				tags[i] = strings.ReplaceAll(templ.EscapeString(x), ",", "&#44;")
+			}
+			if _, err = fmt.Fprintf(w, ` tags="%s"`, strings.Join(tags, ",")); err != nil {
+				return err
+			}
+		}
+
+		if _, err = fmt.Fprint(w, ">"); err != nil {
+			return err
+		}
+		if _, err = fmt.Fprint(w, templ.EscapeString(b.Title)); err != nil {
+			return err
+		}
+		if _, err = fmt.Fprint(w, "</a>"); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}

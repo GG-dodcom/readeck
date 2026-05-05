@@ -1,0 +1,193 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package cookbook
+
+import (
+	"codeberg.org/readeck/readeck/pkg/forms"
+
+	. "codeberg.org/readeck/readeck/components"
+	F "codeberg.org/readeck/readeck/components/forms"
+)
+
+templ (v Views) ui(form, formErr *forms.Form) {
+	@v.base("User Interface") {
+		<div class="max-w-std">
+			<h1 class="title text-h2">User Interface</h1>
+			<h2 class="title text-h3">Buttons</h2>
+			<div class="grid grid-cols-4 gap-8 mb-8">
+				<div class="inline-flex flex-col gap-2 items-center">
+					<button class="btn">Click Me!</button>
+					btn
+				</div>
+				<div class="inline-flex flex-col gap-2 items-center">
+					<button class="btn btn-default">Click Me!</button>
+					btn btn-default
+				</div>
+				<div class="inline-flex flex-col gap-2 items-center">
+					<button class="btn btn-primary">Click Me!</button>
+					btn btn-primary
+				</div>
+				<div class="inline-flex flex-col gap-2 items-center">
+					<button class="btn btn-danger">Click Me!</button>
+					btn btn-danger
+				</div>
+				<div class="inline-flex flex-col gap-2 items-center">
+					<button class="btn-outlined">Click Me!</button>
+					btn-outlined
+				</div>
+				<div class="inline-flex flex-col gap-2 items-center">
+					<button class="btn-outlined btn-default">Click Me!</button>
+					btn-outlined
+					<br/>
+					btn-default
+				</div>
+				<div class="inline-flex flex-col gap-2 items-center">
+					<button class="btn-outlined btn-primary">Click Me!</button>
+					btn-outlined
+					<br/>
+					btn-primary
+				</div>
+				<div class="inline-flex flex-col gap-2 items-center">
+					<button class="btn-outlined btn-danger">Click Me!</button>
+					btn-outlined
+					<br/>
+					btn-danger
+				</div>
+			</div>
+			<h3 class="title text-xl">Button group</h3>
+			<div class="grid grid-cols-4 gap-8 mb-8">
+				<div class="inline-flex flex-col gap-2 items-center">
+					<div class="btn-group btn-primary">
+						<button class="btn-outlined btn-primary">A</button>
+						<button class="btn-outlined btn-primary">B</button>
+						<span><a class="btn-outlined btn-primary" href="#">C</a></span>
+					</div>
+				</div>
+			</div>
+			<h3 class="title text-xl">Button block</h3>
+			<div class="btn-block">
+				<button class="btn btn-primary">Save</button>
+				<button class="ml-auto btn-outlined btn-danger">Delete</button>
+			</div>
+			<hr class="my-8"/>
+			<h2 class="title text-h3">Menus</h2>
+			<details class="menu btn-group" data-controller="menu">
+				<summary class="btn-outlined py-1">
+					@Icon("o-menu-dots")
+				</summary>
+				<ul>
+					<li><button>Item A</button></li>
+					<li><button>Item B</button></li>
+					<li role="separator"></li>
+					<li><button>Item C</button></li>
+				</ul>
+			</details>
+			<hr class="my-8"/>
+			<h2 class="title text-h3">Messages</h2>
+			@Message() {
+				Simple information message
+			}
+			@Message(WithMessageType("success")) {
+				<p>Success message with 2 paragraphs</p>
+				<p>You did it!</p>
+			}
+			@Message(WithMessageType("error")) {
+				<p>Error message</p>
+				<ul>
+					<li>Item A</li>
+					<li>Item B</li>
+				</ul>
+			}
+			@Message(WithMessageRemovable) {
+				Removable message
+			}
+			@Message() {
+				<p class="flex items-center">
+					<span class="flex-grow">Message with a call to action</span>
+					<button class="btn btn-primary" name="cancel" value="1">Cancel</button>
+				</p>
+			}
+			@Message() {
+				<details>
+					<summary>Message with details element</summary>
+					<p>Revealed content</p>
+				</details>
+			}
+			<hr class="my-8"/>
+			<h2 class="title text-h3">Form Fields</h2>
+			@F.TextField(form.Get("text"),
+				F.Name("text"),
+				F.Label("Text Field"),
+				F.Classes("field-h"),
+			)
+			@F.TextField(form.Get("text"),
+				F.Name("required"),
+				F.Required(true),
+				F.Label("Required Field"),
+				F.Classes("field-h"),
+				F.Help("This field's help text"),
+			)
+			@F.PasswordField(form.Get("text"),
+				F.Name("password"),
+				F.Label("Password Field"),
+				F.Classes("field-h"),
+				F.InputAttr("autocomplete", "off"),
+			)
+			@F.DateField(form.Get("text"),
+				F.Name("date"),
+				F.Label("Date Field"),
+				F.Classes("field-h"),
+			)
+			@F.TextAreaField(form.Get("text"),
+				F.Name("textarea"),
+				F.Label("Textarea"),
+				F.Classes("field-h"),
+			)
+			@F.SelectField[string](form.Get("select"),
+				F.Name("select"),
+				F.Label("Select"),
+				F.Classes("field-h"),
+			)
+			@F.CheckboxField(form.Get("text"),
+				F.Name("checkbox"),
+				F.Label("Checkbox"),
+				F.Classes("field-h"),
+			)
+			@F.MultiSelectField[string](form.Get("choices"),
+				F.Name("checkboxes"),
+				F.Label("Checkboxes"),
+				F.Classes("field-h"),
+			)
+			@F.MultiSelectField[string](form.Get("select"),
+				F.Name("radio"),
+				F.Label("Radio"),
+				F.Classes("field-h"),
+			)
+			@F.TimeTokenField(form.Get("text"),
+				F.Name("timetoken"),
+				F.Label("Time Token"),
+				F.Classes("field-h"),
+			)
+			@F.FiledDropField(form.Get("text"),
+				F.Name("dropzone"),
+				F.Label("Drop Zone Field"),
+				F.Classes("field-h"),
+			)
+			<hr class="my-8"/>
+			<h2 class="title text-h3">Form with errors</h2>
+			@F.Errors(formErr)
+			@F.TextField(formErr.Get("text"),
+				F.Name("err-text"),
+				F.Label("Text Field"),
+				F.Classes("field-h"),
+			)
+			@F.MultiSelectField[string](formErr.Get("choices"),
+				F.Name("err-checkboxes"),
+				F.Label("Checkboxes"),
+				F.Classes("field-h"),
+			)
+		</div>
+	}
+}

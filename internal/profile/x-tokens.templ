@@ -1,0 +1,228 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package profile
+
+import (
+	. "codeberg.org/readeck/readeck/components"
+	F "codeberg.org/readeck/readeck/components/forms"
+)
+
+templ (v Views) tokenList(tokenList *tokenItemList) {
+	{{ title := L(ctx).Gettext("My API Tokens") }}
+	@v.base(title) {
+		<h1 class="title text-h2">{ title }</h1>
+		<div class="prose mb-4">
+			<p>{ L(ctx).Gettext("An API Token is a key that grants you access to the Readeck API.") }</p>
+			<p>
+				@templ.Raw(L(ctx).Gettext(
+					`Please read the <a href="%s">API Documentation</a> if you plan to use it.`,
+					URL(ctx, "/docs/api"),
+				))
+			</p>
+		</div>
+		<form class="mb-4" action={ URL(ctx) } method="post">
+			<p>
+				<button class="btn btn-primary" type="submit">
+					{ L(ctx).Gettext("Create a new API token") }
+				</button>
+			</p>
+		</form>
+		if len(tokenList.Items) > 0 {
+			@Pagination(&tokenList.Pagination)
+			<turbo-frame
+				id="token-list"
+				data-controller="turbo-refresh"
+				data-turbo-refresh-interval-value="10"
+				data-turbo-refresh-on-value="[data-token-deleted='true']"
+			>
+				@List() {
+					for _, token := range tokenList.Items {
+						@ListItem("flex gap-2 items-center hfw:bg-gray-100 max-md:block") {
+							<a class="block flex-grow p-4" href={ URL(ctx, ".", token.ID) }>
+								if token.IsEnabled {
+									@Icon("o-check-on", WithIconClass("svgicon text-green-700"))
+								} else {
+									@Icon("o-cross", WithIconClass("svgicon text-red-700"))
+								}
+								{ " " }<strong class="link font-semibold">{ token.ID }</strong>
+								· { token.Application }
+								<small class="block">
+									{ L(ctx).Gettext("Created on: %s",
+                    Strftime(ctx, token.Created, L(ctx).Pgettext("datetime", "%e %B %Y")),
+                  ) }
+									if token.Expires != nil {
+										<br/>
+										{ L(ctx).Gettext("Expires on: %s",
+                      Strftime(ctx, *token.Expires, L(ctx).Pgettext("datetime", "%e %B %Y")),
+                    ) }
+									}
+									if token.LastUsed != nil {
+										<br/>
+										{ L(ctx).Gettext("Last used on: %s", Strftime(ctx, *token.LastUsed, "%c")) }
+									}
+								</small>
+							</a>
+							if token.IsDeleted {
+								<div
+									class="flex items-center max-w-xs m-4 max-md:mt-0"
+									data-token-deleted="true"
+								>
+									<span class="text-red-700 text-xs font-semibold">
+										{ L(ctx).Gettext("This token will be removed in a few seconds.") }
+									</span>
+									<form action={ URL(ctx, ".", token.ID, "delete") } method="post">
+										<input type="hidden" name="cancel" value="1"/>
+										<button
+											type="submit"
+											class="btn btn-primary whitespace-nowrap text-sm py-1 ml-2"
+										>
+											@Icon("o-undo")
+											{ "" }
+											{ L(ctx).Gettext("Cancel") }
+										</button>
+									</form>
+								</div>
+							}
+						}
+					}
+				}
+			</turbo-frame>
+			@Pagination(&tokenList.Pagination)
+		}
+	}
+}
+
+templ (v Views) tokenInfo(f *tokenForm, token *tokenItem, encoded string) {
+	{{ title := L(ctx).Gettext("API Token") }}
+	@v.base(title) {
+		<h1 class="title text-h2">{ title }</h1>
+		if token.IsDeleted {
+			<form action={ URL(ctx, ".", "delete") } method="post">
+				<input type="hidden" name="_to" value={ CurrentPath(ctx) }/>
+				@Message() {
+					{ L(ctx).Gettext("Token will be removed in a few seconds.") }&nbsp;
+					<button class="btn btn-primary" name="cancel" value="1">{ L(ctx).Gettext("Cancel") }</button>
+				}
+			</form>
+		}
+		<h2 class="title text-h3">{ L(ctx).Gettext("Properties") }</h2>
+		<form class="mb-4" action={ URL(ctx) } method="post">
+			@F.Errors(f)
+			<div class="field field-h">
+				<label>{ L(ctx).Gettext("Token ID") }</label>
+				<div class="control">{ token.UID }</div>
+			</div>
+			<div class="field field-h">
+				<label>{ L(ctx).Gettext("Last used") }</label>
+				<div class="control">
+					if token.LastUsed !=nil {
+						{ Strftime(ctx, *token.LastUsed, "%c") }
+					} else {
+						{ L(ctx).Gettext("never used") }
+					}
+				</div>
+			</div>
+			@F.TextField(f.Get("application"),
+				F.Label(L(ctx).Gettext("Name")),
+				F.Required(true),
+				F.Classes("field-h"),
+			)
+			@F.CheckboxField(f.Get("is_enabled"),
+				F.Label(L(ctx).Gettext("Enabled")),
+				F.Classes("field-h"),
+			)
+			@F.DateField(f.Get("expires"),
+				F.Label(L(ctx).Gettext("Expires on")),
+				F.Classes("field-h"),
+			)
+			<h2 class="title text-h3">{ L(ctx).Gettext("Roles") }</h2>
+			<p class="my-4 max-w-xl">
+				@templ.Raw(L(ctx).Gettext(`
+        You can limit the permissions granted to this token by choosing one or more
+        group of permissions below.<br>
+        Leave all the choices blank to grant all your permissions to this token.
+      `))
+			</p>
+			@F.MultiSelectField[string](f.Get("roles"),
+				F.Label(L(ctx).Gettext("Roles")),
+				F.Classes("field-h"),
+			)
+			<p class="btn-block">
+				<button class="btn btn-primary" type="submit">{ L(ctx).Gettext("Save") }</button>
+				if !token.IsDeleted {
+					<button
+						class="ml-auto btn-outlined btn-danger"
+						formaction={ URL(ctx, ".", "delete") }
+					>{ L(ctx).Gettext("Delete token") }</button>
+				}
+			</p>
+		</form>
+		<h2 class="title text-h3">{ L(ctx).Gettext("Authentication") }</h2>
+		<div class="w-full mb-4 field" data-controller="clipboard">
+			<label class="font-semibold">{ L(ctx).Gettext("Your API token") }</label>
+			<span class="inline-flex w-full form-input p-0">
+				<input
+					type="text"
+					readonly
+					class="grow p-2 rounded ring-0 ring-offset-0"
+					data-clipboard-target="content"
+					value={ encoded }
+				/>
+				<button
+					class="btn btn-primary rounded-none rounded-r"
+					type="button"
+					data-action="clipboard#copy"
+					title={ L(ctx).Gettext("copy token") }
+				>
+					@Icon("o-copy")
+				</button>
+			</span>
+		</div>
+		<p class="mb-6">
+			<a
+				class="btn btn-outlined btn-primary font-semibold"
+				download="readeck-token.txt"
+				href={ templ.SafeURL("data:text/plain;," + encoded + "%0D%0A") }
+			>
+				@Icon("o-download")
+				{ "" }
+				{ L(ctx).Gettext("Download as a text file") }
+			</a>
+		</p>
+		<h2 class="title text-h3">{ L(ctx).Gettext("How to use it") }</h2>
+		<h3 class="title text-h4">{ L(ctx).Gettext("As a Bearer Token") }</h3>
+		<p class="mb-2">
+			@templ.Raw(L(ctx).Gettext("You can use this token by passing it as an <strong>Authorization: Bearer</strong> HTTP header."))
+		</p>
+		<div class="w-full mb-6 field" data-controller="clipboard">
+			<label class="font-semibold">{ L(ctx).Gettext("HTTP Header") }</label>
+			<span class="inline-flex w-full form-input p-0">
+				<input
+					type="text"
+					readonly
+					class="grow rounded p-2 ring-0 ring-offset-0"
+					data-clipboard-target="content"
+					value={ "Authorization: Bearer " + encoded }
+				/>
+				<button
+					class="btn btn-primary rounded-none rounded-r"
+					type="button"
+					data-action="clipboard#copy"
+					title={ L(ctx).Gettext("copy HTTP header") }
+				>
+					@Icon("o-copy")
+				</button>
+			</span>
+		</div>
+		<h3 class="title text-h4">{ L(ctx).Gettext("As a password") }</h3>
+		<p class="mb-2">{ L(ctx).Gettext("Alternatively, you can use this token as a password for HTTP Basic Authentication.") }</p>
+		<p class="mb-2">
+			{ L(ctx).Gettext(`
+        For example, if an application only accepts a username and password, you can provide this token as a password.
+        The username is ignored and can be anything, including an empty value.
+      `) }
+		</p>
+	}
+}

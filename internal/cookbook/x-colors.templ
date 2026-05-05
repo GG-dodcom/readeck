@@ -1,0 +1,111 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package cookbook
+
+import (
+	"context"
+	"fmt"
+	"io"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+templ (_ Views) colorBlock(style, name string) {
+	<div class="flex flex-col items-center">
+		<div
+			class={ templ.CSSClasses{
+      "w-24 h-20 rounded flex items-center justify-center text-2xl border py-2",
+      style,
+    } }
+		>
+			{ children... }
+		</div>
+		<div class="mt-2 text-sm">{ name }</div>
+	</div>
+}
+
+type colorDef struct {
+	name  string
+	codes []string
+}
+
+type colorList []colorDef
+
+func (l colorList) toCSS() templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		if _, err := fmt.Fprintf(w, `<style nonce="%s">`+"\n", CSPNonce(ctx)); err != nil {
+			return err
+		}
+		for _, cd := range l {
+			for _, c := range cd.codes {
+				if _, err := fmt.Fprintf(
+					w, ""+
+						".cookbook-bg-%[1]s%[2]s {\n"+
+						"  border:none; background-color: rgb(var(--color-%[1]s%[2]s));"+
+						"\n}"+
+						".cookbook-border-%[1]s%[2]s {\n"+
+						"  border: 2px solid rgb(var(--color-%[1]s%[2]s));"+
+						"\n}"+
+						".cookbook-text-%[1]s%[2]s {\n"+
+						"  color: rgb(var(--color-%[1]s%[2]s));"+
+						"\n}"+
+						"\n",
+					cd.name, c,
+				); err != nil {
+					return err
+				}
+			}
+		}
+		if _, err := fmt.Fprint(w, "</style>"); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+var colorScales = []string{"-50", "-100", "-200", "-300", "-400", "-500", "-600", "-700", "-800", "-900", "-950"}
+var allColors = colorList{
+	colorDef{"app", []string{"-bg", "-fg"}},
+	colorDef{"primary", []string{"-light", "", "-dark"}},
+	colorDef{"gray", colorScales},
+	colorDef{"blue", colorScales},
+	colorDef{"yellow", colorScales},
+	colorDef{"red", colorScales},
+	colorDef{"green", colorScales},
+	colorDef{"hl", []string{"-yellow", "-yellow-dark"}},
+}
+
+templ (v Views) colors() {
+	@v.base("Colors") {
+		@allColors.toCSS()
+		<h1 class="title text-h2">Colors</h1>
+		<h2 class="title text-h3">Backgrounds</h2>
+		for _, cd := range allColors {
+			<div class="flex gap-4 mb-8">
+				for _, c := range cd.codes {
+					@v.colorBlock("cookbook-bg-"+cd.name+c, cd.name+c)
+				}
+			</div>
+		}
+		<h2 class="title text-h3">Borders</h2>
+		for _, cd := range allColors {
+			<div class="flex gap-4 mb-8">
+				for _, c := range cd.codes {
+					@v.colorBlock("cookbook-border-"+cd.name+c, cd.name+c)
+				}
+			</div>
+		}
+		<h2 class="title text-h3">Text</h2>
+		for _, cd := range allColors {
+			<div class="flex gap-4 mb-8">
+				for _, c := range cd.codes {
+					@v.colorBlock("cookbook-text-"+cd.name+c, cd.name+c) {
+						Aa
+					}
+				}
+			</div>
+		}
+	}
+}

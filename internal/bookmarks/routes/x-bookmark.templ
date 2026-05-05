@@ -1,0 +1,384 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package routes
+
+import (
+	"io"
+	"strconv"
+	"strings"
+
+	"codeberg.org/readeck/readeck/internal/bookmarks"
+	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+	"codeberg.org/readeck/readeck/pkg/forms"
+
+	. "codeberg.org/readeck/readeck/components"
+	F "codeberg.org/readeck/readeck/components/forms"
+	"codeberg.org/readeck/readeck/internal/server"
+)
+
+templ (v Views) bookmarkRefreshHead() {
+	// TODO: not sure about noscript here
+	<noscript><meta http-equiv="refresh" content="5"/></noscript>
+}
+
+templ (v Views) bookmarkMissing(_ int) {
+	{{ title := L(ctx).Gettext("Bookmark not found") }}
+	@SideMenuStdLayout(L(ctx).Gettext("Edit bookmark"), v.menu()) {
+		<turbo-frame id="bookmark-info">
+			<h1 class="m-4 title text-h2">{ title }</h1>
+		</turbo-frame>
+	}
+}
+
+templ (v Views) bookmarkInfo(item *dataset.Bookmark, html io.Reader) {
+	{{
+		layout := NewLayout()
+		layout.Head = templ.NopComponent
+
+		title := item.Title
+		if !item.Loaded {
+			title = L(ctx).Gettext("Bookmark loading")
+			layout.Head = v.bookmarkRefreshHead()
+		}
+		prefs := Preferences(ctx)
+	}}
+	@layout.BasePage(title + " " + L(ctx).Gettext("Bookmarks")) {
+		@QuickAccessMenu([][2]string{
+			{"menu", L(ctx).Gettext("Menu")},
+			{"content", L(ctx).Gettext("Main content")},
+		})
+		<div class="layout">
+			@layout.Menu(templ.NopComponent)
+			<turbo-frame
+				id="bookmark-info"
+				class="bookmark-container"
+				data-controller="turbo-refresh panel scroll-progress"
+				data-turbo-refresh-on-value="[data-deleted]"
+				data-turbo-refresh-interval-value="3"
+				data-panel-hidden-class="max-lg:hidden hidden"
+				data-panel-force-hidden-class="max-lg:hidden"
+				data-panel-body-class="max-lg:overflow-hidden"
+				if item.Type == "photo" {
+					data-scroll-progress-auto-mark-after-value="4"
+				} else {
+					data-scroll-progress-auto-mark-after-value="0"
+				}
+			>
+				if !item.Loaded {
+					// TODO: center on page
+					<div class="text-center mt-8" id="content">
+						<span class="text-3xl">
+							@Spinner()
+						</span>
+						<p class="text-lg">{ L(ctx).Gettext("Bookmark is loading") }…</p>
+					</div>
+				} else {
+					<form
+						class="hidden"
+						data-controller="request"
+						data-request-turbo-value="1"
+						data-request-url-value={ URL(ctx, "/bookmarks", item.ID, "update") }
+						data-request-method-value="post"
+						data-scroll-progress-target="trigger"
+						data-action="scroll-progress:progress->request#fetch"
+					>
+						<input type="hidden" name="read_progress" value={ item.ReadProgress } data-scroll-progress-target="value"/>
+						<input type="hidden" name="read_anchor" value={ item.ReadAnchor } data-scroll-progress-target="anchor"/>
+					</form>
+					<div
+						class={ "hidden print:block", prefs.ReaderFont().Class }
+						data-controller="styler"
+						dir={ Tern(func() bool { return item.TextDirection != "" }, item.TextDirection, "ltr") }
+					>
+						<h1 class="px-6 py-4 text-3xl print:px-0">{ item.Title }</h1>
+					</div>
+					<div
+						id="bookmark-panel"
+						class={
+							"bookmark-sidebar max-lg:hidden",
+							templ.KV("hidden", prefs.BookmarkSidebarHidden()),
+						}
+						data-panel-target="panel"
+						tabindex="-1"
+					>
+						<div
+							class="
+					      h-topnav border-b bg-app-bg border-b-gray-200
+					      flex px-3 items-center
+					      max-lg:sticky max-lg:top-0 max-lg:z-40
+					      print:hidden no-js:hidden
+					    "
+						>
+							<button
+								type="button"
+								title={ L(ctx).Gettext("Close panel") }
+								name="bookmark_sidebar_hidden"
+								value="true"
+								data-controller="request"
+								data-request-url-value={ URL(ctx, "/profile/session") }
+								data-request-method-value="post"
+								data-action="click->panel#toggle click->request#fetch"
+								data-panel-target="button"
+								aria-controls="bookmark-panel"
+								class="lg:hidden p-1 ml-auto border rounded text-gray-400 hf:text-gray-700"
+							>
+								@Icon("o-close", WithIconClass("inline-block"), WithIconSvgClass("w-8 h-8"))
+								<span class="sr-only">{ L(ctx).Gettext("Close panel") }</span>
+							</button>
+						</div>
+						<div class="pt-4 pb-8 px-6">
+							@SidebarComponent{}.sidebar(item)
+						</div>
+					</div>
+					<div class="bookmark-content" id="content">
+						// top bar
+						<div class="bookmark-topbar">
+							<div class="flex-grow flex gap-4 items-center">
+								<div>
+									<a
+										href={ URL(ctx, "/bookmarks/unread") }
+										data-controller="history"
+										data-action="history#back"
+										class="
+                      p-2 rounded-full w-8 h-8 border border-bg-100 inline-flex items-center justify-center
+                      hf:bg-gray-200 hf:text-gray-800
+                    "
+									>
+										@Icon("o-chevron-l", WithIconClass("inline-block"), WithIconSvgClass("w-6 h-6"))
+									</a>
+								</div>
+								<div class="flex-grow"></div>
+								<a
+									href={ URL(ctx, "/bookmarks", item.UID, "update") }
+									data-controller="dialog"
+									data-dialog-select-value="#bookmark-update-dialog"
+									data-action="scroll-progress#skip dialog#open:prevent"
+								>
+									@Icon("o-pencil", WithIconClass("inline-block"), WithIconSvgClass("w-6 h-6"))
+									<span class="sr-only">{ L(ctx).Gettext("Edit") }</span>
+								</a>
+								if item.HasArticle {
+									@ReaderControlComponent{}.controls()
+								}
+								<button
+									type="button"
+									title={ L(ctx).Gettext("Bookmark information") }
+									name="bookmark_sidebar_hidden"
+									value={ strconv.FormatBool(!prefs.BookmarkSidebarHidden()) }
+									data-controller="request"
+									data-request-url-value={ URL(ctx, "/profile/session") }
+									data-request-method-value="post"
+									data-action="click->panel#toggle click->request#fetch"
+									data-panel-target="button"
+									aria-expanded="false"
+									aria-controls="bookmark-panel"
+									class="no-js:hidden hf:text-gray-700"
+								>
+									@Icon("o-sidebar", WithIconClass("inline-block"), WithIconSvgClass("w-6 h-6"))
+									<span class="sr-only">{ L(ctx).Gettext("Bookmark information") }</span>
+								</button>
+							</div>
+							if item.HasArticle {
+								<progress max="100" value={ item.ReadProgress } data-scroll-progress-target="indicator"></progress>
+							}
+						</div>
+						// title and description
+						<div
+							class={
+								"bookmark-header mt-4 print:mt-2 print:max-w-none mb-8",
+								prefs.ReaderWidth().Class,
+								prefs.ReaderFont().Class,
+							}
+							data-controller="styler"
+						>
+							@Components{}.titleBlock(item)
+						</div>
+						// content
+						@Components{}.contentBlock(item, html)
+						<div class="mx-auto mt-6 pt-6 border-t print:hidden">
+							@Components{}.bookmarkInfoBottomActions(item)
+						</div>
+					</div>
+				}
+			</turbo-frame>
+		</div>
+		<dialog class="dialog" id="debug-info">
+			<form class="dialog--top" method="dialog">
+				<button class="dialog--close" title={ L(ctx).Gettext("Close dialog") }>
+					@Icon("o-close", WithIconClass(""), WithIconSvgClass("h-8 w-8"))
+				</button>
+			</form>
+			<turbo-frame id="diagnosis-info" src={ URL(ctx, "/bookmarks", item.ID, "diagnosis") } loading="lazy"></turbo-frame>
+		</dialog>
+	}
+}
+
+templ (v Views) bookmarkUpdate(b *bookmarks.Bookmark, f *updateForm) {
+	@SideMenuStdLayout(L(ctx).Gettext("Edit bookmark"), v.menu()) {
+		<h1 class="text-h2 title">{ L(ctx).Gettext("Edit: %s", b.Title) }</h1>
+		@Components{}.bookmarkUpdate(b, f)
+		<p class="btn-block">
+			<button class="btn btn-primary" type="submit" form="bookmark-update-form">
+				{ L(ctx).Gettext("Save") }
+			</button>
+		</p>
+	}
+}
+
+templ (v Views) shareByLink(link dataset.SharedLink) {
+	@SideMenuStdLayout(L(ctx).Gettext("Share link"), v.menu()) {
+		<h1 class="title text-h2">{ L(ctx).Gettext("Share: %s", link.Title) }</h1>
+		@Components{}.shareByLink(link)
+	}
+}
+
+templ (v Views) shareByEmail(info dataset.SharedEmail) {
+	@SideMenuStdLayout(L(ctx).Gettext("Share by email"), v.menu()) {
+		<h1 class="title text-h2">{ L(ctx).Gettext("Share: %s", info.Title) }</h1>
+		@Components{}.shareByEmail(info)
+	}
+}
+
+templ (c Components) bookmarkUpdate(b *bookmarks.Bookmark, f *updateForm) {
+	<turbo-frame id={ "bookmark-update-" + b.UID }>
+		<form
+			id="bookmark-update-form"
+			method="post"
+			action={ URL(ctx, "/bookmarks", b.UID, "update") }
+			lang={ b.Lang }
+		>
+			@F.Errors(f)
+			@F.TextField(f.Get("title"),
+				F.Label(L(ctx).Gettext("Title")),
+				F.Required(true),
+				F.Classes("field-h"),
+			)
+			@F.TextAreaField(f.Get("description"),
+				F.Label(L(ctx).Gettext("Description")),
+				F.Classes("field-h"),
+				F.InputAttr("rows", 5),
+			)
+			@F.TextField(f.Get("site_name"),
+				F.Label(L(ctx).Gettext("Site Name")),
+				F.Required(true),
+				F.Classes("field-h"),
+			)
+			@F.TextAreaField(f.Get("authors"),
+				F.Label(L(ctx).Gettext("Authors")),
+				F.Value(strings.Join(f.Get("authors").(*forms.TextListField).V(), "\n")),
+				F.Classes("field-h"),
+				F.Help(L(ctx).Gettext("One value per line")),
+				F.InputAttr("rows", 3),
+			)
+			@F.DateField(f.Get("published"),
+				F.Label(L(ctx).Gettext("Published")),
+				F.Classes("field-h"),
+			)
+			@F.TextField(f.Get("lang"),
+				F.Label(L(ctx).Gettext("Language")),
+				F.Classes("field-h"),
+			)
+			@F.SelectField[string](f.Get("text_direction"),
+				F.Label(L(ctx).Gettext("Text Direction")),
+				F.Classes("field-h"),
+			)
+		</form>
+	</turbo-frame>
+}
+
+templ (c Components) shareByLink(link dataset.SharedLink) {
+	{{ turbo := server.IsTurboRequest(server.GetRequest(ctx)) }}
+	<turbo-frame id={ "bookmark-share-" + link.ID }>
+		<p>{ L(ctx).Gettext("You can share the following link with your friends.") }</p>
+		<p class="mb-2">
+			{ L(ctx).Gettext("It expires on %s", Strftime(ctx, link.Expires, "%a %e %b %Y %H:%M %Z")) }
+		</p>
+		<p class="mb-2">
+			<a class="link break-all" href={ link.URL } data-turbo="false">{ link.URL }</a>
+		</p>
+		<p class="mb-2">
+			<img src={ QRCodeB64(link.URL, ColorPrimary, -3) } alt="" class="rounded bg-white p-2"/>
+		</p>
+		<div
+			class={ templ.KV("btn-block", !turbo) }
+			data-controller="clipboard"
+		>
+			<input class="hidden" type="text" value={ link.URL } data-clipboard-target="content"/>
+			<button class="btn btn-default rounded" type="button" data-action="clipboard#copy">
+				@Icon("o-copy", WithIconAttrs(templ.Attributes{"data-clipboard-target": "icon"}))
+				{ " " }
+				{ L(ctx).Gettext("Copy the link") }
+			</button>
+			if !turbo {
+				<a
+					class="sm:ml-auto btn btn-primary btn-outlined"
+					href={ URL(ctx, "/bookmarks", link.ID) }
+					data-controller="history"
+					data-action="history#back"
+				>
+					{ L(ctx).Gettext("Go back to the bookmark") }
+				</a>
+			}
+		</div>
+	</turbo-frame>
+}
+
+templ (c Components) shareByEmail(info dataset.SharedEmail) {
+	{{ turbo := server.IsTurboRequest(server.GetRequest(ctx)) }}
+	<turbo-frame id={ "bookmark-share-" + info.ID }>
+		<form
+			id="share-email-form"
+			action={ URL(ctx, "/bookmarks", info.ID, "share/email") }
+			method="post"
+			if turbo {
+				data-controller="turbo-form"
+			}
+		>
+			if !info.Sent {
+				if turbo {
+					switch info.Form.Get("format").String() {
+						case "html":
+							<p class="mb-4">{ L(ctx).Gettext("Sends this bookmark's content in the message.") }</p>
+						case "epub":
+							<p class="mb-4">{ L(ctx).Gettext("Sends this bookmark as an attached EPUB file.") }</p>
+					}
+				}
+				@F.Errors(info.Form)
+				if turbo {
+					<input type="hidden" name="format" value={ info.Form.Get(`format`).String() }/>
+				} else {
+					@F.SelectField[string](info.Form.Get("format"),
+						F.Label(L(ctx).Gettext("Format")),
+						F.Required(true),
+						F.Classes("field-h"),
+					)
+				}
+				@F.TextField(info.Form.Get("email"),
+					F.Label(L(ctx).Gettext("Send To")),
+					F.InputType("email"),
+					F.Required(true),
+					F.Classes(templ.KV("field-h", !turbo)),
+				)
+			} else {
+				@Message(WithMessageType("success")) {
+					{ L(ctx).Gettext("The bookmark was sent to %s", info.Form.Get("email")) }
+				}
+			}
+			<div class={ templ.KV("btn-block max-sm:flex-col", !turbo) }>
+				if !info.Sent {
+					<button class="btn btn-primary" type="submit">{ L(ctx).Gettext("Send message") }</button>
+				}
+				if !turbo {
+					<a
+						class="sm:ml-auto max-sm:w-full text-center btn btn-primary btn-outlined"
+						href={ URL(ctx, "/bookmarks", info.ID) }
+					>
+						{ L(ctx).Gettext("Go back to the bookmark") }
+					</a>
+				}
+			</div>
+		</form>
+	</turbo-frame>
+}

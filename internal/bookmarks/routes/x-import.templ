@@ -1,0 +1,187 @@
+// SPDX-FileCopyrightText: © 2024 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package routes
+
+import (
+	"codeberg.org/readeck/readeck/internal/bookmarks/importer"
+	"codeberg.org/readeck/readeck/pkg/forms"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+type importViews struct{}
+
+templ (v importViews) base(title string) {
+	@SideMenuStdLayout(title, Views{}.menu()) {
+		{ children... }
+	}
+}
+
+templ (v importViews) main() {
+	{{
+		title := L(ctx).Gettext("Import your Bookmarks")
+		adapters := []struct {
+			name     string
+			iconSrc  string
+			iconName string
+			title    string
+			desc     string
+		}{
+			{
+				name:     importer.ImportBrowser,
+				iconSrc:  "img/logos.svg",
+				iconName: "o-bookmarks",
+				title:    L(ctx).Gettext("Browser Bookmarks"),
+				desc:     L(ctx).Gettext("Import your Browser's Bookmarks, Pinboard, Instapaper"),
+			},
+			{
+				name:     importer.ImportCSV,
+				iconSrc:  "img/logos.svg",
+				iconName: "o-csv",
+				title:    L(ctx).Gettext("CSV File"),
+				desc:     L(ctx).Gettext("Import Links from a CSV File and Instapaper"),
+			},
+			{
+				name:     importer.ImportGoodLinks,
+				iconSrc:  "img/logos.svg",
+				iconName: "o-goodlink",
+				title:    "GoodLinks",
+				desc:     L(ctx).Gettext("Import your GoodLinks Articles"),
+			},
+			{
+				name:     importer.ImportLinkwarden,
+				iconSrc:  "img/logos.svg",
+				iconName: "o-linkwarden",
+				title:    "Linkwarden",
+				desc:     L(ctx).Gettext("Import your Linkwarden Bookmarks"),
+			},
+			{
+				name:     importer.ImportOmnivore,
+				iconSrc:  "img/logos.svg",
+				iconName: "o-omnivore",
+				title:    "Omnivore",
+				desc:     L(ctx).Gettext("Import your Omnivore Articles"),
+			},
+			{
+				name:     importer.ImportPinboard,
+				iconSrc:  "img/logos.svg",
+				iconName: "o-pinboard",
+				title:    "Pinboard",
+				desc:     L(ctx).Gettext("Import your Pinboard bookmarks"),
+			},
+			{
+				name:     importer.ImportPocketFile,
+				iconSrc:  "img/logos.svg",
+				iconName: "o-pocket",
+				title:    "Pocket",
+				desc:     L(ctx).Gettext("Import your Pocket Articles"),
+			},
+			{
+				name:     importer.ImportReadwise,
+				iconSrc:  "img/logos.svg",
+				iconName: "o-readwise",
+				title:    "Readwise",
+				desc:     L(ctx).Gettext("Import your Readwise Reader Library"),
+			},
+			{
+				name:     importer.ImportText,
+				iconSrc:  "img/icons.svg",
+				iconName: "o-file",
+				title:    L(ctx).Gettext("Text File"),
+				desc:     L(ctx).Gettext("Import Links from a Text File"),
+			},
+			{
+				name:     importer.ImportWallabag,
+				iconSrc:  "img/logos.svg",
+				iconName: "o-wallabag",
+				title:    "Wallabag",
+				desc:     L(ctx).Gettext("Import your Wallabag Articles"),
+			},
+		}
+	}}
+	@v.base(title) {
+		<h1 class="title text-h2">{ title }</h1>
+		<p class="mb-8">
+			{ L(ctx).Gettext(`
+      Here you can import your existing bookmark collection from various sources into Readeck.
+    `) }
+		</p>
+		<div class="grid grid-cols-3 gap-6 max-lg:grid-cols-2 max-md:grid-cols-1">
+			for _, x := range adapters {
+				<a
+					class="
+            flex flex-col border rounded-lg items-center gap-4 p-4
+            link hf:shadow-sm hf:bg-gray-100/50 group
+          "
+					href={ URL(ctx, "/bookmarks/import", x.name) }
+				>
+					@Icon(x.iconName, WithIconSrc(x.iconSrc),
+						WithIconClass("text-gray-600 group-hf:text-gray-800"),
+						WithIconSvgClass("h-10 w-10"))
+					<span class="grow flex flex-col gap-1 items-center text-center">
+						<strong>{ x.title }</strong>
+						<span class="text-app-fg">{ x.desc }</span>
+					</span>
+				</a>
+			}
+		</div>
+	}
+}
+
+templ (v importViews) status(trackID string, isRunning bool, progress importer.ImportProgress) {
+	{{ title := L(ctx).Gettext("Import status") }}
+	@v.base(title) {
+		<h1 class="title text-h2">{ title }</h1>
+		@Message() {
+			@v.progress(trackID, isRunning, progress)
+		}
+	}
+}
+
+templ (v importViews) progress(trackID string, isRunning bool, progress importer.ImportProgress) {
+	<turbo-frame
+		id={ "import-progress-" + trackID }
+		data-controller="turbo-refresh"
+		data-turbo-refresh-interval-value="2"
+		data-turbo-refresh-on-value="[data-running]"
+		data-turbo-refresh-src-value={ URL(ctx, "/api/bookmarks/import", trackID) }
+	>
+		if isRunning || progress.Status == 0 {
+			<p class="mb-4">
+				if progress.Status == 1 {
+					{ L(ctx).Gettext("Import operation will launch momentarily.") }
+				} else {
+					{ L(ctx).Gettext("Import operation has started!") }
+				}
+			</p>
+			<p class="mb-8">
+				{ L(ctx).Gettext(
+				"You can keep using Readeck while the import is running.") }
+			</p>
+			<progress
+				data-running="1"
+				max={ progress.Total }
+				value={ progress.Done }
+				class="h-6 w-full"
+			></progress>
+		} else {
+			<p class="mb-4">
+				{ L(ctx).Gettext("Import is finished!") }
+			</p>
+			<p>
+				@templ.Raw(L(ctx).Gettext(`
+						Your bookmarks are now available in your <a class="%s" href="%s">bookmark list</a>.
+					`, "link", templ.EscapeString(URL(ctx, "/bookmarks")),
+				))
+			</p>
+		}
+	</turbo-frame>
+}
+
+templ (v importViews) form(adapter importer.ImportLoader, f forms.Binder) {
+	@v.base(adapter.Name(L(ctx)) + " - " + L(ctx).Gettext("Import")) {
+		@adapter.Component(f)
+	}
+}

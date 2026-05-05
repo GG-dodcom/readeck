@@ -25,8 +25,10 @@ type (
 	ctxUnauthorizedKey struct{}
 )
 
+// Context setters.
+// nolint:revive
 var (
-	withCSPNonce, getCSPNonce         = ctxr.WithChecker[string](ctxCSPNonceKey{})
+	withCSPNonce, GetCSPNonce         = ctxr.WithChecker[string](ctxCSPNonceKey{})
 	withCSP, getCSP                   = ctxr.WithChecker[csp.Policy](ctxCSPKey{})
 	withUnauthorized, getUnauthorized = ctxr.WithChecker[int](ctxUnauthorizedKey{})
 )
@@ -137,10 +139,12 @@ func unauthorizedHandler(w http.ResponseWriter, r *http.Request) {
 		redir := urls.AbsoluteURL(r, "/login")
 
 		// Add the current path as a redirect query parameter
-		// to the login route
-		q := redir.Query()
-		q.Add("r", urls.CurrentPath(r))
-		redir.RawQuery = q.Encode()
+		// to the login route.
+		if r.Method == http.MethodGet {
+			q := redir.Query()
+			q.Add("r", urls.CurrentPath(r))
+			redir.RawQuery = q.Encode()
+		}
 
 		w.Header().Set("Location", redir.String())
 		w.WriteHeader(http.StatusSeeOther)

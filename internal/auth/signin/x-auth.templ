@@ -1,0 +1,187 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package signin
+
+import (
+	"codeberg.org/readeck/readeck/pkg/forms"
+
+	. "codeberg.org/readeck/readeck/components"
+	F "codeberg.org/readeck/readeck/components/forms"
+)
+
+type Views struct{}
+
+func SigninLayout(title string) templ.Component {
+	return Views{}.base(title)
+}
+
+templ (_ Views) base(title string) {
+	@BasePage(title) {
+		<h1 class="max-w-sm mt-12 mx-auto px-8">
+			<div>
+				<svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 567 128" class="w-full fill-gray-900">
+					<use href={ Asset(ctx, "img/logo-text.svg") + "#main" }></use>
+				</svg>
+			</div>
+		</h1>
+		<main class="w-full max-w-sm p-8 mt-6 mx-auto bg-gray-100 text-gray-dark rounded-md shadow-md" id="content">
+			{ children... }
+		</main>
+		@CustomTemplate("auth/footer.html.tmpl", nil)
+	}
+}
+
+templ (v Views) signIn(f *loginForm) {
+	@v.base(L(ctx).Gettext("Sign in")) {
+		<h2 class="text-h3 mb-8 text-center">{ L(ctx).Gettext("Sign in to Readeck") }</h2>
+		<form
+			action={ URL(ctx, "/login") }
+			method="post"
+			data-controller="login-form"
+			data-action="login-form#validate"
+		>
+			@F.Errors(f)
+			<input type="hidden" name="redirect" value={ f.Get("redirect").String() }/>
+			@F.TextField(f.Get("username"),
+				F.Label(L(ctx).Gettext("Username or email address")),
+				F.Classes("max"),
+				F.InputAttrs(templ.Attributes{
+					"data-login-form-target": "username",
+					"autocapitalize":         "off",
+					"autocomplete":           "username",
+				}),
+			)
+			@F.PasswordField(f.Get("password"),
+				F.Label(L(ctx).Gettext("Password")),
+				F.Classes("max"),
+				F.InputAttrs(templ.Attributes{
+					"data-login-form-target": "password",
+					"autocomplete":           "current-password",
+				}),
+			)
+			<button class="btn btn-default block mt-6 w-full rounded-md" type="submit">{ L(ctx).Gettext("Sign in") }</button>
+		</form>
+		if HasPermission(ctx, "email", "send") {
+			<p class="mt-4 text-center">
+				<a href={ URL(ctx, "/login/recover") } class="link">
+					{ L(ctx).Gettext("Forgot your password?") }
+				</a>
+			</p>
+		}
+	}
+}
+
+templ (v Views) mfa(f *forms.Form) {
+	{{ title := L(ctx).Gettext("Two-factor authentication") }}
+	@v.base(title) {
+		<h2 class="text-h3 mb-8 text-center">{ title }</h2>
+		<form action={ URL(ctx, "/login/mfa") } method="post">
+			@F.Errors(f)
+			<input type="hidden" name="redirect" value={ f.Get("redirect").String() }/>
+			@F.TextField(f.Get("code"),
+				F.Label(L(ctx).Gettext("Passcode")),
+				F.Classes("max"),
+				F.InputClasses("form-input w-full text-center text-lg font-bold"),
+				F.InputAttrs(templ.Attributes{
+					"minlength":      "6",
+					"maxlength":      "6",
+					"autocapitalize": "off",
+					"autocomplete":   "one-time-code",
+				}),
+			)
+			<button class="btn btn-default block mt-6 w-full rounded-md" type="submit">
+				{ L(ctx).Gettext("Verify") }
+			</button>
+		</form>
+		<form action={ URL(ctx, "/") } method="post">
+			<p class="mt-4 text-center">
+				<button class="link" type="submit">
+					{ L(ctx).Gettext("Cancel and go back to sign in") }
+				</button>
+			</p>
+		</form>
+	}
+}
+
+templ (v Views) recover(f *recoverForm, err error) {
+	{{
+		title := L(ctx).Gettext("Password recovery")
+		step := f.Get("step").(*forms.IntegerField).V()
+	}}
+	@v.base(title) {
+		<h2 class="text-h3 mb-8 text-center">{ title }</h2>
+		switch step {
+			case 0:
+				<form action="" method="post">
+					@F.Errors(f)
+					<input type="hidden" name="step" value={ step }/>
+					<p class="mt-4">{ L(ctx).Gettext("No worries, it happens to anyone.") }</p>
+					<p class="mt-2 mb-6">
+						{ L(ctx).Gettext(`
+            Please provide the email address you used to create
+            your account and we'll send you a message with a link
+            to recover your password.
+          `) }
+					</p>
+					@F.TextField(f.Get("email"),
+						F.Label(L(ctx).Gettext("Email address")),
+						F.Classes("max"),
+					)
+					<button class="btn btn-default block mt-6 w-full rounded-md" type="submit">
+						{ L(ctx).Gettext("Send me a recovery link") }
+					</button>
+					<p class="mt-4 text-center">
+						<a href={ URL(ctx, "/login") } class="link">
+							{ L(ctx).Gettext("Cancel and go back to sign in") }
+						</a>
+					</p>
+				</form>
+			case 1:
+				@Message(WithMessageType("success")) {
+					<p>{ L(ctx).Gettext("Almost there!") }</p>
+					<p class="mt-2">
+						@templ.Raw(L(ctx).Gettext(`
+            We have sent an email to
+            <strong>%s</strong>
+            with further instructions.
+          `, templ.EscapeString(f.Get("email").String())))
+					</p>
+				}
+			case 2:
+				if err != nil {
+					@Message(WithMessageType("error")) {
+						{ err.Error() }
+					}
+				} else {
+					<form action="" method="post">
+						@F.Errors(f)
+						<input type="hidden" name="step" value={ step }/>
+						@F.PasswordField(f.Get("password"),
+							F.Label(L(ctx).Gettext("New password")),
+							F.Classes("max"),
+							F.Help(L(ctx).Gettext("must be at least 8 characters long")),
+						)
+						<button class="btn btn-default block mt-6 w-full rounded-md" type="submit">
+							{ L(ctx).Gettext("Update your password") }
+						</button>
+						<p class="mt-4 text-center">
+							<a href={ URL(ctx, "/login") } class="link">
+								{ L(ctx).Gettext("Cancel and go back to sign in") }
+							</a>
+						</p>
+					</form>
+				}
+			case 3:
+				@Message(WithMessageType("success")) {
+					<p>{ L(ctx).Gettext("Your password has been changed.") }</p>
+					<p class="mt-2">
+						<a class="link" href={ URL(ctx, "/login") }>
+							{ L(ctx).Gettext("Go to the sign in page") }
+						</a>
+					</p>
+				}
+		}
+	}
+}

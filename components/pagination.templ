@@ -1,0 +1,55 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package components
+
+import "codeberg.org/readeck/readeck/internal/server"
+
+templ Pagination(p *server.Pagination) {
+	if p.TotalPages > 1 {
+		<nav class="paginator print:hidden">
+			<div class="paginator--basic">
+				if p.PreviousPage != "" {
+					<a href={ URL(ctx, p.PreviousPage) }>
+						{ L(ctx).Pgettext("page","Previous") }
+					</a>
+				} else {
+					<span></span>
+				}
+				if p.NextPage != "" {
+					<a href={ URL(ctx, p.NextPage) }>
+						{ L(ctx).Pgettext("page","Next") }
+					</a>
+				}
+			</div>
+			<div class="paginator--extended">
+				if p.PreviousPage != "" {
+					<a href={ URL(ctx, p.PreviousPage) } aria-label={ L(ctx).Gettext("Go to previous page") }>
+						@Icon("o-chevron-l")
+					</a>
+				}
+				for _, page := range p.PageLinks {
+					switch  {
+						case page.Index == p.CurrentPage:
+							<span class="paginator--current">{ page.Index }</span>
+						case page.Index != 0:
+							<a
+								href={ URL(ctx, page.URL) }
+								aria-label={ L(ctx).Gettext("Go to page %d", page.Index) }
+							>
+								{ page.Index }
+							</a>
+						default:
+							<span class="paginator--hellip">&hellip;</span>
+					}
+				}
+				if p.NextPage != "" {
+					<a href={ URL(ctx, p.NextPage) } aria-label={ L(ctx).Gettext("Go to next page") }>
+						@Icon("o-chevron-r")
+					</a>
+				}
+			</div>
+		</nav>
+	}
+}

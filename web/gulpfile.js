@@ -392,6 +392,11 @@ function copy_files() {
       .pipe(gulp.dest(path.join(DEST, "img"))),
 
     gulp
+      .src("media/logo-text.png", {encoding: false})
+      .pipe(hashName())
+      .pipe(gulp.dest(path.join(DEST, "img"))),
+
+    gulp
       .src(path.join(require.resolve("hls.js/dist/hls.min.js")), {
         encoding: false,
       })
@@ -488,7 +493,7 @@ function watch_css() {
     [
       "tailwind.config.js", //
       "ui/**/*",
-      "../assets/templates/**/*.jet.*",
+      "../**/*.templ",
     ],
     gulp.series(
       clean_css, //

@@ -9,7 +9,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-import io
 import re
 import sys
 from argparse import ArgumentParser
@@ -196,101 +195,15 @@ class GoScanner:
         return "".join(res)
 
 
-class JetScanner(GoScanner):
-    scanner = re.Scanner(
-        [
-            (r'"(?:[^"\\]|\\.)*"', tok("STRING")),
-            (r"`", tok("RAW_DELIM")),
-            (r"[0-9]+", tok("INT")),
-            (r",", tok("COMMA")),
-            (r"\+", tok("PLUS")),
-            (r"\(", tok("OPEN")),
-            (r"\)", tok("CLOSE")),
-            (r"gettext|ngettext|pgettext|npgettext", tok("FUNC")),
-            (r".", None),
-        ],
-        flags=re.DOTALL,
-    )
-
-    def extract(self):
-        while not self.eof:
-            if self.token in ("STRING", "RAW_DELIM"):
-                # We can have function calls in attributes (double quoted strings)
-                # The easy/dirty path is to parse again the string content.
-                s = (
-                    self.visit_string()
-                    if self.token == "STRING"
-                    else self.visit_raw_string()
-                )
-
-                sub = JetScanner(io.BytesIO(s.encode()))
-                for x in sub.extract():
-                    yield x
-            if self.token == "FUNC":
-                res = self.visit_function()
-                if res is not None:
-                    yield res
-            self._next()
-
-
-class TmplScanner(JetScanner):
-    scanner = re.Scanner(
-        [
-            (r'"(?:[^"\\]|\\.)*"', tok("STRING")),
-            (r"`", tok("RAW_DELIM")),
-            (r"[0-9]+", tok("INT")),
-            (r",", tok("COMMA")),
-            (r"\ ", tok("SPACE")),
-            (r"\+", tok("PLUS")),
-            (r"\(", tok("OPEN")),
-            (r"\}\}", tok("CLOSE")),
-            (r"Gettext|Ngettext|Pgettext|Npgettext", tok("FUNC")),
-            (r".", None),
-        ],
-        flags=re.DOTALL,
-    )
-
-    def visit_function(self):
-        name = self.value
-        lineno = self.lineno
-        self._next()
-        self._next()
-
-        args = []
-        s = None
-        while self.token:
-            if self.token in ("STRING", "RAW_DELIM"):
-                s = self.visit_string()
-            if self.token in ("SPACE", "CLOSE"):
-                args.append(s)
-                s = None
-
-            if self.token == "CLOSE":
-                break
-
-            self._next()
-
-        return (lineno, name, args)
-
-
 def extract_go(fileobj, keywords, comment_tags, options):
     return GoScanner(fileobj).extract_strings()
 
 
-def extract_jet(fileobj, keywords, comment_tags, options):
-    return JetScanner(fileobj).extract_strings()
-
-
-def extract_tmpl(fileobj, keywords, comment_tags, options):
-    return TmplScanner(fileobj).extract_strings()
-
-
 METHODS = {
     "_test.go": None,
+    "_templ.go": None,
     ".go": extract_go,
-    ".jet.html": extract_jet,
-    ".jet.md": extract_jet,
-    ".tmpl": extract_tmpl,
+    ".templ": extract_go,
 }
 
 KEYWORDS = {

@@ -185,7 +185,7 @@ func newViewsRouter(api *apiRouter) *viewsRouter {
 			).Get("/{filter:(unread|archives|favorites|articles|videos|pictures)}", h.bookmarkList)
 
 			r.With(
-				server.WithCustomErrorTemplate(404, "/bookmarks/bookmark_missing"),
+				server.WithCustomErrorComponent(404, Views{}.bookmarkMissing),
 				api.withBookmark,
 			).Route("/{uid:[a-zA-Z0-9]{18,22}}", func(r chi.Router) {
 				r.Get("/", h.bookmarkInfo)
@@ -273,7 +273,7 @@ func newViewsRouter(api *apiRouter) *viewsRouter {
 		r.With(server.WithPermission("bookmarks", "import")).Group(func(r chi.Router) {
 			r.With(h.withBaseContext).Group(func(r chi.Router) {
 				r.Get("/", h.bookmarksImportMain)
-				r.Get("/{trackID:[a-zA-Z0-9]{18,22}}", h.bookmarksImportMain)
+				r.Get("/{trackID:[a-zA-Z0-9]{18,22}}", h.bookmarksImportStatus)
 				r.Get("/{source}", h.bookmarksImport)
 				r.Post("/{source}", h.bookmarksImport)
 			})
@@ -286,8 +286,13 @@ func newViewsRouter(api *apiRouter) *viewsRouter {
 func newSharedViewsRouter(api *apiRouter) *publicViewsRouter {
 	r := chi.NewRouter()
 	h := &publicViewsRouter{r, api}
+	r.Use(
+		server.WithCustomErrorComponent(http.StatusNotFound, PublicViews{}.error),
+		server.WithCustomErrorComponent(http.StatusGone, PublicViews{}.error),
+		server.WithCustomErrorComponent(http.StatusInternalServerError, PublicViews{}.error),
+	)
 
-	r.With(h.withBookmark).Get("/{id:[a-zA-Z0-9_-]+}", h.get)
+	r.Get("/{id:[a-zA-Z0-9_-]+}", h.get)
 	return h
 }
 

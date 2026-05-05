@@ -1,0 +1,61 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package components
+
+import (
+	"strings"
+
+	"codeberg.org/readeck/readeck/internal/server"
+)
+
+templ (mc *message) component() {
+	<div class={ templ.Classes("message", mc.typeClass, mc.class) } { mc.attrs... }>
+		if mc.icon != "" {
+			<div>
+				@Icon(mc.icon)
+			</div>
+		}
+		<div class="grow">
+			{ children... }
+		</div>
+		if mc.removable {
+			<div class="no-js:hidden">
+				<button data-action="remover#remove" class="remover">
+					@Icon("o-cross")
+				</button>
+			</div>
+		}
+	</div>
+}
+
+// Flashes shows the flash messages extracted from the user's session.
+templ Flashes() {
+	if flashes := server.Flashes(server.GetRequest(ctx)); len(flashes) > 0 {
+		<div class="toaster">
+			for _, f := range flashes {
+				if !strings.HasPrefix(f.Type, "_") {
+					{{
+						msg := newMessage(
+							WithMessageType(f.Type),
+							WithMessageDelay(5),
+							WithMessageRemovable,
+						)
+						switch f.Type {
+						case "error":
+							msg.attrs["role"] = "alert"
+						default:
+							msg.attrs["role"] = "status"
+						}
+					}}
+					<div class="drop-shadow-sm mb-1">
+						@msg.component() {
+							<strong>{ f.Message }</strong>
+						}
+					</div>
+				}
+			}
+		</div>
+	}
+}

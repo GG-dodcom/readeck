@@ -129,9 +129,7 @@ func (h *authHandler) login(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 	}
 
-	server.RenderTemplate(w, r, http.StatusOK, "/auth/login", server.TC{
-		"Form": f,
-	})
+	server.RenderComponent(w, r, http.StatusOK, Views{}.signIn(f))
 }
 
 func (h *authHandler) mfa(w http.ResponseWriter, r *http.Request) {
@@ -203,9 +201,7 @@ func (h *authHandler) mfa(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusUnprocessableEntity
 	}
 
-	server.RenderTemplate(w, r, status, "/auth/totp", server.TC{
-		"Form": f,
-	})
+	server.RenderComponent(w, r, status, Views{}.mfa(f))
 }
 
 func (h *authHandler) logout(w http.ResponseWriter, r *http.Request) {

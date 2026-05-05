@@ -1,0 +1,247 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package routes
+
+import (
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
+	"codeberg.org/readeck/readeck/internal/auth/users"
+	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+type PublicViews struct{}
+
+templ (v PublicViews) base(b *dataset.Bookmark) {
+	<!DOCTYPE html>
+	<html lang={ L(ctx).Tag.String() }>
+		<head>
+			<meta charset="UTF-8"/>
+			<title>
+				if b != nil {
+					{ b.Title }
+				} else {
+					{ L(ctx).Gettext("Shared link") }
+				}
+				{ " " }- Readeck
+			</title>
+			if b != nil {
+				<meta property="og:title" content={ b.Title }/>
+				if b.Description != "" {
+					<meta property="og:description" content={ b.Description }/>
+				}
+				if img, ok := b.Resources["image"]; ok {
+					<meta property="og:image" content={ img.Src }/>
+					<meta property="og:image:width" content={ img.Width }/>
+					<meta property="og:image:height" content={ img.Height }/>
+				}
+				switch  {
+					case b.Type == "video":
+						<meta property="og:type" content="video.other"/>
+					case b.HasArticle:
+						<meta property="og:type" content="article"/>
+						for _, x := range b.Authors {
+							<meta property="article:author" content={ x }/>
+						}
+						if b.Published != nil {
+							<meta property="article:published_time" content={ b.Published.Format(time.RFC3339) }/>
+						}
+				}
+			}
+			<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<meta name="csp-nonce" content={ CSPNonce(ctx) }/>
+			<meta name="robots" content="noindex nofollow noarchive"/>
+			<link rel="stylesheet" href={ Asset(ctx, "bundle.css") } nonce={ CSPNonce(ctx) }/>
+			<script type="module" src={ Asset(ctx, "public.js") } nonce={ CSPNonce(ctx) }></script>
+			<script nonce={ CSPNonce(ctx) }>
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark')
+        } else {
+          document.documentElement.classList.remove('dark')
+        }
+      </script>
+			<link rel="icon" href={ Asset(ctx, "img/fi/favicon.ico") } sizes="48x48"/>
+			<link rel="icon" href={ Asset(ctx, "img/fi/favicon.svg") } sizes="any" type="image/svg+xml"/>
+			<link rel="apple-touch-icon" href={ Asset(ctx, "img/fi/apple-touch-icon.png") }/>
+		</head>
+		<body
+			class="
+        no-js bg-app-bg text-app-fg font-sans leading-tight tracking-normal
+        relative
+        print:text-black print:bg-white
+        overscroll-y-none
+      "
+		>
+			<script nonce={ CSPNonce(ctx) }>
+        if ('noModule' in HTMLScriptElement.prototype) {
+          document.body.classList.remove("no-js")
+          document.body.classList.add("js")
+        }
+      </script>
+			<div class="px-4">
+				{ children... }
+				<p class="max-w-3xl mx-auto my-8 pt-4 border-t text-right">
+					@templ.Raw(L(ctx).Gettext(
+						"Saved with %s",
+						`<a class="link" href="https://readeck.org/">Readeck</a>`,
+					))
+					{ " " }
+					@Icon("o-logo-square")
+				</p>
+			</div>
+		</body>
+	</html>
+}
+
+templ (v PublicViews) error(status int) {
+	@v.base(nil) {
+		<div class="max-w-3xl mx-auto my-8">
+			<h1 class="text-3xl text-center">
+				switch status {
+					case http.StatusNotFound:
+						{ L(ctx).Gettext("Page not found") }
+					case http.StatusGone:
+						{ L(ctx).Gettext("Page has expired") }
+					default:
+						{ L(ctx).Gettext("An error occurred.") }
+				}
+			</h1>
+		</div>
+	}
+}
+
+templ (v PublicViews) bookmark(user *users.User, b *dataset.Bookmark, html io.Reader) {
+	@v.base(b) {
+		{{
+			dir := Tern(func() bool { return b.TextDirection != "" }, b.TextDirection, "ltr")
+			lineIcon := SidebarComponent{}.lineIcon
+		}}
+		<div class="max-w-3xl mx-auto my-8">
+			<div class="flex gap-2 items-baseline my-4 text-3xl max-sm:text-2xl">
+				<h1 class="grow font-lora" dir={ dir }>
+					{ b.Title }
+				</h1>
+				<div class="no-js:hidden print:hidden">
+					<button
+						type="button"
+						data-controller="theme"
+						data-action="theme#toggleTheme"
+						title="{{ gettext(`Change theme`) }}"
+						class="text-gray-600 hf:text-gray-900"
+					>
+						<span data-theme-target="icon">
+							@Icon("o-theme-system", WithIconSvgClass("w-6"))
+						</span>
+						<span class="sr-only">{ L(ctx).Gettext("Change theme") }</span>
+						<template data-theme-target="iconLight">
+							@Icon("o-theme-light", WithIconSvgClass("w-6"))
+						</template>
+						<template data-theme-target="iconDark">
+							@Icon("o-theme-dark", WithIconSvgClass("w-6"))
+						</template>
+						<template data-theme-target="iconSystem">
+							@Icon("o-theme-system", WithIconSvgClass("w-6"))
+						</template>
+					</button>
+				</div>
+			</div>
+			<ul class="mb-4">
+				<li class="flex items-center gap-1 mb-2">
+					if img, ok := b.Resources["icon"]; ok {
+						<img
+							class="inline w-5 h-auto"
+							alt=""
+							src={ img.Src }
+							width={ img.Width }
+							height={ img.Height }
+						/>
+					}
+					<strong
+						class="overflow-hidden text-ellipsis"
+						title={ Tern(func() bool { return b.SiteName != "" }, b.SiteName, "no site name") }
+						dir={ dir }
+					>
+						{ Tern(func() bool {return b.SiteName != ""}, b.SiteName, "no site name") }
+					</strong>
+				</li>
+				if b.Published != nil {
+					@lineIcon("o-calendar") {
+						{ L(ctx).Gettext("Published on %s", Strftime(ctx, *b.Published, "%e %B %Y")) }
+					}
+					if len(b.Authors) > 0 {
+						@lineIcon("o-pen") {
+							{ L(ctx).Gettext("By %s", strings.Join(b.Authors, ", ")) }
+						}
+					}
+				}
+				@lineIcon("o-link-ext") {
+					<a href={ b.URL } class="link" target="_blank">{ b.Domain }</a>
+				}
+				if b.ReadingTime > 0 {
+					@lineIcon("o-clock") {
+						{ L(ctx).Ngettext("About %d minute read", "About %d minutes read", b.ReadingTime, b.ReadingTime) }
+					}
+				}
+			</ul>
+			<p class="my-4 text-right">
+				@templ.Raw(L(ctx).Gettext(
+					"Shared by %[1]s with %[2]s",
+					templ.EscapeString(user.Username),
+					`<a class="link" href="https://readeck.org/">Readeck</a>`,
+				))
+				{ " " }
+				@Icon("o-logo-square")
+			</p>
+			<hr/>
+			if b.Description != "" {
+				<p class="my-4 text-lg leading-tight text-justify font-lora italic" dir={ dir }>
+					{ b.Description }
+				</p>
+			}
+		</div>
+		{{ img, ok := b.Resources["image"] }}
+		switch  {
+			case b.Type == "photo" && ok:
+				<figure class="mb-8 max-w-5xl mx-auto">
+					<img class="mx-auto rounded" src={ img.Src } alt="" width={ img.Width } height={ img.Height }/>
+				</figure>
+			case b.Type == "video" && b.Embed != "" && ok:
+				<div class="max-w-4xl mx-auto">
+					<div class="video-player mb-8" data-controller="video">
+						<img class="mx-auto rounded" src={ img.Src } alt="" width={ img.Width } height={ img.Height }/>
+						<template data-video-target="embed">
+							@templ.Raw(b.Embed)
+						</template>
+						<template data-video-target="play">
+							<button class="play-button" data-action="click->video#play">
+								<span></span>
+							</button>
+						</template>
+					</div>
+				</div>
+		}
+		if b.HasArticle {
+			<main
+				class="max-w-3xl mx-auto mt-16 prose font-lora text-lg leading-normal overflow-x-auto"
+				dir={ dir }
+			>
+				@HTML(html)
+			</main>
+		}
+		<div class="max-w-3xl mx-auto mt-4 mb-8 flex gap-2 items-center">
+			<p class="flex-grow">
+				<a class="link break-all" href={ b.URL } target="_blank" rel="original">
+					{ b.URL }
+				</a>
+			</p>
+			<img class="rounded bg-white p-2" src={ QRCodeB64(b.URL, ColorPrimary, -2) } alt=""/>
+		</div>
+	}
+}

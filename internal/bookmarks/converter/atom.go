@@ -17,7 +17,6 @@ import (
 	"codeberg.org/readeck/readeck/configs"
 	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
-	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
 	"codeberg.org/readeck/readeck/pkg/atom"
 	"codeberg.org/readeck/readeck/pkg/base58"
@@ -129,18 +128,11 @@ func (e AtomExporter) Export(ctx context.Context, w io.Writer, r *http.Request, 
 		if err != nil {
 			return err
 		}
-		tpl, err := server.GetTemplate("bookmarks/bookmark_atom.jet.html")
+		err = atomViews{}.bookmark(b, resources, html).Render(ctx, buf)
 		if err != nil {
 			return err
 		}
-		tc := map[string]any{
-			"HTML":      html,
-			"Item":      b,
-			"Resources": resources,
-		}
-		if err := tpl.Execute(buf, server.TemplateVars(r), tc); err != nil {
-			return err
-		}
+
 		feed.Entries[i].Content = &atom.Content{
 			Type:    "html",
 			Content: buf.String(),

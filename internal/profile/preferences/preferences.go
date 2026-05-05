@@ -133,6 +133,11 @@ func New(user *users.User, session *sessions.Session) *Preferences {
 	return p
 }
 
+// IsLoaded returns whether the user's preferences has been loaded (a user is attached).
+func (p *Preferences) IsLoaded() bool {
+	return p.user != nil
+}
+
 // WidthList returns the list of available widths.
 func (p *Preferences) WidthList() []string {
 	return readerWidthList

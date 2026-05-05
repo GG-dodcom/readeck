@@ -1,0 +1,81 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package routes
+
+import (
+	"codeberg.org/readeck/readeck/pkg/forms"
+
+	. "codeberg.org/readeck/readeck/components"
+	F "codeberg.org/readeck/readeck/components/forms"
+)
+
+type FilterComponents struct{}
+
+var compactField = F.Classes("field-h--compact")
+
+templ (c FilterComponents) filters(f forms.Binder) {
+	<div class="space-y-4 text-sm">
+		@F.TextField(f.Get("search"), F.Label(L(ctx).Gettext("Search")))
+		@c.autoComplete(f.Get("title"), L(ctx).Gettext("Title"), "title", false)
+		@c.autoComplete(f.Get("author"), L(ctx).Gettext("Author"), "author", false)
+		@c.autoComplete(f.Get("site"), L(ctx).Gettext("Site"), "site", false)
+		@c.autoComplete(f.Get("labels"), L(ctx).Gettext("Label"), "label", true)
+		@F.TextField(f.Get("note"), F.Label(L(ctx).Gettext("Note")))
+		@F.TimeTokenField(f.Get("range_start"), F.Label("From date"),
+			compactField,
+		)
+		@F.TimeTokenField(f.Get("range_end"),
+			F.Label("To date"),
+			compactField,
+		)
+		@F.MultiSelectField[string](f.Get("type"),
+			F.Label(L(ctx).Gettext("Type")),
+			compactField,
+		)
+		@F.MultiSelectField[string](f.Get("read_status"),
+			F.Label(L(ctx).Pgettext("filter", "Progress")),
+			compactField,
+		)
+		@c.yesNo(f.Get("is_marked").(*forms.BooleanField), L(ctx).Gettext("Is Favorite"))
+		@c.yesNo(f.Get("is_archived").(*forms.BooleanField), L(ctx).Gettext("Is Archived"))
+		@c.yesNo(f.Get("is_loaded").(*forms.BooleanField), L(ctx).Gettext("Is Loaded"))
+		@c.yesNo(f.Get("has_labels").(*forms.BooleanField), L(ctx).Gettext("With Labels"))
+		@c.yesNo(f.Get("has_errors").(*forms.BooleanField), L(ctx).Gettext("With Errors"))
+	</div>
+}
+
+templ (c FilterComponents) autoComplete(field forms.Field, label string, ft string, multiple bool) {
+	@F.TextField(field,
+		F.Label(label),
+		F.Classes("relative"),
+		F.ControlAttrs(templ.Attributes{
+			"data-controller":                  "autocomplete",
+			"data-autocomplete-quotes-value":   "true",
+			"data-autocomplete-multiple-value": multiple,
+			"data-autocomplete-url-value":      string(URL(ctx, "/api/bookmarks/@complete?type="+ft)),
+			"data-autocomplete-item-class":     "p-2 whitespace-nowrap hf:bg-primary hf:text-white cursor-pointer",
+			"data-autocomplete-selected-class": "bg-primary text-white",
+		}),
+		F.InputAttrs(templ.Attributes{
+			"autocapitalize":              "off",
+			"data-turbo-empty-submit-end": "1",
+			"data-autocomplete-target":    "input",
+		}),
+	) {
+		<ul
+			hidden
+			class="absolute z-50 border shadow bg-gray-50 min-w-full max-w-full max-h-48 overflow-y-auto rounded"
+			data-autocomplete-target="results"
+		></ul>
+	}
+}
+
+templ (c FilterComponents) yesNo(field *forms.BooleanField, label string) {
+	@F.SelectField[bool](field, F.Label(label), compactField) {
+		<option value=""></option>
+		<option value="true" selected?={ field.V() }>{ L(ctx).Gettext("yes") }</option>
+		<option value="false" selected?={ !field.IsNil() && !field.V() }>{ L(ctx).Gettext("no") }</option>
+	}
+}

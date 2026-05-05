@@ -1,0 +1,83 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package profile
+
+import . "codeberg.org/readeck/readeck/components"
+
+type Views struct{}
+
+// Menu is the side menu for the profile and admin views.
+templ (_ Views) Menu() {
+	@SideMenuTitle() {
+		{ L(ctx).Gettext("Settings") }
+	}
+	<menu class="my-4">
+		<li>
+			<a href={ URL(ctx, "/profile") } data-current={ PathIs(ctx, "/profile") }>
+				@Icon("o-user")
+				{ L(ctx).Gettext("Profile") }
+			</a>
+		</li>
+		<li>
+			<a href={ URL(ctx, "/profile/password") } data-current={ PathIs(ctx, "/profile/password", "/profile/otp") }>
+				@Icon("o-lock")
+				{ L(ctx).Gettext("Security") }
+			</a>
+		</li>
+		if HasPermission(ctx, "profile:tokens", "read") {
+			<li>
+				<a href={ URL(ctx, "/profile/applications") } data-current={ PathIs(ctx, "/profile/applications") }>
+					@Icon("o-applications")
+					{ L(ctx).Gettext("Applications") }
+				</a>
+			</li>
+			<li>
+				<a href={ URL(ctx, "/profile/tokens") } data-current={ PathIs(ctx, "/profile/tokens", "/profile/tokens/*") }>
+					@Icon("o-key")
+					{ L(ctx).Gettext("API Tokens") }
+				</a>
+			</li>
+		}
+	</menu>
+	if HasPermission(ctx, "profile", "export") || HasPermission(ctx, "profile", "import") {
+		<hr class="w-[25%] border-gray-200 mx-auto"/>
+		<menu class="my-4">
+			if HasPermission(ctx, "profile", "export") {
+				<li>
+					<a href={ URL(ctx, "/profile/export") } data-current={ PathIs(ctx, "/profile/export") }>
+						@Icon("o-export")
+						{ L(ctx).Gettext("Export") }
+					</a>
+				</li>
+			}
+			if HasPermission(ctx, "profile", "import") {
+				<li>
+					<a href={ URL(ctx, "/profile/import") } data-current={ PathIs(ctx, "/profile/import") }>
+						@Icon("o-import")
+						{ L(ctx).Gettext("Import") }
+					</a>
+				</li>
+			}
+		</menu>
+		if HasPermission(ctx, "admin:users", "read") {
+			<hr class="w-[25%] border-gray-200 mx-auto"/>
+			<menu class="my-4">
+				<li>
+					<a href={ URL(ctx, "/admin/users") } data-current={ PathIs(ctx, "/admin/users", "/admin/users/*") }>
+						@Icon("o-user-admin")
+						{ L(ctx).Gettext("Users") }
+					</a>
+				</li>
+			</menu>
+		}
+		@CustomTemplate("profile/sidebar.html.tmpl", nil)
+	}
+}
+
+templ (v Views) base(title string) {
+	@SideMenuStdLayout(title, v.Menu()) {
+		{ children... }
+	}
+}

@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"codeberg.org/readeck/readeck/internal/auth"
+	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/bookmarks/importer"
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
@@ -87,27 +88,30 @@ func (api *apiRouter) bookmarksImport(w http.ResponseWriter, r *http.Request) {
 
 func (api *apiRouter) bookmaksImportStatus(w http.ResponseWriter, r *http.Request) {
 	trackID := chi.URLParam(r, "trackID")
-	p, err := importer.NewImportProgress(trackID)
+	progress, err := importer.NewImportProgress(trackID)
 	if err != nil {
 		server.Err(w, r, err)
 		return
 	}
 
 	if server.IsTurboRequest(r) {
-		server.RenderTurboStream(w, r,
-			"/bookmarks/import/progress", "replace",
-			"import-progress-"+trackID, map[string]any{
-				"TrackID":  trackID,
-				"Running":  importer.ImportBookmarksTask.IsRunning(trackID),
-				"Progress": p,
-			},
-			nil,
-		)
+		server.RenderTurboStreamComponent(w, r, importViews{}.progress(
+			trackID,
+			importer.ImportBookmarksTask.IsRunning(trackID),
+			progress,
+		),
+			"replace", "import-progress-"+trackID, nil)
+
+		if counters, err := bookmarks.Bookmarks.CountAll(auth.GetRequestUser(r)); err == nil {
+			ctx := withCounters(r.Context(), counters)
+			server.RenderTurboStreamComponent(w, r.WithContext(ctx), Views{}.sideMenu(),
+				"replace", "bookmarks-sidemenu", nil)
+		}
 		return
 	}
 
 	server.Render(w, r, http.StatusOK, map[string]any{
 		"scheduled": importer.ImportBookmarksTask.IsRunning(trackID),
-		"progress":  p,
+		"progress":  progress,
 	})
 }

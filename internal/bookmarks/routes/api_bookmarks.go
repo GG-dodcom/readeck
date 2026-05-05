@@ -66,22 +66,18 @@ func (api *apiRouter) bookmarkArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if server.IsTurboRequest(r) {
-		server.RenderTurboStream(w, r,
-			"/bookmarks/components/content_block", "replace",
-			"bookmark-content-"+b.UID, map[string]any{
-				"Item": bi,
-				"HTML": buf,
-				"Out":  w,
-			},
-			map[string]string{"method": "morph"},
-		)
-		server.RenderTurboStream(w, r,
-			"/bookmarks/components/annotation_list", "replace",
-			"bookmark-annotation-list-"+b.UID, map[string]any{
-				"Item": bi,
-			},
-			map[string]string{"method": "morph"},
-		)
+		server.RenderTurboStreamComponent(w, r,
+			Components{}.articleContent(bi, buf),
+			"replace", "bookmark-content-"+b.UID,
+			map[string]string{
+				"method": "morph",
+			})
+		server.RenderTurboStreamComponent(w, r,
+			SidebarComponent{}.annotationList(bi),
+			"replace", "bookmark-annotation-list-"+b.UID,
+			map[string]string{
+				"method": "morph",
+			})
 		return
 	}
 
@@ -623,16 +619,10 @@ func (api *apiRouter) withBookmarkOrdering(next http.Handler) http.Handler {
 		f := newBookmarkOrderForm()
 		forms.BindURL(f, r)
 
+		ctx := withOrderForm(r.Context(), f)
 		order := f.toOrderedExpressions()
-		ctx := r.Context()
 		if order != nil {
 			ctx = withBookmarkOrder(ctx, order)
-		}
-
-		// When we have a template context, we add the current order
-		// and ordering options
-		if c, ok := checkBaseContext(ctx); ok {
-			f.addToTemplateContext(r, server.Locale(r), c)
 		}
 
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -671,8 +661,9 @@ func (api *apiRouter) withBookmarkListSelectDataset(next http.Handler) http.Hand
 
 		if !filterForm.IsValid() {
 			// When the form is invalid and we're not in a view, render the form's error list.
-			// Not having a base template context is a good indicator for that.
-			if _, ok := checkBaseContext(r.Context()); !ok {
+			// Not having the counters a good indicator for that, as they are only
+			// set for views in [viewsRouter.withBaseContext].
+			if _, ok := checkCounters(r.Context()); !ok {
 				server.Render(w, r, http.StatusUnprocessableEntity, filterForm)
 				return
 			}
@@ -912,6 +903,7 @@ func (api *apiRouter) withShareEmail(next http.Handler) http.Handler {
 			if !info.Form.IsValid() {
 				w.WriteHeader(http.StatusUnprocessableEntity)
 			}
+			info.Sent = true
 		}
 
 		ctx := withSharedEmail(r.Context(), info)

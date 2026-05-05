@@ -72,9 +72,6 @@ func (s *Server) Init() {
 
 	// web manifest
 	s.AddRoute("/manifest.webmanifest", manifestRoutes())
-
-	// Init templates
-	initTemplates()
 }
 
 // InitRequest returns a midleware that sets the absolute request URL

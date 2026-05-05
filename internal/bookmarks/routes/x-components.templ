@@ -1,0 +1,342 @@
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package routes
+
+import (
+	"io"
+
+	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
+	"codeberg.org/readeck/readeck/internal/server"
+
+	. "codeberg.org/readeck/readeck/components"
+)
+
+type Components struct{}
+
+templ (c Components) titleBlock(item *dataset.Bookmark) {
+	<turbo-frame id={ "bookmark-title-" + item.ID } class="print:hidden leading-normal">
+		<h1 class="text-3xl max-sm:text-2xl">{ item.Title }</h1>
+		if item.Description != "" && (item.OmitDescription == nil || *item.OmitDescription == false) {
+			<p
+				class="mt-2 text-lg leading-tight text-justify italic"
+				dir={ Tern(func() bool { return item.TextDirection != "" }, item.TextDirection, "ltr") }
+			>
+				{ item.Description }
+			</p>
+		}
+		@c.editDialog(item)
+	</turbo-frame>
+}
+
+templ (c Components) editDialog(item *dataset.Bookmark) {
+	<dialog class="dialog max-w-std" id="bookmark-update-dialog" data-turbo="true">
+		<form class="dialog--top" method="dialog">
+			<button class="dialog--close" title={ L(ctx).Gettext("Close dialog") }>
+				@Icon("o-close", WithIconClass(), WithIconSvgClass("h-8 w-8"))
+			</button>
+		</form>
+		<div class="dialog--content">
+			<turbo-frame
+				id={ "bookmark-update-" + item.ID }
+				src={ URL(ctx, "/bookmarks", item.ID, "update") }
+				loading="lazy"
+			></turbo-frame>
+		</div>
+		<div class="dialog--footer">
+			<button class="btn btn-primary ml-auto" form="bookmark-update-form" type="submit">
+				{ L(ctx).Gettext("Save") }
+			</button>
+		</div>
+	</dialog>
+}
+
+templ (c Components) contentBlock(item *dataset.Bookmark, html io.Reader) {
+	switch item.Type {
+		case "photo":
+			if img, ok := item.Resources["image"]; ok {
+				<figure class="mb-8">
+					<img alt="" src={ img.Src } class="mx-auto" width={ img.Width } height={ img.Height }/>
+				</figure>
+			}
+		case "video":
+			if img, ok := item.Resources["image"]; ok && item.Embed != "" {
+				{{
+					action := "click->video#play"
+					if !item.HasArticle {
+						action = "click->scroll-progress#setPosition " + action
+					}
+				}}
+				<div class="video-player mb-8" data-controller="video">
+					<img alt="" src={ img.Src } width={ img.Width } height={ img.Height }/>
+					<template data-video-target="embed">
+						@templ.Raw(item.Embed)
+					</template>
+					<template data-video-target="play">
+						<button
+							class="play-button"
+							data-action={ action }
+							data-scroll-progress-position-param="100"
+						>
+							<span></span>
+						</button>
+					</template>
+				</div>
+			}
+	}
+	@c.articleContent(item, html)
+	@c.qrCode(item)
+}
+
+templ (c Components) articleContent(item *dataset.Bookmark, html io.Reader) {
+	if item.HasArticle {
+		{{ prefs := Preferences(ctx) }}
+		<turbo-frame
+			id={ "bookmark-content-" + item.ID }
+			src={ URL(ctx, "/api/bookmarks", item.ID, "article") }
+			disabled
+			data-controller="annotations"
+			data-action="request:annotation-removed@document->annotations#reload"
+			data-annotations-api-url-value={ URL(ctx, "/api/bookmarks", item.ID, "annotations") }
+			data-annotations-hidden-class="hidden"
+		>
+			<div
+				class={ "bookmark-article print:max-w-none relative", prefs.ReaderWidth().Class }
+				data-controller="styler"
+			>
+				@c.articleAnnotator()
+				<div
+					class={
+						"prose", "overflow-x-auto",
+						prefs.ReaderFont().Class,
+						prefs.ReaderFontSize().Class,
+						prefs.ReaderLineHeight().Class,
+						prefs.ReaderJustify().Class,
+						prefs.ReaderHyphenation().Class,
+					}
+					lang={ item.Lang }
+					dir={ Tern(func() bool { return item.TextDirection != "" }, item.TextDirection, "ltr") }
+					data-controller="styler modal-images modal-videos"
+					data-modal-images-selector-value="img[src]:not([data-iframe-params])"
+					data-modal-videos-selector-value="img[data-iframe-params]"
+					data-modal-videos-base-url-value={ URL(ctx, "/videoplayer") + "?type=embed" }
+					data-annotations-target="root"
+					data-scroll-progress-target="tracked"
+				>
+					@HTML(html)
+					@c.imageModal()
+					@c.videoModal()
+				</div>
+			</div>
+		</turbo-frame>
+	}
+}
+
+// FIXME: image & video dialogs not showing after update -> due to morph when loading the turbo stream
+// See: https://github.com/hotwired/stimulus/issues/829
+templ (c Components) articleAnnotator() {
+	{{
+		colors := [][2]string{
+			{"yellow", L(ctx).Gettext("Yellow")},
+			{"red", L(ctx).Gettext("Red")},
+			{"blue", L(ctx).Gettext("Blue")},
+			{"green", L(ctx).Gettext("Green")},
+			{"none", L(ctx).Gettext("Transparent")},
+		}
+	}}
+	<div class="annotator hidden" data-annotations-target="controls">
+		<div class="annotator--arrow" data-annotations-target="arrow"></div>
+		<div class="annotator--content">
+			<div class="annotator--colors">
+				{ L(ctx).Gettext("Highlight") }
+				for _, c := range colors {
+					<input
+						type="radio"
+						name="color"
+						value={ c[0] }
+						aria-label={ c[1] }
+						data-annotations-target="color"
+					/>
+				}
+			</div>
+			<div class="flex flex-col">
+				<label for="annotation-note" data-annotations-target="whenNew whenOne">
+					{ L(ctx).Gettext("Note") }:
+				</label>
+				<textarea
+					class="form-textarea select-none"
+					id="annotation-note"
+					name="note"
+					rows="3"
+					cols="45"
+					maxlength="1024"
+					data-annotations-target="note whenNew whenOne"
+				></textarea>
+			</div>
+			<div class="flex">
+				<button
+					class="btn btn-primary"
+					data-action="click->annotations#create"
+					data-annotations-target="whenNew"
+				>{ L(ctx).Gettext("Save") }</button>
+				<button
+					class="btn btn-primary"
+					data-action="click->annotations#update"
+					data-annotations-target="whenOne whenMany"
+				>{ L(ctx).Gettext("Save") }</button>
+				<button
+					class="btn-outlined btn-danger ml-auto"
+					data-action="click->annotations#delete"
+					data-annotations-target="whenOne whenMany"
+				>
+					@Icon("o-trash")
+					<span class="sr-only">{ L(ctx).Gettext("Delete") }</span>
+				</button>
+			</div>
+		</div>
+	</div>
+}
+
+templ (c Components) bookmarkInfoBottomActions(b *dataset.Bookmark) {
+	<turbo-frame id={ "bookmark-bottom-actions-" + b.ID }>
+		<form
+			action={ URL(ctx, "/bookmarks", b.ID, "update") }
+			method="post"
+			class="flex flex-row max-sm:flex-col justify-center"
+			data-controller="turbo-form"
+		>
+			<input type="hidden" name="_to" value={ CurrentPath(ctx) }/>
+			<button
+				class="btn-outlined btn-primary rounded-full whitespace-nowrap mb-0 mr-4 max-sm:mr-0 max-sm:mb-2"
+				name="is_marked"
+				value={ Tern(func() bool { return b.IsMarked }, 0, 1) }
+			>
+				@Icon(Tern(func() bool { return b.IsMarked }, "o-favorite-on", "o-favorite-off"))
+				{ " " }
+				{ Tern(func() bool { return b.IsMarked },
+          L(ctx).Gettext("Remove from favorites"),
+          L(ctx).Gettext("Add to favorites"),
+        ) }
+			</button>
+			<button
+				class="btn-outlined btn-primary rounded-full whitespace-nowrap"
+				name="is_archived"
+				value={ Tern(func() bool { return b.IsArchived }, 0, 1) }
+			>
+				@Icon(Tern(func() bool { return b.IsArchived }, "o-archive-on", "o-archive-off"))
+				{ " " }
+				{ Tern(func() bool { return b.IsArchived },
+          L(ctx).Gettext("Remove from archive"),
+          L(ctx).Gettext("Move to archive"),
+        ) }
+			</button>
+		</form>
+	</turbo-frame>
+}
+
+templ (c Components) imageModal() {
+	<dialog class="dialog-image font-sans" data-modal-images-target="dialog">
+		<form method="dialog">
+			<button class="dialog--close" title={ L(ctx).Gettext("Close") }>
+				@Icon("o-close", WithIconSvgClass("w-8"))
+			</button>
+		</form>
+		<div>
+			<img alt="" data-modal-images-target="img"/>
+		</div>
+	</dialog>
+	<template data-modal-images-target="trigger">
+		<span class="block relative group">
+			<button
+				type="button"
+				title={ L(ctx).Gettext("Show image") }
+				class="
+          absolute top-0 right-0 p-2 z-10
+          text-white bg-black/30 rounded-bl rounded-tr drop-shadow
+          block opacity-0
+          group-hfw:opacity-100 hfw:bg-black/30 hfw:ring-0
+         "
+				data-action="click->scroll-progress#skip"
+			>
+				@Icon("o-expand", WithIconSvgClass("h-6"))
+			</button>
+		</span>
+	</template>
+}
+
+templ (c Components) videoModal() {
+	<dialog class="dialog-video font-sans" data-modal-videos-target="dialog">
+		<form method="dialog">
+			<button class="dialog--close" title={ L(ctx).Gettext("Close") }>
+				@Icon("o-close", WithIconSvgClass("w-8"))
+			</button>
+		</form>
+		<div>
+			<iframe src="" frameborder="0"></iframe>
+		</div>
+	</dialog>
+	<template data-modal-videos-target="trigger">
+		<span class="block relative group">
+			<button
+				type="button"
+				title={ L(ctx).Gettext("Play video") }
+				class="
+          absolute w-full h-full z-10 cursor-pointer
+          decoration-none text-white bg-black/10 rounded-bl rounded-tr drop-shadow
+          flex items-center justify-center
+          opacity-0
+          group-hfw:opacity-100 hfw:bg-black/10 hfw:ring-0
+         "
+				data-action="click->scroll-progress#skip"
+			>
+				@Icon("o-expand", WithIconClass("p-4 rounded bg-black/50"), WithIconSvgClass("w-8 h-8"))
+			</button>
+		</span>
+	</template>
+}
+
+templ (c Components) diagnosis(d *dataset.BookmarkDiagnosis) {
+	{{
+		levelMap := map[string]string{
+			"DEBU": "text-gray-400",
+			"INFO": "text-green-700",
+			"WARN": "text-yellow-700",
+			"ERRO": "text-red-700",
+		}
+		user := server.GetUser(ctx)
+	}}
+	<div class="dialog--content" data-controller="clipboard">
+		<h4 class="mb-1 title text-lg">{ L(ctx).Gettext("Extraction log") }</h4>
+		<button type="button" class="link" data-action="clipboard#copy">
+			@Icon("o-copy")
+			{ " " }
+			{ L(ctx).Gettext("copy to clipboard") }
+		</button>
+		<textarea class="hidden" data-clipboard-target="content">```&#13;{ string(d.Log) }&#13;```</textarea>
+		<ul class="mt-2 w-full text-xs font-mono">
+			for _, l := range d.LogLines() {
+				<li class="flex gap-2">
+					<span class={ levelMap[l.Level] }>[{ l.Level }]</span>
+					<span class="grow wrap-anywhere">{ l.Line }</span>
+				</li>
+			}
+		</ul>
+		if user.Settings.DebugInfo {
+			<h4 class="mt-2 mb-1 title text-lg">{ L(ctx).Gettext("Properties") }</h4>
+			<pre class="text-xs leading-5">{ string(d.Props) }</pre>
+		}
+	</div>
+}
+
+templ (c Components) qrCode(item *dataset.Bookmark) {
+	<div class="hidden print:flex gap-4 mt-8 pt-4 border-t border-gray-700">
+		<div>
+			<p class="font-semibold">{ L(ctx).Gettext("Saved with Readeck") } (https://readeck.com/)</p>
+			<p class="break-all">{ item.Href }</p>
+		</div>
+		<div class="ml-auto">
+			<img src={ QRCodeB64(item.Href, ColorPrimary, -2) } alt="" class="rounded"/>
+		</div>
+	</div>
+}
