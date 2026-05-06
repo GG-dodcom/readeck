@@ -177,15 +177,14 @@ func (api *apiRouter) bookmarkExport(w http.ResponseWriter, r *http.Request) {
 
 // bookmarkCreate creates a new bookmark.
 func (api *apiRouter) bookmarkCreate(w http.ResponseWriter, r *http.Request) {
-	f := newCreateForm(r)
-	forms.Bind(f, r)
+	f := forms2.BindAs[createForm](r)
 
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
 	}
 
-	b, err := f.createBookmark()
+	b, err := f.createBookmark(r)
 	if err != nil {
 		server.Err(w, r, err)
 		return
@@ -206,8 +205,7 @@ func (api *apiRouter) bookmarkCreate(w http.ResponseWriter, r *http.Request) {
 
 // bookmarkUpdate updates an existing bookmark.
 func (api *apiRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
-	f := newUpdateForm(server.Locale(r))
-	forms.Bind(f, r)
+	f := forms2.BindAs[updateForm](r)
 
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusBadRequest, f)

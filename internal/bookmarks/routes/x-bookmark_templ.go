@@ -21,10 +21,10 @@ import (
 
 	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
-	"codeberg.org/readeck/readeck/pkg/forms"
 
 	. "codeberg.org/readeck/readeck/components"
 	F "codeberg.org/readeck/readeck/components/forms"
+	F2 "codeberg.org/readeck/readeck/components/forms/v2"
 	"codeberg.org/readeck/readeck/internal/server"
 )
 
@@ -910,61 +910,61 @@ func (c Components) bookmarkUpdate(b *bookmarks.Bookmark, f *updateForm) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.Errors(f).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = F2.Errors(f).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.TextField(f.Get("title"),
-			F.Label(L(ctx).Gettext("Title")),
-			F.Required(true),
-			F.Classes("field-h"),
+		templ_7745c5c3_Err = F2.TextField(&f.Title,
+			F2.Label(L(ctx).Gettext("Title")),
+			F2.Required(true),
+			F2.Classes("field-h"),
 		).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.TextAreaField(f.Get("description"),
-			F.Label(L(ctx).Gettext("Description")),
-			F.Classes("field-h"),
-			F.InputAttr("rows", 5),
+		templ_7745c5c3_Err = F2.TextAreaField(&f.Description,
+			F2.Label(L(ctx).Gettext("Description")),
+			F2.Classes("field-h"),
+			F2.InputAttr("rows", 5),
 		).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.TextField(f.Get("site_name"),
-			F.Label(L(ctx).Gettext("Site Name")),
-			F.Required(true),
-			F.Classes("field-h"),
+		templ_7745c5c3_Err = F2.TextField(&f.SiteName,
+			F2.Label(L(ctx).Gettext("Site Name")),
+			F2.Required(true),
+			F2.Classes("field-h"),
 		).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.TextAreaField(f.Get("authors"),
-			F.Label(L(ctx).Gettext("Authors")),
-			F.Value(strings.Join(f.Get("authors").(*forms.TextListField).V(), "\n")),
-			F.Classes("field-h"),
-			F.Help(L(ctx).Gettext("One value per line")),
-			F.InputAttr("rows", 3),
+		templ_7745c5c3_Err = F2.TextAreaField(&f.Authors,
+			F2.Label(L(ctx).Gettext("Authors")),
+			F2.Value(strings.Join((&f.Authors).Value(), "\n")),
+			F2.Classes("field-h"),
+			F2.Help(L(ctx).Gettext("One value per line")),
+			F2.InputAttr("rows", 3),
 		).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.DateField(f.Get("published"),
-			F.Label(L(ctx).Gettext("Published")),
-			F.Classes("field-h"),
+		templ_7745c5c3_Err = F2.DateField(&f.Published,
+			F2.Label(L(ctx).Gettext("Published")),
+			F2.Classes("field-h"),
 		).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.TextField(f.Get("lang"),
-			F.Label(L(ctx).Gettext("Language")),
-			F.Classes("field-h"),
+		templ_7745c5c3_Err = F2.TextField(&f.Lang,
+			F2.Label(L(ctx).Gettext("Language")),
+			F2.Classes("field-h"),
 		).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.SelectField[string](f.Get("text_direction"),
-			F.Label(L(ctx).Gettext("Text Direction")),
-			F.Classes("field-h"),
+		templ_7745c5c3_Err = F2.SelectField[string](&f.TextDirection,
+			F2.Label(L(ctx).Gettext("Text Direction")),
+			F2.Classes("field-h"),
 		).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

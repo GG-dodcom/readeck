@@ -26,6 +26,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
 	"codeberg.org/readeck/readeck/pkg/forms"
+	forms2 "codeberg.org/readeck/readeck/pkg/forms/v2"
 	"codeberg.org/readeck/readeck/pkg/http/csp"
 	"codeberg.org/readeck/readeck/pkg/utils"
 )
@@ -46,21 +47,21 @@ func (h *viewsRouter) withBaseContext(next http.Handler) http.Handler {
 }
 
 func (h *viewsRouter) bookmarkList(w http.ResponseWriter, r *http.Request) {
-	f := newCreateForm(r)
+	f := forms2.New[createForm](r.Context())
 
 	switch r.Method {
 	case http.MethodGet:
 		// prepopulate the URL, no validation takes place at this point
-		f.Get("url").Set(r.URL.Query().Get("url"))
+		_ = forms2.UnmarshalValues(r.URL.Query()["url"], &f.URL)
 	case http.MethodPost:
 		// POST => create a new bookmark
-		forms.Bind(f, r)
+		forms2.Bind(r, f)
 		if f.IsValid() {
-			f.Get("created").Set(nil)
-			f.Get("feature_find_main").Set(nil)
-			f.Get("resource").Set(nil)
+			f.Created.Set(time.Time{})
+			f.FindMain.Set(false)
+			f.Resources.Set(nil)
 
-			if b, err := f.createBookmark(); err != nil {
+			if b, err := f.createBookmark(r); err != nil {
 				server.Log(r).Error("", slog.Any("err", err))
 			} else {
 				redir := []string{"/bookmarks"}
@@ -176,23 +177,25 @@ func (h *viewsRouter) diagnosis(w http.ResponseWriter, r *http.Request) {
 func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
 	b := getBookmark(r.Context())
-	f := newUpdateForm(server.Locale(r))
+	f := forms2.New[updateForm](r.Context())
 
 	status := http.StatusOK
 
 	switch r.Method {
 	case http.MethodGet:
 		// Fields the user can update on the UI
-		f.Get("title").Set(b.Title)
-		f.Get("description").Set(b.Description)
-		f.Get("site_name").Set(b.SiteName)
-		f.Get("authors").Set([]string(b.Authors))
-		f.Get("published").Set(b.Published)
-		f.Get("lang").Set(b.Lang)
-		f.Get("text_direction").Set(b.TextDirection)
+		f.Title.Set(b.Title)
+		f.Description.Set(b.Description)
+		f.SiteName.Set(b.SiteName)
+		f.Authors.Set([]string(b.Authors))
+		f.Lang.Set(b.Lang)
+		f.TextDirection.Set(b.TextDirection)
+		if b.Published != nil {
+			f.Published.Set(*b.Published)
+		}
 
 	case http.MethodPost:
-		forms.Bind(f, r)
+		forms2.Bind(r, f)
 		status = http.StatusUnprocessableEntity
 
 		if !f.IsValid() {
@@ -280,8 +283,8 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 		server.AddFlash(w, r, "success", tr.Gettext("Bookmark updated"))
 
 		redir := "/bookmarks/" + b.UID + "/update"
-		if f.Get("_to").String() != "" {
-			redir = f.Get("_to").String()
+		if f.To.Value() != "" {
+			redir = f.To.Value()
 		}
 		server.Redirect(w, r, redir)
 		return

@@ -12,7 +12,8 @@ import (
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/utils"
 
 	. "codeberg.org/readeck/readeck/components"
 )
@@ -170,11 +171,11 @@ templ (c Components) createForm(f *createForm) {
 			<div class="flex p-1 form-input rounded-full border">
 				<input
 					type="text"
-					name="url"
+					name={ f.URL.Name() }
 					id="create-url"
 					size="15"
 					class="leading-tight w-full rounded-full px-4 py-2 bg-gray-light focus-visible:bg-gray-light text-gray-dark ring-0 ring-offset-0"
-					value={ f.Get("url").String() }
+					value={ f.URL.Value() }
 					placeholder="https://"
 				/>
 				<button type="submit" class="whitespace-nowrap btn btn-primary rounded-full pl-0.5 py-0 inline-flex gap-1 items-center leading-none">
@@ -185,21 +186,21 @@ templ (c Components) createForm(f *createForm) {
 			for _, err := range f.Errors() {
 				<p class="ml-4 text-red-700"><strong>{ err.Error() }</strong> </p>
 			}
-			{{ urlErrors := f.Get("url").Errors() }}
-			if len(urlErrors) > 0 && errors.Is(f.Get("url").Errors()[0], forms.ErrInvalidURL) {
+			{{ urlErrors := f.URL.Errors() }}
+			if len(urlErrors) > 0 && errors.Is(f.URL.Errors()[0], forms.ErrInvalidURL) {
 				// Maybe it was a search request?
 				{{
 					searchURL := urls.AbsoluteURLContext(ctx, "/bookmarks")
-					q := url.Values{"bf": {"1"}, "search": {f.Get("url").String()}}
+					q := url.Values{"bf": {"1"}, "search": {f.URL.Value()}}
 					searchURL.RawQuery = q.Encode()
 					searchHref := urls.PathOnly(searchURL)
 				}}
 				@Message() {
 					@templ.Raw(L(ctx).Gettext(
 						`"%[1]s" is not a valid address. Did you mean to search your bookmarks for %[2]s?`,
-						templ.EscapeString(f.Get("url").String()),
+						templ.EscapeString(f.URL.Value()),
 						`<a data-turbo-frame="_top" href="`+searchHref+`" class="link font-bold">`+
-							templ.EscapeString(f.Get("url").String())+"</a>",
+							templ.EscapeString(f.URL.Value())+"</a>",
 					))
 				}
 			} else if len(urlErrors) > 0 {
@@ -489,7 +490,7 @@ templ (c Components) card(b *dataset.Bookmark) {
 							href={ bURL }
 							data-turbo-frame="_top"
 						>
-							{ Tern(func() bool { return b.Title != ""}, b.Title, "untitled") }
+							{ utils.ShortText(Tern(func() bool { return b.Title != ""}, b.Title, "untitled"), 90) }
 						</a>
 					</h3>
 				</div>
@@ -498,7 +499,7 @@ templ (c Components) card(b *dataset.Bookmark) {
 						title={ b.SiteName }
 						dir={ Tern(func() bool { return b.TextDirection != "" }, b.TextDirection, "ltr") }
 					>
-						{ b.SiteName }
+						{ utils.ShortText(b.SiteName, 50) }
 					</strong>
 					if b.ReadingTime > 0 {
 						<span>{ " " }•&nbsp;{ L(ctx).Npgettext("abbr", "%d min", "%d min", b.ReadingTime, b.ReadingTime) }</span>

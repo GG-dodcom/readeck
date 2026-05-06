@@ -32,9 +32,10 @@ import (
 	"codeberg.org/readeck/readeck/internal/db/exp"
 	"codeberg.org/readeck/readeck/internal/email"
 	"codeberg.org/readeck/readeck/internal/searchstring"
-	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/locales"
 	"codeberg.org/readeck/readeck/pkg/forms"
+	forms2 "codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/http/request"
 	"codeberg.org/readeck/readeck/pkg/timetoken"
 	"codeberg.org/readeck/readeck/pkg/utils"
 )
@@ -67,35 +68,6 @@ type orderExpressionList []goquexp.OrderedExpression
 type multipartResourceInfo struct {
 	URL     string            `json:"url"`
 	Headers map[string]string `json:"headers"`
-}
-
-type createForm struct {
-	*forms.Form
-	userID    int
-	requestID string
-	resources []tasks.MultipartResource
-}
-
-func newCreateForm(r *http.Request) *createForm {
-	return &createForm{
-		Form: forms.Must(
-			forms.WithTranslator(context.Background(), server.Locale(r)),
-			forms.NewTextField("url",
-				forms.Trim,
-				forms.Required,
-				forms.MaxLen(1024),
-				forms.IsURL(validSchemes...),
-			),
-			forms.NewTextField("title", forms.Trim, forms.MaxLen(1024)),
-			forms.NewTextListField("labels", forms.Trim, forms.DiscardEmpty),
-			forms.NewDatetimeField("created", forms.Trim),
-			forms.NewBooleanField("feature_find_main"),
-			forms.NewFileField("html"),
-			forms.NewFileListField("resource"),
-		),
-		userID:    auth.GetRequestUser(r).ID,
-		requestID: server.GetReqID(r),
-	}
 }
 
 // LoadMultipartResource loads a [forms.FileOpener] into the provided [tasks.MultipartResource].
@@ -169,211 +141,244 @@ func LoadMultipartResource(opener forms.FileOpener, res *tasks.MultipartResource
 	return readContent(bio)
 }
 
-func (f *createForm) Validate() {
+type createForm struct {
+	forms2.Form
+	URL       forms2.TextField     `json:"url"               validate:"trim required max_len:1024 is_url"`
+	Title     forms2.TextField     `json:"title"             validate:"trim max_len:1024"`
+	Labels    forms2.TextListField `json:"labels"            validate:"trim discard_empty"`
+	Created   forms2.DatetimeField `json:"created"`
+	FindMain  forms2.BooleanField  `json:"feature_find_main"`
+	HTML      forms2.FileField     `json:"html"`
+	Resources forms2.FileListField `json:"resource"`
+
+	resources []tasks.MultipartResource
+}
+
+func (f *createForm) Validate() error {
 	if !f.IsValid() {
-		return
+		return nil
 	}
 
 	// Load the html when provided.
-	if !f.Get("html").IsEmpty() {
-		opener := f.Get("html").(forms.TypedField[forms.FileOpener]).V()
+	if f.HTML.IsBound() && !f.HTML.IsEmpty() {
+		opener := f.HTML.Value()
 
 		// The html field is exactly a resource for the main page,
 		// set its properties now so we only need to read its content.
 		resource := tasks.MultipartResource{
-			URL: f.Get("url").String(),
+			URL: f.URL.Value(),
 			Header: http.Header{
 				"Content-Type": {"text/html"},
 			},
 		}
 		if err := LoadMultipartResource(opener, &resource); err != nil {
-			f.AddErrors("", forms.Gettext("Unable to process input data"))
-			return
+			return forms2.Gettext("Unable to process input data")
 		}
 
 		f.resources = append(f.resources, resource)
 
 		// This is final and "resource" values are ignored.
-		return
+		return nil
 	}
 
 	// Load all the resources passed in the "resource" field.
-	for _, opener := range f.Get("resource").(forms.TypedField[[]forms.FileOpener]).V() {
+	for _, opener := range f.Resources.Value() {
 		resource := tasks.MultipartResource{}
 		err := LoadMultipartResource(opener, &resource)
 		if err != nil {
-			if f.Get("url").String() != resource.URL {
+			if f.URL.Value() != resource.URL {
 				// As long as the error is not from the requested URL we can ignore it.
 				continue
 			}
-			f.AddErrors("", forms.Gettext("Unable to process input data"))
-			break
+			return forms2.Gettext("Unable to process input data")
 		}
 		f.resources = append(f.resources, resource)
 	}
+
+	return nil
 }
 
-func (f *createForm) createBookmark() (b *bookmarks.Bookmark, err error) {
+func (f *createForm) createBookmark(r *http.Request) (b *bookmarks.Bookmark, err error) {
 	if !f.IsBound() {
 		return nil, errors.New("form is not bound")
 	}
 
-	uri, _ := url.Parse(f.Get("url").String())
+	uri, _ := url.Parse(f.URL.Value())
 	uri.Fragment = ""
 
 	b = &bookmarks.Bookmark{
-		UserID:   &f.userID,
+		UserID:   &(auth.GetUser(r.Context()).ID),
 		State:    bookmarks.StateLoading,
 		URL:      uri.String(),
-		Title:    f.Get("title").String(),
+		Title:    f.Title.Value(),
 		Site:     uri.Hostname(),
 		SiteName: uri.Hostname(),
 	}
 
-	if !f.Get("labels").IsNil() {
-		b.Labels = f.Get("labels").(forms.TypedField[[]string]).V()
+	if len(f.Labels.Value()) > 0 {
+		b.Labels = f.Labels.Value()
 		slices.Sort(b.Labels)
 		b.Labels = slices.Compact(b.Labels)
 	}
 
-	if !f.Get("created").IsNil() {
-		b.Created = f.Get("created").(*forms.DatetimeField).V().UTC()
+	if !f.Created.Value().IsZero() {
+		b.Created = f.Created.Value().UTC()
 	}
 
 	defer func() {
 		if err != nil {
-			f.AddErrors("", forms.ErrUnexpected)
+			f.AddErrors(forms2.ErrUnexpected)
 		}
 	}()
 
 	if err = bookmarks.Bookmarks.Create(b); err != nil {
-		return
+		return nil, err
 	}
 
 	// Start extraction job
 	err = tasks.ExtractPageTask.Run(b.ID, tasks.ExtractParams{
 		BookmarkID: b.ID,
-		RequestID:  f.requestID,
+		RequestID:  request.GetReqID(r.Context()),
 		Resources:  f.resources,
-		FindMain:   f.Get("feature_find_main").IsNil() || f.Get("feature_find_main").Value().(bool),
+		FindMain:   !f.FindMain.IsBound() || f.FindMain.Value(),
 	})
-	return
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
 }
 
 type updateForm struct {
-	*forms.Form
+	forms2.Form
+	Title         forms2.TextField     `json:"title"          validate:"trim required_or_nil max_len:1024"`
+	Description   forms2.TextField     `json:"description"    validate:"trim"`
+	SiteName      forms2.TextField     `json:"site_name"      validate:"trim required_or_nil"`
+	Authors       forms2.TextListField `json:"authors"        validate:"trim discard_empty split_lines"`
+	Published     forms2.DatetimeField `json:"published"`
+	Lang          forms2.TextField     `json:"lang"           validate:"trim lowercase check_lang"`
+	TextDirection forms2.TextField     `json:"text_direction" validate:"text_dir_choices"`
+	IsMarked      forms2.BooleanField  `json:"is_marked"`
+	IsArchived    forms2.BooleanField  `json:"is_archived"`
+	IsDeleted     forms2.BooleanField  `json:"is_deleted"`
+	ReadProgress  forms2.IntegerField  `json:"read_progress"  validate:"gte:0 lte:100"`
+	ReadAnchor    forms2.TextField     `json:"read_anchor"    validate:"trim max_len:256"`
+	Labels        forms2.TextListField `json:"labels"         validate:"trim discard_empty"`
+	AddLabels     forms2.TextListField `json:"add_labels"     validate:"trim discard_empty"`
+	RemoveLabels  forms2.TextListField `json:"remove_labels"  validate:"trim discard_empty"`
+	To            forms2.TextField     `json:"_to"            validate:"trim max_len:512"`
 }
 
-func newUpdateForm(tr forms.Translator) *updateForm {
-	return &updateForm{forms.Must(
-		forms.WithTranslator(context.Background(), tr),
-		forms.NewTextField("title", forms.Trim, forms.RequiredOrNil, forms.MaxLen(1024)),
-		forms.NewTextField("description", forms.Trim),
-		forms.NewTextField("site_name", forms.Trim, forms.RequiredOrNil),
-		forms.NewTextListField("authors", forms.Trim,
-			forms.DiscardEmpty, forms.SplitLines,
-		),
-		forms.NewDatetimeField("published", forms.Trim),
-		forms.NewTextField("lang", forms.Trim, forms.CleanerFunc(func(v any) any {
-			if v, ok := v.(string); ok {
-				return strings.ToLower(v)
-			}
-			return v
-		}), forms.TypedValidator(func(v string) bool {
+func (f *updateForm) GetTaggedValidator(name, _ string, tc *forms2.TagContext) (forms2.Validator, bool) {
+	switch name {
+	case "lowercase":
+		return forms2.CleanerFunc[string](strings.ToLower), true
+	case "check_lang":
+		return forms2.TypedValidator(func(v string) bool {
 			if v == "" {
 				return true
 			}
 			_, err := language.Parse(v)
 			return err == nil
-		}, forms.Gettext("invalid language code"))),
-		forms.NewTextField("text_direction", forms.Choices(
-			forms.Choice("", ""),
-			forms.Choice(tr.Gettext("Left to right"), "ltr"),
-			forms.Choice(tr.Gettext("Right to left"), "rtl"),
-		)),
-		forms.NewBooleanField("is_marked"),
-		forms.NewBooleanField("is_archived"),
-		forms.NewBooleanField("is_deleted"),
-		forms.NewIntegerField("read_progress", forms.Gte(0), forms.Lte(100)),
-		forms.NewTextField("read_anchor", forms.Trim, forms.MaxLen(256)),
-		forms.NewTextListField("labels", forms.Trim, forms.DiscardEmpty),
-		forms.NewTextListField("add_labels", forms.Trim, forms.DiscardEmpty),
-		forms.NewTextListField("remove_labels", forms.Trim, forms.DiscardEmpty),
-		forms.NewTextField("_to", forms.Trim, forms.MaxLen(512)),
-	)}
+		}, forms2.Gettext("invalid language code")), true
+	case "text_dir_choices":
+		forms2.Choices(tc.Field,
+			forms2.Choice("", ""),
+			forms2.Choice(forms2.GetTranslator(tc.Context).Gettext("Left to right"), "ltr"),
+			forms2.Choice(forms2.GetTranslator(tc.Context).Gettext("Right to left"), "rtl"),
+		)
+		return nil, true
+	default:
+		return nil, false
+	}
 }
 
-// nolint:gocyclo
 func (f *updateForm) update(b *bookmarks.Bookmark) (updated map[string]any, err error) {
 	updated = map[string]any{}
 	var deleted *bool
 	labelsChanged := false
 
-	for _, field := range f.Fields() {
-		if field.Name() == "published" && field.IsBound() && field.IsEmpty() {
+	if f.IsDeleted.IsBound() {
+		deleted = new(f.IsDeleted.Value())
+	}
+
+	if f.Title.IsBound() {
+		b.Title = utils.NormalizeSpaces(f.Title.Value())
+		updated["title"] = b.Title
+	}
+
+	if f.Description.IsBound() {
+		b.Description = utils.NormalizeSpaces(f.Description.Value())
+		updated["description"] = b.Description
+	}
+
+	if f.SiteName.IsBound() {
+		b.SiteName = utils.NormalizeSpaces(f.SiteName.Value())
+		updated["site_name"] = b.SiteName
+	}
+
+	if f.Published.IsBound() {
+		if f.Published.Value().IsZero() {
 			b.Published = nil
 			updated["published"] = nil
-			continue
+		} else {
+			b.Published = new(f.Published.Value().UTC())
+			updated["published"] = b.Published
 		}
+	}
 
-		if !field.IsBound() || field.IsNil() {
-			continue
-		}
-		switch n := field.Name(); n {
-		case "title":
-			b.Title = utils.NormalizeSpaces(field.String())
-			updated[n] = field.String()
-		case "description":
-			b.Description = utils.NormalizeSpaces(field.String())
-			updated[n] = field.String()
-		case "site_name":
-			b.SiteName = utils.NormalizeSpaces(field.String())
-			updated[n] = field.String()
-		case "published":
-			d := field.(*forms.DatetimeField).V()
-			if !d.IsZero() {
-				d = d.UTC()
-				b.Published = &d
-				updated[n] = d
-			}
-		case "lang":
-			b.Lang = field.String()
-			updated[n] = b.Lang
-		case "text_direction":
-			b.TextDirection = field.String()
-			updated[n] = b.TextDirection
-		case "authors":
-			b.Authors = field.(*forms.TextListField).V()
-			updated[n] = b.Authors
-		case "is_marked":
-			b.IsMarked = field.(forms.TypedField[bool]).V()
-			updated[n] = field.Value()
-		case "is_archived":
-			b.IsArchived = field.(forms.TypedField[bool]).V()
-			updated[n] = field.Value()
-		case "is_deleted":
-			deleted = new(bool)
-			*deleted = field.(forms.TypedField[bool]).V()
-		case "read_progress":
-			b.ReadProgress = field.(forms.TypedField[int]).V()
-			updated[n] = field.Value()
-		case "read_anchor":
-			b.ReadAnchor = field.String()
-			updated[n] = field.Value()
-		// labels, add_labels and remove_labels are declared and
-		// processed in this order.
-		case "labels":
-			b.Labels = field.(forms.TypedField[[]string]).V()
-			labelsChanged = true
-		case "add_labels":
-			b.Labels = append(b.Labels, field.(forms.TypedField[[]string]).V()...)
-			labelsChanged = true
-		case "remove_labels":
-			b.Labels = slices.DeleteFunc(b.Labels, func(s string) bool {
-				return slices.Contains(field.(forms.TypedField[[]string]).V(), s)
-			})
-			labelsChanged = true
-		}
+	if f.Lang.IsBound() {
+		b.Lang = f.Lang.Value()
+		updated["lang"] = b.Lang
+	}
+
+	if f.TextDirection.IsBound() {
+		b.TextDirection = f.TextDirection.Value()
+		updated["text_direction"] = b.TextDirection
+	}
+
+	if f.Authors.IsBound() {
+		b.Authors = f.Authors.Value()
+		updated["authors"] = b.Authors
+	}
+
+	if f.IsMarked.IsBound() {
+		b.IsMarked = f.IsMarked.Value()
+		updated["is_marked"] = b.IsMarked
+	}
+
+	if f.IsArchived.IsBound() {
+		b.IsArchived = f.IsArchived.Value()
+		updated["is_archived"] = b.IsArchived
+	}
+
+	if f.ReadProgress.IsBound() {
+		b.ReadProgress = f.ReadProgress.Value()
+		updated["read_progress"] = b.ReadProgress
+	}
+
+	if f.ReadAnchor.IsBound() {
+		b.ReadAnchor = f.ReadAnchor.Value()
+		updated["read_anchor"] = b.ReadAnchor
+	}
+
+	// labels, add_labels and remove_labels are declared and
+	// processed in this order.
+	if f.Labels.IsBound() {
+		b.Labels = f.Labels.Value()
+		labelsChanged = true
+	}
+
+	if f.AddLabels.IsBound() {
+		b.Labels = append(b.Labels, f.AddLabels.Value()...)
+		labelsChanged = true
+	}
+
+	if f.RemoveLabels.IsBound() {
+		b.Labels = slices.DeleteFunc(b.Labels, func(s string) bool {
+			return slices.Contains(f.RemoveLabels.Value(), s)
+		})
+		labelsChanged = true
 	}
 
 	if labelsChanged {
@@ -392,7 +397,7 @@ func (f *updateForm) update(b *bookmarks.Bookmark) (updated map[string]any, err 
 	defer func() {
 		updated["id"] = b.UID
 		if err != nil {
-			f.AddErrors("", forms.ErrUnexpected)
+			f.AddErrors(forms2.ErrUnexpected)
 		}
 	}()
 
