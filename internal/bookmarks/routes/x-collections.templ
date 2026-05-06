@@ -192,7 +192,7 @@ templ (v Views) collectionInfo(item *dataset.Collection, f *collectionForm, bl *
 							{{
 								q := url.Values{"collection": {item.ID}}
 								if of, ok := checkOrderForm(ctx); ok {
-									q[of.fieldName] = of.value()
+									q[of.Sort.Name()] = of.Sort.Value()
 								}
 							}}
 							@Components{}.exportMenu(q)

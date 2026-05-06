@@ -25,8 +25,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/db"
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
-	"codeberg.org/readeck/readeck/pkg/forms"
-	forms2 "codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 	"codeberg.org/readeck/readeck/pkg/http/csp"
 	"codeberg.org/readeck/readeck/pkg/utils"
 )
@@ -47,15 +46,15 @@ func (h *viewsRouter) withBaseContext(next http.Handler) http.Handler {
 }
 
 func (h *viewsRouter) bookmarkList(w http.ResponseWriter, r *http.Request) {
-	f := forms2.New[createForm](r.Context())
+	f := forms.New[createForm](r.Context())
 
 	switch r.Method {
 	case http.MethodGet:
 		// prepopulate the URL, no validation takes place at this point
-		_ = forms2.UnmarshalValues(r.URL.Query()["url"], &f.URL)
+		_ = forms.UnmarshalValues(r.URL.Query()["url"], &f.URL)
 	case http.MethodPost:
 		// POST => create a new bookmark
-		forms2.Bind(r, f)
+		forms.Bind(r, f)
 		if f.IsValid() {
 			f.Created.Set(time.Time{})
 			f.FindMain.Set(false)
@@ -177,7 +176,7 @@ func (h *viewsRouter) diagnosis(w http.ResponseWriter, r *http.Request) {
 func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
 	b := getBookmark(r.Context())
-	f := forms2.New[updateForm](r.Context())
+	f := forms.New[updateForm](r.Context())
 
 	status := http.StatusOK
 
@@ -195,7 +194,7 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case http.MethodPost:
-		forms2.Bind(r, f)
+		forms.Bind(r, f)
 		status = http.StatusUnprocessableEntity
 
 		if !f.IsValid() {
@@ -329,15 +328,16 @@ func (h *viewsRouter) bookmarkShareLink(w http.ResponseWriter, r *http.Request) 
 
 func (h *viewsRouter) bookmarkShareEmail(w http.ResponseWriter, r *http.Request) {
 	info := getSharedEmail(r.Context())
+	f := info.Form.(*shareForm)
 
 	// Get format from query string
 	if format := r.URL.Query().Get("format"); format != "" {
-		info.Form.Get("format").Set(format)
+		f.Format.Set(format)
 	}
 
 	// Set default email address when sending an EPUB
-	if u := auth.GetRequestUser(r); u != nil && info.Form.Get("format").String() == "epub" && info.Form.Get("email").String() == "" {
-		info.Form.Get("email").Set(u.Settings.EmailSettings.EpubTo)
+	if u := auth.GetRequestUser(r); u != nil && f.Format.Value() == "epub" && f.Email.Value() == "" {
+		f.Email.Set(u.Settings.EmailSettings.EpubTo)
 	}
 
 	if server.IsTurboRequest(r) {
@@ -374,18 +374,17 @@ func (h *viewsRouter) labelInfo(w http.ResponseWriter, r *http.Request) {
 
 	// POST, update label name
 	if r.Method == http.MethodPost {
-		f := newLabelForm(server.Locale(r))
-		forms.Bind(f, r)
+		f := forms.BindAs[labelForm](r)
 
 		if f.IsValid() {
-			_, err := bookmarks.Bookmarks.RenameLabel(auth.GetRequestUser(r), label, f.Get("name").String())
+			_, err := bookmarks.Bookmarks.RenameLabel(auth.GetRequestUser(r), label, f.Name.Value())
 			if err != nil {
 				server.Err(w, r, err)
 				return
 			}
 
 			redir := urls.AbsoluteURL(r, "/bookmarks/labels")
-			redir.RawQuery = url.Values{"name": []string{f.Get("name").String()}}.Encode()
+			redir.RawQuery = url.Values{"name": []string{f.Name.Value()}}.Encode()
 			w.Header().Set("Location", redir.String())
 			w.WriteHeader(http.StatusSeeOther)
 			return
@@ -408,8 +407,7 @@ func (h *viewsRouter) labelDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := newLabelDeleteForm(server.Locale(r))
-	forms.Bind(f, r)
+	f := forms.BindAs[labelDeleteForm](r)
 	if err := f.trigger(auth.GetRequestUser(r), label); err != nil {
 		server.Err(w, r, err)
 		return

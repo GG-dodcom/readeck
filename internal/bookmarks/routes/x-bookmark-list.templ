@@ -64,7 +64,7 @@ templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFo
 						{{
 							q := filters.getQueryParams()
 							if of, ok := checkOrderForm(ctx); ok {
-								q[of.fieldName] = of.value()
+								q[of.Sort.Name()] = of.Sort.Value()
 							}
 						}}
 						@Components{}.exportMenu(q) {
@@ -120,8 +120,8 @@ templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFo
 					<form action={ URL(ctx, "/bookmarks") } method="get" aria-label={ L(ctx).Gettext("Bookmark filters") }>
 						@FilterComponents{}.filters(filters)
 						if of, ok := checkOrderForm(ctx); ok {
-							for _, x := range of.value() {
-								<input type="hidden" name={ of.fieldName } value={ x }/>
+							for _, x := range of.Sort.Value() {
+								<input type="hidden" name={ of.Sort.Name() } value={ x }/>
 							}
 						}
 						<input type="hidden" name="bf" value="1"/>
@@ -338,7 +338,7 @@ templ (c Components) listActions() {
 		if orderForm, ok := checkOrderForm(ctx); ok {
 			{{
 				currentOrder := "-created"
-				if v := orderForm.value(); len(v) > 0 {
+				if v := orderForm.Sort.Value(); len(v) > 0 {
 					currentOrder = v[0]
 				}
 				orderOptions := orderForm.getOptions(server.GetRequest(ctx), L(ctx))
@@ -403,7 +403,7 @@ templ (c Components) exportMenu(q url.Values) {
 					{{
 						q2 := maps.Clone(q)
 						if f, ok := checkOrderForm(ctx); ok {
-							delete(q2, f.fieldName)
+							delete(q2, f.Sort.Name())
 						}
 					}}
 					<li>

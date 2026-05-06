@@ -373,7 +373,7 @@ func (v Views) labelInfo(label string, bl *dataset.BookmarkList, isDeleted bool)
 					if HasPermission(ctx, "api:bookmarks", "export") {
 						q := url.Values{"labels": {`"` + label + `"`}}
 						if of, ok := checkOrderForm(ctx); ok {
-							q[of.fieldName] = of.value()
+							q[of.Sort.Name()] = of.Sort.Value()
 						}
 						templ_7745c5c3_Err = Components{}.exportMenu(q).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {

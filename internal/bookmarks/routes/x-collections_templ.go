@@ -732,7 +732,7 @@ func (v Views) collectionInfo(item *dataset.Collection, f *collectionForm, bl *d
 					if HasPermission(ctx, "api:bookmarks", "export") {
 						q := url.Values{"collection": {item.ID}}
 						if of, ok := checkOrderForm(ctx); ok {
-							q[of.fieldName] = of.value()
+							q[of.Sort.Name()] = of.Sort.Value()
 						}
 						templ_7745c5c3_Err = Components{}.exportMenu(q).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {

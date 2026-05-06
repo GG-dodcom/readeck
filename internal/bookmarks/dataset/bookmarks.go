@@ -24,7 +24,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/db/scanner"
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 	"codeberg.org/readeck/readeck/pkg/utils"
 )
 
@@ -444,7 +444,7 @@ type SharedLink struct {
 
 // SharedEmail contains the informat for sending a bookmark by email.
 type SharedEmail struct {
-	Form  forms.Binder
+	Form  forms.FormBinder
 	Title string
 	ID    string
 	Error error

@@ -114,7 +114,7 @@ templ (v Views) labelInfo(label string, bl *dataset.BookmarkList, isDeleted bool
 						{{
 							q := url.Values{"labels": {`"` + label + `"`}}
 							if of, ok := checkOrderForm(ctx); ok {
-								q[of.fieldName] = of.value()
+								q[of.Sort.Name()] = of.Sort.Value()
 							}
 						}}
 						@Components{}.exportMenu(q)

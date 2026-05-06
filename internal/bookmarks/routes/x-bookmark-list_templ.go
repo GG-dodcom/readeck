@@ -210,7 +210,7 @@ func (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFor
 					}
 					q := filters.getQueryParams()
 					if of, ok := checkOrderForm(ctx); ok {
-						q[of.fieldName] = of.value()
+						q[of.Sort.Name()] = of.Sort.Value()
 					}
 					templ_7745c5c3_Var11 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -447,15 +447,15 @@ func (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFor
 				return templ_7745c5c3_Err
 			}
 			if of, ok := checkOrderForm(ctx); ok {
-				for _, x := range of.value() {
+				for _, x := range of.Sort.Value() {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<input type=\"hidden\" name=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var23 string
-					templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(of.fieldName)
+					templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(of.Sort.Name())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark-list.templ`, Line: 124, Col: 48}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark-list.templ`, Line: 124, Col: 50}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 					if templ_7745c5c3_Err != nil {
@@ -468,7 +468,7 @@ func (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFor
 					var templ_7745c5c3_Var24 string
 					templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(x)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark-list.templ`, Line: 124, Col: 60}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-bookmark-list.templ`, Line: 124, Col: 62}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 					if templ_7745c5c3_Err != nil {
@@ -1130,7 +1130,7 @@ func (c Components) listActions() templ.Component {
 		}
 		if orderForm, ok := checkOrderForm(ctx); ok {
 			currentOrder := "-created"
-			if v := orderForm.value(); len(v) > 0 {
+			if v := orderForm.Sort.Value(); len(v) > 0 {
 				currentOrder = v[0]
 			}
 			orderOptions := orderForm.getOptions(server.GetRequest(ctx), L(ctx))
@@ -1332,7 +1332,7 @@ func (c Components) exportMenu(q url.Values) templ.Component {
 			}
 			q2 := maps.Clone(q)
 			if f, ok := checkOrderForm(ctx); ok {
-				delete(q2, f.fieldName)
+				delete(q2, f.Sort.Name())
 			}
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "<li><a class=\"link\" href=\"")
 			if templ_7745c5c3_Err != nil {

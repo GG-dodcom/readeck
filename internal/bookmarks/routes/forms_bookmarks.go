@@ -40,8 +40,6 @@ import (
 	"codeberg.org/readeck/readeck/pkg/utils"
 )
 
-var validSchemes = []string{"http", "https"}
-
 var (
 	errNoResourceURL     = errors.New("no resource URL")
 	errNoResourceContent = errors.New("No resource content")
@@ -420,89 +418,73 @@ func (f *updateForm) update(b *bookmarks.Bookmark) (updated map[string]any, err 
 
 	if deleted != nil {
 		updated["is_deleted"] = *deleted
-		df := newDeleteForm(nil)
-		df.Get("cancel").Set(!*deleted)
-		err = df.trigger(b)
+		err = f.delete(b, !*deleted)
 	}
 
 	return
 }
 
-type deleteForm struct {
-	*forms.Form
-}
-
-func newDeleteForm(tr forms.Translator) *deleteForm {
-	return &deleteForm{forms.Must(
-		forms.WithTranslator(context.Background(), tr),
-		forms.NewBooleanField("cancel"),
-		forms.NewTextField("_to", forms.Trim, forms.MaxLen(512)),
-	)}
-}
-
-// trigger launch the user deletion or cancel task.
-func (f *deleteForm) trigger(b *bookmarks.Bookmark) error {
-	if !f.Get("cancel").IsNil() && f.Get("cancel").Value().(bool) {
+func (f *updateForm) delete(b *bookmarks.Bookmark, cancel bool) error {
+	if cancel {
 		return tasks.DeleteBookmarkTask.Cancel(b.ID)
 	}
-
 	return tasks.DeleteBookmarkTask.Run(b.ID, b.ID)
 }
 
 type syncListForm struct {
-	*forms.Form
-}
-
-func newSyncListForm(tr forms.Translator) *syncListForm {
-	return &syncListForm{
-		Form: forms.Must(
-			forms.WithTranslator(context.Background(), tr),
-			forms.NewDatetimeField("since"),
-		),
-	}
+	forms2.Form
+	Since forms2.DatetimeField `json:"since"`
 }
 
 type syncForm struct {
-	*forms.Form
+	forms2.Form
+	OrderForm
+
+	ID             forms2.TextListField `json:"id"`
+	WithJSON       forms2.BooleanField  `json:"with_json"`
+	WithHTML       forms2.BooleanField  `json:"with_html"`
+	WithMarkdown   forms2.BooleanField  `json:"with_markdown"`
+	WithResources  forms2.BooleanField  `json:"with_resources"`
+	ResourcePrefix forms2.TextField     `json:"resource_prefix" validate:"max_len:128"`
 }
 
-func newSyncForm(tr forms.Translator) *syncForm {
-	return &syncForm{
-		Form: forms.Must(
-			forms.WithTranslator(context.Background(), tr),
-			forms.NewTextListField("id"),
-			forms.NewBooleanField("with_json"),
-			forms.NewBooleanField("with_html"),
-			forms.NewBooleanField("with_markdown"),
-			forms.NewBooleanField("with_resources"),
-			forms.NewTextField("resource_prefix", forms.Default("."), forms.MaxLen(128)),
-		),
-	}
+func newSyncForm(ctx context.Context) *syncForm {
+	f := forms2.New[syncForm](ctx)
+	f.setSortChoices(map[string]goquexp.Orderable{
+		"updated": exp.DateTime(goqu.C("updated")),
+		"created": exp.DateTime(goqu.C("created")),
+	})
+
+	f.ResourcePrefix.Set(".")
+
+	return f
 }
 
 type autocompleteHelperForm struct {
-	*forms.Form
+	forms2.Form
+	Type  forms2.TextField `json:"type" validate:"required type_choices"`
+	Query forms2.TextField `json:"q"    validate:"trim required"`
 }
 
-func newPropLookupForm(tr forms.Translator) *autocompleteHelperForm {
-	return &autocompleteHelperForm{
-		Form: forms.Must(
-			forms.WithTranslator(context.Background(), tr),
-			forms.NewTextField("type", forms.Required, forms.Choices(
-				forms.Choice("author", "author"),
-				forms.Choice("label", "label"),
-				forms.Choice("site", "site"),
-				forms.Choice("title", "title"),
-			)),
-			forms.NewTextField("q", forms.Trim, forms.Required),
-		),
+func (f *autocompleteHelperForm) GetTaggedValidator(name, _ string, tc *forms2.TagContext) (forms2.Validator, bool) {
+	switch name {
+	case "type_choices":
+		forms2.Choices(tc.Field,
+			forms2.Choice("author", "author"),
+			forms2.Choice("label", "label"),
+			forms2.Choice("site", "site"),
+			forms2.Choice("title", "title"),
+		)
+		return nil, true
+	default:
+		return nil, false
 	}
 }
 
 func (f *autocompleteHelperForm) getQuerySet(user *users.User) *goqu.SelectDataset {
-	q := strings.ReplaceAll(f.Get("q").String(), "*", "%")
+	q := strings.ReplaceAll(f.Query.Value(), "*", "%")
 
-	switch f.Get("type").String() {
+	switch f.Type.Value() {
 	case "author":
 		return exp.JSONStringsDataset(db.Q().
 			From(goqu.T(db.TableBookmark).As("b")).
@@ -567,46 +549,24 @@ func (f *autocompleteHelperForm) getQuerySet(user *users.User) *goqu.SelectDatas
 }
 
 type labelForm struct {
-	*forms.Form
-}
-
-func newLabelForm(tr forms.Translator) *labelForm {
-	return &labelForm{
-		Form: forms.Must(
-			forms.WithTranslator(context.Background(), tr),
-			forms.NewTextField("name", forms.Trim, forms.Required),
-		),
-	}
+	forms2.Form
+	Name forms2.TextField `json:"name" validate:"trim required"`
 }
 
 type labelSearchForm struct {
-	*forms.Form
-}
-
-func newLabelSearchForm(tr forms.Translator) *labelSearchForm {
-	return &labelSearchForm{forms.Must(
-		forms.WithTranslator(context.Background(), tr),
-		forms.NewTextField("q", forms.Trim, forms.RequiredOrNil),
-	)}
+	forms2.Form
+	Query forms2.TextField `json:"q" validate:"trim required_or_nil"`
 }
 
 type labelDeleteForm struct {
-	*forms.Form
-}
-
-func newLabelDeleteForm(tr forms.Translator) *labelDeleteForm {
-	return &labelDeleteForm{
-		forms.Must(
-			forms.WithTranslator(context.Background(), tr),
-			forms.NewBooleanField("cancel"),
-		),
-	}
+	forms2.Form
+	Cancel forms2.BooleanField `json:"cancel"`
 }
 
 func (f *labelDeleteForm) trigger(user *users.User, name string) error {
 	id := fmt.Sprintf("%d@%s", user.ID, name)
 
-	if !f.Get("cancel").IsNil() && f.Get("cancel").(forms.TypedField[bool]).V() {
+	if f.Cancel.IsBound() && f.Cancel.Value() {
 		return tasks.DeleteLabelTask.Cancel(id)
 	}
 
@@ -778,35 +738,32 @@ func (f *filterForm) setType(v string) {
 	}
 }
 
-type orderForm struct {
-	*forms.Form
-	fieldName string
-	choices   map[string]goquexp.Orderable
+// OrderForm is a form providing a "sort" parameter and methods
+// to set a query's ORDER BY clause.
+type OrderForm struct {
+	forms2.Form
+	choices map[string]goquexp.Orderable
+	Sort    forms2.TextListField `json:"sort" validate:"trim"`
 }
 
-func newOrderForm(fieldName string, choices map[string]goquexp.Orderable) *orderForm {
+func newOrderForm(ctx context.Context, choices map[string]goquexp.Orderable) *OrderForm {
+	f := forms2.New[OrderForm](ctx)
+	f.setSortChoices(choices)
+	return f
+}
+
+func (f *OrderForm) setSortChoices(choices map[string]goquexp.Orderable) {
 	// Compile a list of choices being pairs of "A" and "-A", "B", "-B",
-	fieldChoices := make(forms.ValueChoices[string], 0, len(choices)*2)
+	fieldChoices := make(forms2.ValueChoices[string], 0, len(choices)*2)
 	for k := range choices {
-		fieldChoices = append(fieldChoices, forms.Choice("", k), forms.Choice("", "-"+k))
+		fieldChoices = append(fieldChoices, forms2.Choice("", k), forms2.Choice("", "-"+k))
 	}
-
-	return &orderForm{
-		Form: forms.Must(
-			context.Background(),
-			forms.NewTextListField(fieldName, forms.Trim, forms.Choices(fieldChoices...)),
-		),
-		fieldName: fieldName,
-		choices:   choices,
-	}
+	f.choices = choices
+	forms2.Choices(&f.Sort, fieldChoices...)
 }
 
-func (f *orderForm) toOrderedExpressions() orderExpressionList {
-	if !f.IsBound() || !f.IsValid() {
-		return nil
-	}
-	field := f.Get(f.fieldName)
-	values := field.(forms.TypedField[[]string]).V()
+func (f *OrderForm) toOrderedExpressions() orderExpressionList {
+	values := f.Sort.Value()
 	if len(values) == 0 {
 		return nil
 	}
@@ -827,31 +784,21 @@ func (f *orderForm) toOrderedExpressions() orderExpressionList {
 	return res
 }
 
-func (f *orderForm) value() []string {
-	if !f.IsBound() || !f.IsValid() {
-		return nil
-	}
-
-	return f.Get(f.fieldName).(forms.TypedField[[]string]).V()
-}
-
 type bookmarkOrderForm struct {
-	*orderForm
+	OrderForm
 }
 
-func newBookmarkOrderForm() *bookmarkOrderForm {
+func newBookmarkOrderForm(ctx context.Context) *bookmarkOrderForm {
 	t := goqu.T("b")
 
-	return &bookmarkOrderForm{
-		orderForm: newOrderForm("sort", map[string]goquexp.Orderable{
-			"created":   exp.DateTime(t.Col("created")),
-			"domain":    t.Col("domain"),
-			"duration":  goqu.Case().When(goqu.L("? > 0", t.Col("duration")), t.Col("duration")).Else(goqu.L("? * 0.3", t.Col("word_count"))),
-			"published": exp.DateTime(goqu.Case().When(t.Col("published").IsNot(nil), t.Col("published")).Else(t.Col("created"))),
-			"site":      t.Col("site_name"),
-			"title":     t.Col("title"),
-		}),
-	}
+	return &bookmarkOrderForm{*newOrderForm(ctx, map[string]goquexp.Orderable{
+		"created":   exp.DateTime(t.Col("created")),
+		"domain":    t.Col("domain"),
+		"duration":  goqu.Case().When(goqu.L("? > 0", t.Col("duration")), t.Col("duration")).Else(goqu.L("? * 0.3", t.Col("word_count"))),
+		"published": exp.DateTime(goqu.Case().When(t.Col("published").IsNot(nil), t.Col("published")).Else(t.Col("created"))),
+		"site":      t.Col("site_name"),
+		"title":     t.Col("title"),
+	})}
 }
 
 func (f *bookmarkOrderForm) getOptions(r *http.Request, tr *locales.Locale) [][3]string {
@@ -894,30 +841,45 @@ var validateTimeToken = forms.ValueValidatorFunc[string](func(_ forms.Field, val
 })
 
 type shareForm struct {
-	*forms.Form
+	forms2.Form
+	Email  forms2.TextField `json:"email"  validate:"trim required max_len:128 is_email"`
+	Format forms2.TextField `json:"format" validate:"trim format_choices"`
 }
 
-func newShareForm(tr forms.Translator) *shareForm {
-	return &shareForm{
-		Form: forms.Must(
-			forms.WithTranslator(context.Background(), tr),
-			forms.NewTextField("email",
-				forms.Trim,
-				forms.Required,
-				forms.MaxLen(128),
-				forms.IsEmail,
-			),
-			forms.NewTextField("format",
-				forms.Trim,
-				forms.Choices(
-					forms.Choice("Article", "html"),
-					forms.Choice("E-Book", "epub"),
-				),
-				forms.Default("html"),
-			),
-		),
+func (f *shareForm) GetTaggedValidator(name, _ string, tc *forms2.TagContext) (forms2.Validator, bool) {
+	switch name {
+	case "format_choices":
+		forms2.Choices(tc.Field,
+			forms2.Choice(forms2.GetTranslator(tc.Context).Gettext("Article"), "html"),
+			forms2.Choice(forms2.GetTranslator(tc.Context).Gettext("E-Book"), "epub"),
+		)
+		return nil, true
+	default:
+		return nil, false
 	}
 }
+
+// func newShareForm(tr forms.Translator) *shareForm {
+// 	return &shareForm{
+// 		Form: forms.Must(
+// 			forms.WithTranslator(context.Background(), tr),
+// 			forms.NewTextField("email",
+// 				forms.Trim,
+// 				forms.Required,
+// 				forms.MaxLen(128),
+// 				forms.IsEmail,
+// 			),
+// 			forms.NewTextField("format",
+// 				forms.Trim,
+// 				forms.Choices(
+// 					forms.Choice("Article", "html"),
+// 					forms.Choice("E-Book", "epub"),
+// 				),
+// 				forms.Default("html"),
+// 			),
+// 		),
+// 	}
+// }
 
 func (f *shareForm) sendBookmark(r *http.Request, b *bookmarks.Bookmark) (err error) {
 	if !f.IsBound() {
@@ -935,22 +897,22 @@ func (f *shareForm) sendBookmark(r *http.Request, b *bookmarks.Bookmark) (err er
 		}
 	}
 
-	switch f.Get("format").String() {
+	switch f.Format.Value() {
 	case "html":
 		exporter = converter.NewHTMLEmailExporter(
-			f.Get("email").String(),
+			f.Email.Value(),
 			options...,
 		)
 	case "epub":
 		exporter = converter.NewEPUBEmailExporter(
-			f.Get("email").String(),
+			f.Email.Value(),
 			options...,
 		)
 	}
 
 	if exporter == nil {
 		err = errors.New("no exporter")
-		f.AddErrors("", forms.ErrUnexpected)
+		f.AddErrors(forms2.ErrUnexpected)
 		return
 	}
 
@@ -963,7 +925,7 @@ func (f *shareForm) sendBookmark(r *http.Request, b *bookmarks.Bookmark) (err er
 			},
 		},
 	); err != nil {
-		f.AddErrors("", forms.ErrUnexpected)
+		f.AddErrors(forms2.ErrUnexpected)
 		return
 	}
 

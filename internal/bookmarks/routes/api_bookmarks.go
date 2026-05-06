@@ -257,7 +257,7 @@ func (api *apiRouter) bookmarkShareEmail(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	server.TextMsg(w, r, http.StatusOK, "Email sent to "+info.Form.Get("email").String())
+	server.TextMsg(w, r, http.StatusOK, "Email sent to "+info.Form.(*shareForm).Email.Value())
 }
 
 // bookmarkResource is the route returning any resource
@@ -280,8 +280,7 @@ func (api *apiRouter) bookmarkResource(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *apiRouter) autocompleteHelper(w http.ResponseWriter, r *http.Request) {
-	f := newPropLookupForm(server.Locale(r))
-	forms.BindURL(f, r)
+	f := forms2.BindAs[autocompleteHelperForm](r)
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
@@ -329,15 +328,14 @@ func (api *apiRouter) labelInfo(w http.ResponseWriter, r *http.Request) {
 
 func (api *apiRouter) labelUpdate(w http.ResponseWriter, r *http.Request) {
 	label := getLabel(r.Context())
-	f := newLabelForm(server.Locale(r))
-	forms.Bind(f, r)
+	f := forms2.BindAs[labelForm](r)
 
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusBadRequest, f)
 		return
 	}
 
-	ids, err := bookmarks.Bookmarks.RenameLabel(auth.GetRequestUser(r), label, f.Get("name").String())
+	ids, err := bookmarks.Bookmarks.RenameLabel(auth.GetRequestUser(r), label, f.Name.Value())
 	if err != nil {
 		server.Err(w, r, err)
 		return
@@ -348,7 +346,7 @@ func (api *apiRouter) labelUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	server.Render(w, r, http.StatusOK, map[string]string{
-		"name": f.Get("name").String(),
+		"name": f.Name.Value(),
 	})
 }
 
@@ -615,8 +613,8 @@ func (api *apiRouter) withCollectionFilters(next http.Handler) http.Handler {
 
 func (api *apiRouter) withBookmarkOrdering(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		f := newBookmarkOrderForm()
-		forms.BindURL(f, r)
+		f := newBookmarkOrderForm(r.Context())
+		forms2.BindValues(r.URL.Query(), f)
 
 		ctx := withOrderForm(r.Context(), f)
 		order := f.toOrderedExpressions()
@@ -820,10 +818,9 @@ func (api *apiRouter) withLabelList(next http.Handler) http.Handler {
 				goqu.C("user_id").Table("b").Eq(auth.GetRequestUser(r).ID),
 			)
 
-		f := newLabelSearchForm(server.Locale(r))
-		forms.BindURL(f, r)
-		if f.Get("q").String() != "" {
-			q := strings.ReplaceAll(f.Get("q").String(), "*", "%")
+		f := forms2.BindAs[labelSearchForm](r)
+		if f.Query.Value() != "" {
+			q := strings.ReplaceAll(f.Query.Value(), "*", "%")
 			ds = ds.Where(goqu.I("name").ILike(q))
 		}
 
@@ -885,13 +882,13 @@ func (api *apiRouter) withShareEmail(next http.Handler) http.Handler {
 		}
 
 		info := dataset.SharedEmail{
-			Form:  newShareForm(server.Locale(r)),
+			Form:  forms2.New[shareForm](r.Context()),
 			Title: b.Title,
 			ID:    b.UID,
 		}
 
 		if r.Method == http.MethodPost {
-			forms.Bind(info.Form, r)
+			forms2.Bind(r, info.Form)
 
 			if info.Form.IsValid() {
 				info.Error = info.Form.(*shareForm).sendBookmark(r, b)
