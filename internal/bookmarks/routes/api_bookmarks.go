@@ -28,8 +28,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
 	"codeberg.org/readeck/readeck/pkg/annotate"
-	"codeberg.org/readeck/readeck/pkg/forms"
-	forms2 "codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 	"codeberg.org/readeck/readeck/pkg/http/csp"
 	"codeberg.org/readeck/readeck/pkg/zipfs"
 )
@@ -177,7 +176,7 @@ func (api *apiRouter) bookmarkExport(w http.ResponseWriter, r *http.Request) {
 
 // bookmarkCreate creates a new bookmark.
 func (api *apiRouter) bookmarkCreate(w http.ResponseWriter, r *http.Request) {
-	f := forms2.BindAs[createForm](r)
+	f := forms.BindAs[createForm](r)
 
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
@@ -205,7 +204,7 @@ func (api *apiRouter) bookmarkCreate(w http.ResponseWriter, r *http.Request) {
 
 // bookmarkUpdate updates an existing bookmark.
 func (api *apiRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
-	f := forms2.BindAs[updateForm](r)
+	f := forms.BindAs[updateForm](r)
 
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusBadRequest, f)
@@ -280,7 +279,7 @@ func (api *apiRouter) bookmarkResource(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *apiRouter) autocompleteHelper(w http.ResponseWriter, r *http.Request) {
-	f := forms2.BindAs[autocompleteHelperForm](r)
+	f := forms.BindAs[autocompleteHelperForm](r)
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
@@ -328,7 +327,7 @@ func (api *apiRouter) labelInfo(w http.ResponseWriter, r *http.Request) {
 
 func (api *apiRouter) labelUpdate(w http.ResponseWriter, r *http.Request) {
 	label := getLabel(r.Context())
-	f := forms2.BindAs[labelForm](r)
+	f := forms.BindAs[labelForm](r)
 
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusBadRequest, f)
@@ -378,8 +377,7 @@ func (api *apiRouter) bookmarkAnnotations(w http.ResponseWriter, r *http.Request
 
 func (api *apiRouter) annotationCreate(w http.ResponseWriter, r *http.Request) {
 	b := getBookmark(r.Context())
-	f := forms2.New[annotationForm](r.Context()) // newAnnotationForm(server.Locale(r))
-	forms2.Bind(r, f)
+	f := forms.BindAs[annotationForm](r)
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
@@ -416,8 +414,7 @@ func (api *apiRouter) annotationUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := forms2.New[annotationUpdateForm](r.Context()) // newAnnotationUpdateForm(server.Locale(r))
-	forms2.Bind(r, f)
+	f := forms.BindAs[annotationUpdateForm](r)
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
@@ -505,7 +502,7 @@ func (api *apiRouter) withBookmark(next http.Handler) http.Handler {
 func (api *apiRouter) withBookmarkFilters(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		filter := chi.URLParam(r, "filter")
-		filters := newFilterForm(server.Locale(r))
+		filters := newFilterForm(r.Context())
 
 		switch filter {
 		case "unread":
@@ -513,7 +510,7 @@ func (api *apiRouter) withBookmarkFilters(next http.Handler) http.Handler {
 		case "archives":
 			filters.setArchived(true)
 		case "favorites":
-			filters.setMarked(true)
+			filters.setMarked()
 		case "articles":
 			filters.setType("article")
 		case "pictures":
@@ -535,8 +532,8 @@ func (api *apiRouter) withLabel(next http.Handler) http.Handler {
 		}
 		ctx := withLabel(r.Context(), label)
 
-		filters := newFilterForm(server.Locale(r))
-		filters.Get("labels").Set(strconv.Quote(label))
+		filters := newFilterForm(r.Context())
+		filters.Labels.Set(strconv.Quote(label))
 		ctx = withFilterForm(ctx, filters)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -554,7 +551,7 @@ func (api *apiRouter) withDefaultLimit(limit int) func(next http.Handler) http.H
 
 func (api *apiRouter) withoutPagination(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		f := newContextFilterForm(r.Context(), server.Locale(r))
+		f := newContextFilterForm(r.Context())
 		f.noPagination = true
 		next.ServeHTTP(w, r.WithContext(withFilterForm(r.Context(), f)))
 	})
@@ -563,7 +560,7 @@ func (api *apiRouter) withoutPagination(next http.Handler) http.Handler {
 func (api *apiRouter) withFixedLimit(limit uint) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			f := newContextFilterForm(r.Context(), server.Locale(r))
+			f := newContextFilterForm(r.Context())
 			f.fixedLimit = limit
 			next.ServeHTTP(w, r.WithContext(withFilterForm(r.Context(), f)))
 		})
@@ -597,10 +594,10 @@ func (api *apiRouter) withCollectionFilters(next http.Handler) http.Handler {
 		}
 
 		// Apply filters
-		f := newCollectionForm(server.Locale(r), r)
+		f := newCollectionForm(r)
 		f.setCollection(c)
-		filters := newContextFilterForm(r.Context(), server.Locale(r))
-		f.setFilters(filters)
+		filters := newContextFilterForm(r.Context())
+		*filters = f.FilterForm
 		ctx = withFilterForm(ctx, filters)
 
 		if _, ok := checkBookmarkOrder(ctx); !ok {
@@ -614,7 +611,7 @@ func (api *apiRouter) withCollectionFilters(next http.Handler) http.Handler {
 func (api *apiRouter) withBookmarkOrdering(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f := newBookmarkOrderForm(r.Context())
-		forms2.BindValues(r.URL.Query(), f)
+		forms.BindValues(r.URL.Query(), f)
 
 		ctx := withOrderForm(r.Context(), f)
 		order := f.toOrderedExpressions()
@@ -653,8 +650,8 @@ func (api *apiRouter) withBookmarkListSelectDataset(next http.Handler) http.Hand
 		ds = ds.Order(exp.DateTime(goqu.I("created")).Desc())
 
 		// Filters (search and other filterForm)
-		filterForm := newContextFilterForm(r.Context(), server.Locale(r))
-		forms.BindURL(filterForm, r)
+		filterForm := newContextFilterForm(r.Context())
+		forms.BindValues(r.URL.Query(), filterForm)
 
 		if !filterForm.IsValid() {
 			// When the form is invalid and we're not in a view, render the form's error list.
@@ -665,15 +662,14 @@ func (api *apiRouter) withBookmarkListSelectDataset(next http.Handler) http.Hand
 				return
 			}
 		} else {
-			filters := bookmarks.NewFiltersFromForm(filterForm)
-			filters.UpdateForm(filterForm)
+			filters := filterForm.toFilters()
 			ds = filters.ToSelectDataSet(ds)
 		}
 
 		// Filtering by ids. In this case we include all the given IDs and we sort the
 		// result according to the IDs order.
-		if !filterForm.Get("id").IsNil() {
-			ids := filterForm.Get("id").Value().([]string)
+		if filterForm.ID.IsBound() {
+			ids := filterForm.ID.Value()
 			ds = ds.Where(goqu.C("uid").Table("b").In(ids))
 
 			orderging := goqu.Case().Value(goqu.C("uid").Table("b"))
@@ -818,7 +814,7 @@ func (api *apiRouter) withLabelList(next http.Handler) http.Handler {
 				goqu.C("user_id").Table("b").Eq(auth.GetRequestUser(r).ID),
 			)
 
-		f := forms2.BindAs[labelSearchForm](r)
+		f := forms.BindAs[labelSearchForm](r)
 		if f.Query.Value() != "" {
 			q := strings.ReplaceAll(f.Query.Value(), "*", "%")
 			ds = ds.Where(goqu.I("name").ILike(q))
@@ -882,13 +878,13 @@ func (api *apiRouter) withShareEmail(next http.Handler) http.Handler {
 		}
 
 		info := dataset.SharedEmail{
-			Form:  forms2.New[shareForm](r.Context()),
+			Form:  forms.New[shareForm](r.Context()),
 			Title: b.Title,
 			ID:    b.UID,
 		}
 
 		if r.Method == http.MethodPost {
-			forms2.Bind(r, info.Form)
+			forms.Bind(r, info.Form)
 
 			if info.Form.IsValid() {
 				info.Error = info.Form.(*shareForm).sendBookmark(r, b)

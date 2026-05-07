@@ -44,7 +44,7 @@ var (
 	withBookmarkOrder, checkBookmarkOrder             = ctxr.WithChecker[orderExpressionList](ctxBookmarkOrderKey{})
 	withCounters, checkCounters                       = ctxr.WithChecker[bookmarks.CountResult](ctxCountersKey{})
 	withDefaultLimit, checkDefaultLimit               = ctxr.WithChecker[int](ctxDefaultLimitKey{})
-	withFilterForm, checkFilterForm                   = ctxr.WithChecker[*filterForm](ctxFiltersKey{})
+	withFilterForm, checkFilterForm                   = ctxr.WithChecker[*FilterForm](ctxFiltersKey{})
 	withLabel, getLabel                               = ctxr.WithGetter[string](ctxLabelKey{})
 	withLabelList, getLabelList                       = ctxr.WithGetter[dataset.LabelList](ctxLabelListKey{})
 	withOrderForm, checkOrderForm                     = ctxr.WithChecker[*bookmarkOrderForm](ctxOrderFormKey{})

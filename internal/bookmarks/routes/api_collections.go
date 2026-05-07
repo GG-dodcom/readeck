@@ -16,7 +16,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 func (api *apiRouter) collectionList(w http.ResponseWriter, r *http.Request) {
@@ -32,9 +32,9 @@ func (api *apiRouter) collectionInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *apiRouter) collectionCreate(w http.ResponseWriter, r *http.Request) {
-	f := newCollectionForm(server.Locale(r), r)
+	f := newCollectionForm(r)
+	forms.Bind(r, f)
 
-	forms.Bind(f, r)
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
@@ -53,9 +53,9 @@ func (api *apiRouter) collectionCreate(w http.ResponseWriter, r *http.Request) {
 func (api *apiRouter) collectionUpdate(w http.ResponseWriter, r *http.Request) {
 	c := getCollection(r.Context())
 
-	f := newCollectionForm(server.Locale(r), r)
+	f := newCollectionForm(r)
 	f.setCollection(c)
-	forms.Bind(f, r)
+	forms.Bind(r, f)
 
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)

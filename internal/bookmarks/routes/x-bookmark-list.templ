@@ -18,7 +18,7 @@ import (
 	. "codeberg.org/readeck/readeck/components"
 )
 
-templ (v Views) bookmarkListHead(f *filterForm) {
+templ (v Views) bookmarkListHead(f *FilterForm) {
 	<link
 		rel="alternate"
 		href={ string(URL(ctx, "/api/bookmarks/feed")) + "?" + f.getQueryParams().Encode() }
@@ -28,7 +28,7 @@ templ (v Views) bookmarkListHead(f *filterForm) {
 	<meta name="turbo-refresh-scroll" content="preserve"/>
 }
 
-templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createForm, filters *filterForm) {
+templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createForm, filters *FilterForm) {
 	{{
 		layout := NewLayout()
 		layout.Head = v.bookmarkListHead(filters)
@@ -48,7 +48,11 @@ templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFo
 					<h1 class="flex-grow title mb-0 text-h2 max-md:w-full">{ title }</h1>
 					@Components{}.listActions() {
 						<form action={ URL(ctx) } method="get">
-							<input type="hidden" name="bf" value={ Tern(func() bool { return filters.IsActive() }, 0, 1) }/>
+							<input
+								type="hidden"
+								name={ filters.IsActive.Name() }
+								value={ Tern(func() bool { return filters.IsActive.Value() }, 0, 1) }
+							/>
 							<button
 								type="submit"
 								class="btn-outlined py-1"
@@ -81,7 +85,7 @@ templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFo
 					}
 				</div>
 			}
-			if filters.IsActive() {
+			if filters.IsActive.Value() {
 				<p class="mb-2">
 					if bl.Pagination.TotalCount == 0 {
 						@templ.Raw(L(ctx).Gettext("Your search query yielded <strong>no results</strong>."))
@@ -99,7 +103,7 @@ templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFo
 				<details
 					id="filters"
 					class="bookmark-filters"
-					open?={ filters.IsActive() }
+					open?={ filters.IsActive.Value() }
 				>
 					<summary>
 						@Icon("o-filter")
@@ -127,7 +131,7 @@ templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFo
 						<input type="hidden" name="bf" value="1"/>
 						<div class="bookmark-filters--actions mt-4">
 							<button class="btn btn-primary">{ L(ctx).Pgettext("action", "Search") }</button>
-							if filters.IsActive() {
+							if filters.IsActive.Value() {
 								<a href={ URL(ctx, "?bf=1") } class="btn btn-default rounded text-center">
 									{ L(ctx).Gettext("Reset search") }
 								</a>

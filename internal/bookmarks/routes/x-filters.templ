@@ -5,48 +5,48 @@
 package routes
 
 import (
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 
 	. "codeberg.org/readeck/readeck/components"
-	F "codeberg.org/readeck/readeck/components/forms"
+	F "codeberg.org/readeck/readeck/components/forms/v2"
 )
 
 type FilterComponents struct{}
 
 var compactField = F.Classes("field-h--compact")
 
-templ (c FilterComponents) filters(f forms.Binder) {
+templ (c FilterComponents) filters(f *FilterForm) {
 	<div class="space-y-4 text-sm">
-		@F.TextField(f.Get("search"), F.Label(L(ctx).Gettext("Search")))
-		@c.autoComplete(f.Get("title"), L(ctx).Gettext("Title"), "title", false)
-		@c.autoComplete(f.Get("author"), L(ctx).Gettext("Author"), "author", false)
-		@c.autoComplete(f.Get("site"), L(ctx).Gettext("Site"), "site", false)
-		@c.autoComplete(f.Get("labels"), L(ctx).Gettext("Label"), "label", true)
-		@F.TextField(f.Get("note"), F.Label(L(ctx).Gettext("Note")))
-		@F.TimeTokenField(f.Get("range_start"), F.Label("From date"),
+		@F.TextField(&f.Search, F.Label(L(ctx).Gettext("Search")))
+		@c.autoComplete(&f.Title, L(ctx).Gettext("Title"), "title", false)
+		@c.autoComplete(&f.Author, L(ctx).Gettext("Author"), "author", false)
+		@c.autoComplete(&f.Site, L(ctx).Gettext("Site"), "site", false)
+		@c.autoComplete(&f.Labels, L(ctx).Gettext("Label"), "label", true)
+		@F.TextField(&f.Note, F.Label(L(ctx).Gettext("Note")))
+		@F.TimeTokenField(&f.RangeStart, F.Label("From date"),
 			compactField,
 		)
-		@F.TimeTokenField(f.Get("range_end"),
+		@F.TimeTokenField(&f.RangeEnd,
 			F.Label("To date"),
 			compactField,
 		)
-		@F.MultiSelectField[string](f.Get("type"),
+		@F.MultiSelectField[string](&f.Type,
 			F.Label(L(ctx).Gettext("Type")),
 			compactField,
 		)
-		@F.MultiSelectField[string](f.Get("read_status"),
+		@F.MultiSelectField[string](&f.ReadStatus,
 			F.Label(L(ctx).Pgettext("filter", "Progress")),
 			compactField,
 		)
-		@c.yesNo(f.Get("is_marked").(*forms.BooleanField), L(ctx).Gettext("Is Favorite"))
-		@c.yesNo(f.Get("is_archived").(*forms.BooleanField), L(ctx).Gettext("Is Archived"))
-		@c.yesNo(f.Get("is_loaded").(*forms.BooleanField), L(ctx).Gettext("Is Loaded"))
-		@c.yesNo(f.Get("has_labels").(*forms.BooleanField), L(ctx).Gettext("With Labels"))
-		@c.yesNo(f.Get("has_errors").(*forms.BooleanField), L(ctx).Gettext("With Errors"))
+		@c.yesNo(&f.IsMarked, L(ctx).Gettext("Is Favorite"))
+		@c.yesNo(&f.IsArchived, L(ctx).Gettext("Is Archived"))
+		@c.yesNo(&f.IsLoaded, L(ctx).Gettext("Is Loaded"))
+		@c.yesNo(&f.HasLabels, L(ctx).Gettext("With Labels"))
+		@c.yesNo(&f.HasErrors, L(ctx).Gettext("With Errors"))
 	</div>
 }
 
-templ (c FilterComponents) autoComplete(field forms.Field, label string, ft string, multiple bool) {
+templ (c FilterComponents) autoComplete(field *forms.TextField, label string, ft string, multiple bool) {
 	@F.TextField(field,
 		F.Label(label),
 		F.Classes("relative"),
@@ -75,7 +75,7 @@ templ (c FilterComponents) autoComplete(field forms.Field, label string, ft stri
 templ (c FilterComponents) yesNo(field *forms.BooleanField, label string) {
 	@F.SelectField[bool](field, F.Label(label), compactField) {
 		<option value=""></option>
-		<option value="true" selected?={ field.V() }>{ L(ctx).Gettext("yes") }</option>
-		<option value="false" selected?={ !field.IsNil() && !field.V() }>{ L(ctx).Gettext("no") }</option>
+		<option value="true" selected?={ field.Value() }>{ L(ctx).Gettext("yes") }</option>
+		<option value="false" selected?={ field.IsBound() && !field.IsNil() && !field.IsEmpty() && !field.Value() }>{ L(ctx).Gettext("no") }</option>
 	}
 }

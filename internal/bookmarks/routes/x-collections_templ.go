@@ -21,7 +21,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/server"
 
 	. "codeberg.org/readeck/readeck/components"
-	F "codeberg.org/readeck/readeck/components/forms"
+	F "codeberg.org/readeck/readeck/components/forms/v2"
 )
 
 func (v Views) collectionInfoHead(item *dataset.Collection) templ.Component {
@@ -481,7 +481,7 @@ func (v Views) collectionCreate(f *collectionForm, bl *dataset.BookmarkList) tem
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextField(f.Get("name"),
+			templ_7745c5c3_Err = F.TextField(&f.Name,
 				F.Label(L(ctx).Gettext("Name")),
 				F.Required(true),
 				F.Classes("mb-2"),
@@ -490,7 +490,7 @@ func (v Views) collectionCreate(f *collectionForm, bl *dataset.BookmarkList) tem
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = FilterComponents{}.filters(f).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = FilterComponents{}.filters(&f.FilterForm).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -868,14 +868,14 @@ func (v Views) collectionInfo(item *dataset.Collection, f *collectionForm, bl *d
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = F.TextField(f.Get("name"),
+				templ_7745c5c3_Err = F.TextField(&f.Name,
 					F.Label(L(ctx).Gettext("Name")),
 					F.Required(true),
 				).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = FilterComponents{}.filters(f).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = FilterComponents{}.filters(&f.FilterForm).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

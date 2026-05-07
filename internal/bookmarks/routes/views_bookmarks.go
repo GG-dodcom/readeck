@@ -81,9 +81,9 @@ func (h *viewsRouter) bookmarkList(w http.ResponseWriter, r *http.Request) {
 
 	tr := server.Locale(r)
 	title := tr.Gettext("All your Bookmarks")
-	filters := newContextFilterForm(r.Context(), tr)
+	filters := newContextFilterForm(r.Context())
 
-	if filters.IsActive() {
+	if filters.IsActive.Value() {
 		title = tr.Gettext("Bookmark Search")
 	} else {
 		switch filters.title {

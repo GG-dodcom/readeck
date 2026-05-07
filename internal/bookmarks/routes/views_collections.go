@@ -11,7 +11,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/auth"
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
 	"codeberg.org/readeck/readeck/internal/server"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/forms/v2"
 )
 
 func (h *viewsRouter) collectionList(w http.ResponseWriter, r *http.Request) {
@@ -22,14 +22,14 @@ func (h *viewsRouter) collectionList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *viewsRouter) collectionCreate(w http.ResponseWriter, r *http.Request) {
-	f := newCollectionForm(server.Locale(r), r)
+	f := newCollectionForm(r)
 
 	switch r.Method {
 	case http.MethodGet:
 		// Add values from query string but don't perform validation
-		forms.BindURL(f, r)
+		forms.BindValues(r.URL.Query(), f)
 	case http.MethodPost:
-		forms.Bind(f, r)
+		forms.Bind(r, f)
 		if f.IsValid() {
 			c, err := f.createCollection(auth.GetRequestUser(r).ID)
 			if err != nil {
@@ -53,11 +53,11 @@ func (h *viewsRouter) collectionInfo(w http.ResponseWriter, r *http.Request) {
 	c := getCollection(r.Context())
 	item := dataset.NewCollection(r.Context(), c)
 
-	f := newCollectionForm(server.Locale(r), r)
+	f := newCollectionForm(r)
 	f.setCollection(c)
 
 	if r.Method == http.MethodPost {
-		forms.Bind(f, r)
+		forms.Bind(r, f)
 		if f.IsValid() {
 			if _, err := f.updateCollection(c); err != nil {
 				server.Log(r).Error("", slog.Any("err", err))
@@ -77,9 +77,9 @@ func (h *viewsRouter) collectionInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *viewsRouter) collectionDelete(w http.ResponseWriter, r *http.Request) {
-	f := newCollectionDeleteForm(server.Locale(r))
-	f.Get("_to").Set("/bookmarks/collections")
-	forms.Bind(f, r)
+	f := forms.New[collectionDeleteForm](r.Context())
+	f.To.Set("/bookmarks/collections")
+	forms.Bind(r, f)
 
 	c := getCollection(r.Context())
 
@@ -92,5 +92,5 @@ func (h *viewsRouter) collectionDelete(w http.ResponseWriter, r *http.Request) {
 		server.Err(w, r, err)
 		return
 	}
-	server.Redirect(w, r, f.Get("_to").String())
+	server.Redirect(w, r, f.To.String())
 }
