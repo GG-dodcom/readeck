@@ -27,10 +27,10 @@ var (
 
 // Collection is a collection record in the database.
 type Collection struct {
-	ID       int       `db:"id" goqu:"skipinsert,skipupdate"`
+	ID       int       `db:"id"        goqu:"skipinsert,skipupdate"`
 	UID      string    `db:"uid"`
 	UserID   *int      `db:"user_id"`
-	Created  time.Time `db:"created" goqu:"skipupdate"`
+	Created  time.Time `db:"created"   goqu:"skipupdate"`
 	Updated  time.Time `db:"updated"`
 	Name     string    `db:"name"`
 	IsPinned bool      `db:"is_pinned"`

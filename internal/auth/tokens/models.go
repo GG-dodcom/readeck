@@ -31,11 +31,11 @@ var (
 
 // Token is a token record in database.
 type Token struct {
-	ID          int           `db:"id" goqu:"skipinsert,skipupdate"`
+	ID          int           `db:"id"          goqu:"skipinsert,skipupdate"`
 	UID         string        `db:"uid"`
 	UserID      *int          `db:"user_id"`
 	ClientInfo  *ClientInfo   `db:"client_info"`
-	Created     time.Time     `db:"created" goqu:"skipupdate"`
+	Created     time.Time     `db:"created"     goqu:"skipupdate"`
 	LastUsed    *time.Time    `db:"last_used"`
 	Expires     *time.Time    `db:"expires"`
 	IsEnabled   bool          `db:"is_enabled"`
