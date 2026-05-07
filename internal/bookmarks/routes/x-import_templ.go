@@ -16,7 +16,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"codeberg.org/readeck/readeck/internal/bookmarks/importer"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 
 	. "codeberg.org/readeck/readeck/components"
 )

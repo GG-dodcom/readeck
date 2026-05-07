@@ -6,7 +6,7 @@ package onboarding
 
 import (
 	"codeberg.org/readeck/readeck/internal/auth/users"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 type onboardingForm struct {

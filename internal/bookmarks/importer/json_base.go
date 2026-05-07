@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 type jsonBaseAdapter[S any, T BookmarkImporter] struct {

@@ -24,7 +24,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/server"
 
 	. "codeberg.org/readeck/readeck/components"
-	F "codeberg.org/readeck/readeck/components/forms/v2"
+	F "codeberg.org/readeck/readeck/components/forms"
 )
 
 func (v Views) bookmarkRefreshHead() templ.Component {

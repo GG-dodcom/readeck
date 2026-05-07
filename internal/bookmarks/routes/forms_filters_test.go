@@ -17,7 +17,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/db"
 	"codeberg.org/readeck/readeck/internal/db/types"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 func runFiltersFromForm(tests []struct {

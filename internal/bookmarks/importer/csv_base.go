@@ -14,7 +14,7 @@ import (
 	"slices"
 
 	"codeberg.org/readeck/readeck/pkg/csvstruct"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 type csvBaseAdapter[S any, T BookmarkImporter] struct {

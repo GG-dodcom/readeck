@@ -11,7 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"codeberg.org/readeck/readeck/internal/server"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 	"codeberg.org/readeck/readeck/pkg/http/csp"
 )
 

@@ -14,7 +14,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/auth"
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 // adminViews is an HTTP handler for the user profile web views.

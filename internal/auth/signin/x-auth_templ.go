@@ -16,7 +16,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	. "codeberg.org/readeck/readeck/components"
-	F "codeberg.org/readeck/readeck/components/forms/v2"
+	F "codeberg.org/readeck/readeck/components/forms"
 )
 
 type Views struct{}

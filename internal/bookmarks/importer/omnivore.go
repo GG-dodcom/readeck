@@ -22,7 +22,7 @@ import (
 
 	"codeberg.org/readeck/readeck/internal/bookmarks/tasks"
 	"codeberg.org/readeck/readeck/internal/db/types"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 type omnivoreAPIAdapter struct {

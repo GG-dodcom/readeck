@@ -25,7 +25,7 @@ import (
 	"codeberg.org/readeck/readeck/pkg/extract/contents"
 	"codeberg.org/readeck/readeck/pkg/extract/contentscripts"
 	"codeberg.org/readeck/readeck/pkg/extract/meta"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 	"codeberg.org/readeck/readeck/pkg/http/accept"
 )
 

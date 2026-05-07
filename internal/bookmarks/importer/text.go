@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 type textAdapter struct {

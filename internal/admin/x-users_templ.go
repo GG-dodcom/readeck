@@ -19,7 +19,7 @@ import (
 	"codeberg.org/readeck/readeck/pkg/utils"
 
 	. "codeberg.org/readeck/readeck/components"
-	F "codeberg.org/readeck/readeck/components/forms/v2"
+	F "codeberg.org/readeck/readeck/components/forms"
 )
 
 func (v Views) userList(ul *userList) templ.Component {

@@ -12,7 +12,7 @@ import (
 
 	"github.com/a-h/templ"
 
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 // Binder is a [forms.Binder] with a Name method.

@@ -11,7 +11,7 @@ import (
 
 	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/searchstring"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 	"codeberg.org/readeck/readeck/pkg/timetoken"
 )
 

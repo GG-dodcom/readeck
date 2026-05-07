@@ -17,7 +17,7 @@ import (
 
 	"codeberg.org/readeck/readeck/configs"
 	"codeberg.org/readeck/readeck/internal/auth/users"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 
 	. "codeberg.org/readeck/readeck/internal/testing" //revive:disable:dot-imports
 )

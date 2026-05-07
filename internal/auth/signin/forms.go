@@ -13,7 +13,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 
 	"codeberg.org/readeck/readeck/internal/auth/users"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 var errInvalidLogin = forms.Gettext("Invalid user and/or password")

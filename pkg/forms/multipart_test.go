@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 func runValuesFile[T any, V forms.Valuer[T]](tests []valueTest[[]*multipart.FileHeader, T]) func(t *testing.T) {

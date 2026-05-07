@@ -14,7 +14,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
 	"codeberg.org/readeck/readeck/pkg/base58"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 type annotationUpdateForm struct {

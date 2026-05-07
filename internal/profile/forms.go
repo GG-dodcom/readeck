@@ -24,7 +24,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/sessions"
 	"codeberg.org/readeck/readeck/locales"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 	"codeberg.org/readeck/readeck/pkg/totp"
 )
 

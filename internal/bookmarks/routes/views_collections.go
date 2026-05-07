@@ -11,7 +11,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/auth"
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
 	"codeberg.org/readeck/readeck/internal/server"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 func (h *viewsRouter) collectionList(w http.ResponseWriter, r *http.Request) {

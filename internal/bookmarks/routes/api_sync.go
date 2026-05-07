@@ -16,7 +16,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/db"
 	"codeberg.org/readeck/readeck/internal/db/exp"
 	"codeberg.org/readeck/readeck/internal/server"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 func (api *apiRouter) bookmarkSyncList(w http.ResponseWriter, r *http.Request) {

@@ -16,7 +16,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 func (api *apiRouter) collectionList(w http.ResponseWriter, r *http.Request) {

@@ -32,7 +32,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/db/exp"
 	"codeberg.org/readeck/readeck/internal/email"
 	"codeberg.org/readeck/readeck/locales"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 	"codeberg.org/readeck/readeck/pkg/http/request"
 	"codeberg.org/readeck/readeck/pkg/utils"
 )

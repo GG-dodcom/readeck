@@ -15,7 +15,7 @@ import (
 	"codeberg.org/readeck/readeck/internal/bookmarks/importer"
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 const maxUploadSize = 4 << 20

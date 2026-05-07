@@ -13,7 +13,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 
 	"codeberg.org/readeck/readeck/configs"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 	"codeberg.org/readeck/readeck/pkg/glob"
 )
 

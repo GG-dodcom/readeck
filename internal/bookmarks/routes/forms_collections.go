@@ -13,7 +13,7 @@ import (
 
 	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/bookmarks/tasks"
-	"codeberg.org/readeck/readeck/pkg/forms/v2"
+	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
 type collectionDeleteForm struct {
