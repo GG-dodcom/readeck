@@ -1,15 +1,33 @@
 {
-  "title_selectors": null,
+  "title_selectors": [
+    "//h1[@id='article-title']"
+  ],
   "body_selectors": [
-    "//main[@id='main']//article"
+    "//main//article"
   ],
-  "date_selectors": null,
-  "author_selectors": null,
+  "date_selectors": [
+    "//time[@datetime]/@datetime"
+  ],
+  "author_selectors": [
+    "//a[contains(@href,'/autoren/')]/span"
+  ],
   "strip_selectors": [
-    "//div[contains(@class, 'article_articleHeaderSocialWrapper__')]",
-    "//div[contains(@class, 'soft-paywall_wrapper__')]"
+    "//article//article",
+    "//a[contains(@href,'/autoren/')]//img",
+    "//div[starts-with(@id,'qmn-ad-')]",
+    "//div[@id='article-share']",
+    "//div[@id='beyondwords-player-root']",
+    "//div[@id='beyondwords-custom-ui']",
+    "//div[@id='copy-link-popup']",
+    "//div[@id='paywall-tabs']",
+    "//button[@id='paywall-login-button']",
+    "//button[@data-paywall-submit]",
+    "//div[@id='endOfContent']"
   ],
-  "strip_id_or_class": null,
+  "strip_id_or_class": [
+    "blz-sidebar",
+    "paywall"
+  ],
   "strip_image_src": null,
   "native_ad_selectors": null,
   "tidy": false,

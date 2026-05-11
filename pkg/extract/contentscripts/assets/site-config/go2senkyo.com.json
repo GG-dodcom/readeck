@@ -1,0 +1,29 @@
+{
+  "title_selectors": [
+    "substring-before(//meta[@property='og:title']/@content , '｜ 選挙ドットコム')"
+  ],
+  "body_selectors": [
+    "//section[contains(concat(' ',normalize-space(@class),' '),' p_seijika_detail_contents ')]"
+  ],
+  "date_selectors": null,
+  "author_selectors": [
+    "//h3[@class=\"p_seijika_detail_bottom_author_data_ttl\"]"
+  ],
+  "strip_selectors": null,
+  "strip_id_or_class": null,
+  "strip_image_src": null,
+  "native_ad_selectors": null,
+  "tidy": false,
+  "prune": false,
+  "autodetect_on_failure": true,
+  "single_page_link_selectors": null,
+  "next_page_link_selectors": null,
+  "replace_strings": null,
+  "http_headers": null,
+  "tests": [
+    {
+      "url": "https://go2senkyo.com/seijika/123742/posts/1345575",
+      "contains": []
+    }
+  ]
+}

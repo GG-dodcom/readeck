@@ -1,16 +1,16 @@
 {
-  "title_selectors": null,
+  "title_selectors": [
+    "//main//header[contains(concat(' ',normalize-space(@class),' '),' news-header ')]//h1"
+  ],
   "body_selectors": [
-    "//div[contains(concat(' ',normalize-space(@class),' '),' print:shadow-none ')]//article"
+    "//main//article[contains(concat(' ',normalize-space(@class),' '),' w-full ')]"
   ],
   "date_selectors": null,
-  "author_selectors": null,
-  "strip_selectors": [
-    "//footer"
+  "author_selectors": [
+    "//main//header[contains(concat(' ',normalize-space(@class),' '),' news-header ')]//p[contains(concat(' ',normalize-space(@class),' '),' font-semibold ')]"
   ],
-  "strip_id_or_class": [
-    "comments"
-  ],
+  "strip_selectors": null,
+  "strip_id_or_class": null,
   "strip_image_src": null,
   "native_ad_selectors": null,
   "tidy": false,

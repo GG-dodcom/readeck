@@ -1,0 +1,47 @@
+{
+  "title_selectors": [
+    "//meta[@property='og:title']/@content",
+    "//h1[contains(concat(' ',normalize-space(@class),' '),' article-h1 ')]"
+  ],
+  "body_selectors": [
+    "//section[contains(concat(' ',normalize-space(@class),' '),' article-content ')]"
+  ],
+  "date_selectors": null,
+  "author_selectors": [
+    "//div[contains(concat(' ',normalize-space(@class),' '),' auteur_info ')]//a"
+  ],
+  "strip_selectors": [
+    "//h2/mark//*[contains(text(), 'lire aussi dans nos pages')]/ancestor::h2[1] | //h2/mark//*[contains(text(), 'lire aussi dans nos pages')]/ancestor::h2[1]/following-sibling::*",
+    "//h2/mark[contains(text(), 'lire aussi dans nos pages')]/ancestor::h2[1] | //h2/mark[contains(text(), 'lire aussi dans nos pages')]/ancestor::h2[1]/following-sibling::*",
+    "//div[@class='article-disponible']/following-sibling::*"
+  ],
+  "strip_id_or_class": [
+    "auteur",
+    "categories",
+    "article-titre",
+    "infos"
+  ],
+  "strip_image_src": null,
+  "native_ad_selectors": null,
+  "tidy": false,
+  "prune": false,
+  "autodetect_on_failure": true,
+  "single_page_link_selectors": null,
+  "next_page_link_selectors": null,
+  "replace_strings": null,
+  "http_headers": null,
+  "tests": [
+    {
+      "url": "https://www.lasemainedelallier.fr/lapalisse-nature-cimetiere/",
+      "contains": []
+    },
+    {
+      "url": "https://www.lasemainedelallier.fr/30-actions-du-plan-des-100-jours/",
+      "contains": []
+    },
+    {
+      "url": "https://www.lasemainedelallier.fr/montlucon-stationnement-gratuit-soutien-aux-commerces-renfort-de-la-police-municipale/",
+      "contains": []
+    }
+  ]
+}

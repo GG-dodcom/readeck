@@ -1,10 +1,14 @@
 {
-  "title_selectors": null,
+  "title_selectors": [
+    "//main//header[contains(concat(' ',normalize-space(@class),' '),' news-header ')]//h1"
+  ],
   "body_selectors": [
-    "//main//header/following-sibling::article"
+    "//main//article[contains(concat(' ',normalize-space(@class),' '),' w-full ')]"
   ],
   "date_selectors": null,
-  "author_selectors": null,
+  "author_selectors": [
+    "//main//header[contains(concat(' ',normalize-space(@class),' '),' news-header ')]//p[contains(concat(' ',normalize-space(@class),' '),' font-semibold ')]"
+  ],
   "strip_selectors": null,
   "strip_id_or_class": null,
   "strip_image_src": null,

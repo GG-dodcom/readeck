@@ -1,10 +1,23 @@
 {
   "title_selectors": null,
-  "body_selectors": null,
+  "body_selectors": [
+    "//article[@id='article-content']"
+  ],
   "date_selectors": null,
   "author_selectors": null,
-  "strip_selectors": null,
-  "strip_id_or_class": null,
+  "strip_selectors": [
+    "//aside",
+    "//section[@data-test-id=\"editorial-tips\"]",
+    "//header//div[contains(@aria-label, 'Label:')]",
+    "//header//h1",
+    "//button/parent::div",
+    "//div[@id='article-content-bottom']/following-sibling::*"
+  ],
+  "strip_id_or_class": [
+    "_5smc8c6",
+    "lyeidx8",
+    "_22x56g0"
+  ],
   "strip_image_src": null,
   "native_ad_selectors": null,
   "tidy": false,
@@ -14,8 +27,7 @@
   "next_page_link_selectors": null,
   "replace_strings": null,
   "http_headers": {
-    "Cookie": "pwv=2; pws=functional|analytics|content_recommendation|targeted_advertising|social_media",
-    "User-Agent": "PHP/7.4"
+    "User-Agent": "curl/7.83.1"
   },
   "tests": [
     {

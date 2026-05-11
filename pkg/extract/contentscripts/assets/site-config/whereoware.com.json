@@ -1,0 +1,27 @@
+{
+  "title_selectors": [
+    "substring-before( //meta[@property='og:title']/@content , ' | Whereoware')"
+  ],
+  "body_selectors": [
+    "/html/body/div[2]//div[contains(@class, 'row-depth-1 row-number-6 ')]/following-sibling::div | //div[contains(@class, 'widget-type-linked_image')]"
+  ],
+  "date_selectors": null,
+  "author_selectors": null,
+  "strip_selectors": null,
+  "strip_id_or_class": null,
+  "strip_image_src": null,
+  "native_ad_selectors": null,
+  "tidy": false,
+  "prune": false,
+  "autodetect_on_failure": true,
+  "single_page_link_selectors": null,
+  "next_page_link_selectors": null,
+  "replace_strings": null,
+  "http_headers": null,
+  "tests": [
+    {
+      "url": "https://www.whereoware.com/resources/defensible-business-case-value-realization-ai-economy",
+      "contains": []
+    }
+  ]
+}

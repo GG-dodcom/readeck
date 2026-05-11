@@ -1,19 +1,14 @@
 {
   "title_selectors": [
-    "//article//h1"
+    "//main[@id=\"main\"]//header/h1"
   ],
   "body_selectors": [
-    "//article"
+    "//main[@id=\"main\"]//div[@id=\"single-wrapper\"]//article[@data-clarity-region=\"article\"]"
   ],
   "date_selectors": null,
   "author_selectors": null,
-  "strip_selectors": [
-    "//footer"
-  ],
-  "strip_id_or_class": [
-    "entry-meta",
-    "post-card"
-  ],
+  "strip_selectors": null,
+  "strip_id_or_class": null,
   "strip_image_src": null,
   "native_ad_selectors": null,
   "tidy": false,
