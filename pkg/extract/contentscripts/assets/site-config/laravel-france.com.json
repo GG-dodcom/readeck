@@ -1,13 +1,16 @@
 {
   "title_selectors": [
-    "//main[@id=\"main\"]//header/h1"
+    "//meta[@property='og:title']/@content",
+    "//h1[contains(concat(' ',normalize-space(@class),' '),' font-bold ')]"
   ],
   "body_selectors": [
-    "//main[@id=\"main\"]//div[@id=\"single-wrapper\"]//article[@data-clarity-region=\"article\"]"
+    "//main//div[contains(@class, 'xl:col-start-')]/*[self::img or self::main]"
   ],
   "date_selectors": null,
   "author_selectors": null,
-  "strip_selectors": null,
+  "strip_selectors": [
+    "//button"
+  ],
   "strip_id_or_class": null,
   "strip_image_src": null,
   "native_ad_selectors": null,
@@ -20,7 +23,11 @@
   "http_headers": null,
   "tests": [
     {
-      "url": "https://devblogs.microsoft.com/oldnewthing/?p=42203",
+      "url": "https://laravel-france.com/posts/laravel-13-est-disponible",
+      "contains": []
+    },
+    {
+      "url": "https://laravel-france.com/posts/laravel-cloud-5-gratuit",
       "contains": []
     }
   ]

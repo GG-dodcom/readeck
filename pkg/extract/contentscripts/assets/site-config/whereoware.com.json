@@ -1,9 +1,9 @@
 {
   "title_selectors": [
-    "//main[@id=\"main\"]//header/h1"
+    "substring-before( //meta[@property='og:title']/@content , ' | Whereoware')"
   ],
   "body_selectors": [
-    "//main[@id=\"main\"]//div[@id=\"single-wrapper\"]//article[@data-clarity-region=\"article\"]"
+    "/html/body/div[2]//div[contains(@class, 'row-depth-1 row-number-6 ')]/following-sibling::div | //div[contains(@class, 'widget-type-linked_image')]"
   ],
   "date_selectors": null,
   "author_selectors": null,
@@ -20,7 +20,7 @@
   "http_headers": null,
   "tests": [
     {
-      "url": "https://devblogs.microsoft.com/oldnewthing/?p=42203",
+      "url": "https://www.whereoware.com/resources/defensible-business-case-value-realization-ai-economy",
       "contains": []
     }
   ]

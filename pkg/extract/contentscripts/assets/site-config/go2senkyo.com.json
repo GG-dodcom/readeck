@@ -1,13 +1,13 @@
 {
   "title_selectors": [
-    "//main//header[contains(concat(' ',normalize-space(@class),' '),' news-header ')]//h1"
+    "substring-before(//meta[@property='og:title']/@content , '｜ 選挙ドットコム')"
   ],
   "body_selectors": [
-    "//main//article[contains(concat(' ',normalize-space(@class),' '),' w-full ')]"
+    "//section[contains(concat(' ',normalize-space(@class),' '),' p_seijika_detail_contents ')]"
   ],
   "date_selectors": null,
   "author_selectors": [
-    "//main//header[contains(concat(' ',normalize-space(@class),' '),' news-header ')]//p[contains(concat(' ',normalize-space(@class),' '),' font-semibold ')]"
+    "//h3[@class=\"p_seijika_detail_bottom_author_data_ttl\"]"
   ],
   "strip_selectors": null,
   "strip_id_or_class": null,
@@ -22,7 +22,7 @@
   "http_headers": null,
   "tests": [
     {
-      "url": "http://www.igen.fr/itunes/2016/05/itunes-mis-jour-la-semaine-prochaine-contre-le-bug-de-suppression-de-musique-95803",
+      "url": "https://go2senkyo.com/seijika/123742/posts/1345575",
       "contains": []
     }
   ]

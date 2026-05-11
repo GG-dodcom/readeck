@@ -1,0 +1,31 @@
+{
+  "title_selectors": null,
+  "body_selectors": [
+    "//article[contains(@id, 'post-')] | //div[@id='main_content']//div[contains(@class, 'banner-excerpt')] | //div[contains(@class, 'rv-post-img')]"
+  ],
+  "date_selectors": null,
+  "author_selectors": null,
+  "strip_selectors": [
+    "//svg"
+  ],
+  "strip_id_or_class": [
+    "hide-desktop"
+  ],
+  "strip_image_src": null,
+  "native_ad_selectors": null,
+  "tidy": false,
+  "prune": false,
+  "autodetect_on_failure": true,
+  "single_page_link_selectors": null,
+  "next_page_link_selectors": null,
+  "replace_strings": null,
+  "http_headers": {
+    "User-Agent": "Wallabag/2"
+  },
+  "tests": [
+    {
+      "url": "https://learnexperts.ai/blog/what-xapi-learning-experiences-learning-activities/",
+      "contains": []
+    }
+  ]
+}

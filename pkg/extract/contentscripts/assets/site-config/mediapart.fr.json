@@ -12,7 +12,10 @@
     "//div[contains(concat(' ',normalize-space(@class),' '),' author ')]//a[@class='journalist']"
   ],
   "strip_selectors": [
-    "//button"
+    "//button",
+    "//article[contains(@class, \"collection-card\")]",
+    "//h2[contains(@class, \"subheading-bullet-point\")]",
+    "//figure[@id=\"lecteur-audio\"]"
   ],
   "strip_id_or_class": [
     "news__body__right",
@@ -40,7 +43,7 @@
   "replace_strings": [
     [
       "\u003cp class=\"news__heading__top__intro",
-      "\u003cp class=\"hljs-strong news__heading__top__intro"
+      "\u003cstrong class=\"news__heading__top__intro"
     ],
     [
       "class=\"container",

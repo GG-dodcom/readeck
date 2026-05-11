@@ -1,0 +1,38 @@
+{
+  "title_selectors": [
+    "//div[@id=\"content\"]//h1[@class=\"typo-h1\"]"
+  ],
+  "body_selectors": [
+    "//div[@id=\"content\"]//section[@class=\"article\"]"
+  ],
+  "date_selectors": null,
+  "author_selectors": null,
+  "strip_selectors": null,
+  "strip_id_or_class": [
+    "aspect-video",
+    "print:hidden"
+  ],
+  "strip_image_src": null,
+  "native_ad_selectors": null,
+  "tidy": false,
+  "prune": false,
+  "autodetect_on_failure": true,
+  "single_page_link_selectors": null,
+  "next_page_link_selectors": null,
+  "replace_strings": null,
+  "http_headers": null,
+  "tests": [
+    {
+      "url": "https://www.lamontagne.fr/moulins-03000/actualites/150-personnes-a-moulins-pour-soutenir-le-journal-l-humanite-face-a-mumures-de-la-cite-devant-le-tribunal_14979990/",
+      "contains": []
+    },
+    {
+      "url": "https://www.lamontagne.fr/moulins-03000/actualites/l-udaf-de-l-allier-met-en-place-une-bulle-d-r-pour-les-aidants-des-personnes-en-situation-de-handicap_14974670/",
+      "contains": []
+    },
+    {
+      "url": "https://www.lamontagne.fr/moulins-03000/economie/la-guinguette-des-champins-a-moulins-est-de-retour_14977659/",
+      "contains": []
+    }
+  ]
+}

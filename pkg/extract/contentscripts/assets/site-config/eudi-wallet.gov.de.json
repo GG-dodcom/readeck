@@ -1,13 +1,15 @@
 {
-  "title_selectors": [
-    "//main[@id=\"main\"]//header/h1"
-  ],
+  "title_selectors": null,
   "body_selectors": [
-    "//main[@id=\"main\"]//div[@id=\"single-wrapper\"]//article[@data-clarity-region=\"article\"]"
+    "//main"
   ],
   "date_selectors": null,
   "author_selectors": null,
-  "strip_selectors": null,
+  "strip_selectors": [
+    "//aside",
+    "//header//h1",
+    "//header//time"
+  ],
   "strip_id_or_class": null,
   "strip_image_src": null,
   "native_ad_selectors": null,
@@ -20,7 +22,7 @@
   "http_headers": null,
   "tests": [
     {
-      "url": "https://devblogs.microsoft.com/oldnewthing/?p=42203",
+      "url": "https://eudi-wallet.gov.de/news/eudi-wallet-community-event-2026",
       "contains": []
     }
   ]

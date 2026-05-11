@@ -1,9 +1,7 @@
 {
-  "title_selectors": [
-    "//main[@id=\"main\"]//header/h1"
-  ],
+  "title_selectors": null,
   "body_selectors": [
-    "//main[@id=\"main\"]//div[@id=\"single-wrapper\"]//article[@data-clarity-region=\"article\"]"
+    "//main[@id='main-content']"
   ],
   "date_selectors": null,
   "author_selectors": null,
@@ -20,7 +18,7 @@
   "http_headers": null,
   "tests": [
     {
-      "url": "https://devblogs.microsoft.com/oldnewthing/?p=42203",
+      "url": "https://www.commlabindia.com/glossary/xapi-experience-api",
       "contains": []
     }
   ]
