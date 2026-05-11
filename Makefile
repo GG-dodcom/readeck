@@ -32,7 +32,7 @@ export GOARCH?=
 SITECONFIG_SRC=./ftr-site-config
 SITECONFIG_DEST=pkg/extract/contentscripts/assets/site-config
 
-TEMPL_PKG ?= github.com/a-h/templ/cmd/templ@latest
+TEMPL_PKG ?= github.com/a-h/templ/cmd/templ@v0.3.1001
 GOLANGCI_PKG ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.9.0
 AIR_PKG ?= github.com/air-verse/air@v1.64.5
 SLOC_PKG ?= github.com/boyter/scc/v3@v3.6.0
