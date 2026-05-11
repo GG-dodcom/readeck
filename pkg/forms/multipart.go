@@ -1,16 +1,22 @@
-// SPDX-FileCopyrightText: © 2025 Olivier Meunier <olivier@neokraft.net>
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 package forms
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/textproto"
-	"strings"
 )
+
+// FilesUnmarshaler is an interface implemented by types than can load
+// a [multipart.FileHeader] list.
+type FilesUnmarshaler interface {
+	UnmarshalFiles([]*multipart.FileHeader) error
+}
 
 // FileOpener describes an opener interface. Its [Open] function must return an [io.ReadCloser].
 type FileOpener interface {
@@ -18,11 +24,6 @@ type FileOpener interface {
 	Filename() string
 	Size() int64
 	Header() textproto.MIMEHeader
-}
-
-// HeaderReader describes an interface than can open multipart content.
-type HeaderReader interface {
-	UnmarshalFiles([]*multipart.FileHeader) error
 }
 
 // MultipartFileOpener is a [FileOpener] implementation wrapping [multipart.FileHeader].
@@ -59,12 +60,12 @@ func (o *MultipartFileOpener) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// StringOpener is a [FileOpener] implementation using a string.
-type StringOpener string
+// StringOpener is a [FileOpener] implementation using bytes.
+type StringOpener []byte
 
 // Open implements [FileOpener].
 func (o StringOpener) Open() (io.ReadCloser, error) {
-	return io.NopCloser(strings.NewReader(string(o))), nil
+	return io.NopCloser(bytes.NewReader(o)), nil
 }
 
 // Filename implements [FileOpener].
@@ -93,112 +94,74 @@ func (o StringOpener) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// DecodeFileHeader is a [Value] decoder for [FileOpener].
-// It can decode [*multipart.FileHeader] and string values.
-var DecodeFileHeader = NewValueDecoder(
-	func(data any) Value[FileOpener] {
-		value := NewValue[FileOpener]()
+// File is a [FileOpener] holder.
+type File FileOpener
 
-		if data == nil {
-			value.F |= IsNil
-			return value
-		}
-
-		switch t := data.(type) {
-		case FileOpener:
-			value.set(t)
-		case *multipart.FileHeader:
-			value.set(&MultipartFileOpener{t})
-		case string:
-			value.set(StringOpener(t))
-		}
-
-		if value.V != nil && value.V.Size() == 0 {
-			value.F |= IsEmpty
-		}
-
-		return value
-	},
-	func(text string) Value[FileOpener] {
-		value := NewValue[FileOpener]()
-		value.set(StringOpener(text))
-		if value.V.Size() == 0 {
-			value.F |= IsEmpty
-		}
-		return value
-	},
-	func(_ FileOpener) string {
-		return "-file-"
-	},
-)
-
-// FileField is a field that holds a [FileOpener] value.
+// FileField is a field that holds a [File] value.
 type FileField struct {
-	*BaseField[FileOpener]
+	Field[File, FileValue]
 }
 
-// NewFileField returns a new [FileField] instance.
-func NewFileField(name string, options ...any) *FileField {
-	return &FileField{
-		NewBaseField(name, DecodeFileHeader, options...),
-	}
+// FileListField is a field that holds a list of [File] values.
+type FileListField ListField[File, ListValue[File, FileValue]]
+
+// FileValue is a [Valuer] for uploaded files.
+// It can open files submitted as [multipart.FileHeader] or strings
+// from JSON or url values.
+type FileValue struct {
+	BaseValue[File]
 }
 
-// UnmarshalFiles implements [HeaderReader].
-func (f *FileField) UnmarshalFiles(files []*multipart.FileHeader) error {
-	defer func() {
-		f.postBinding(nil)
-	}()
+func (v FileValue) String() string {
+	res := "<file"
 
-	if len(files) == 0 {
-		return nil
-	}
-
-	// Contrary to the regular list field, we don't need any check here.
-	// Passing a [*multipart.FileHeader] here ensures that the value
-	// always has an [IsOk] flag.
-	f.value = f.decoder.DecodeAny(
-		f.preBinding(files[0]),
-	)
-
-	return nil
-}
-
-// FileListField is a field that holds a list of [FileOpener] values.
-type FileListField struct {
-	*ListField[FileOpener]
-}
-
-// NewFileListField returns a new [FileListField] instance.
-func NewFileListField(name string, options ...any) *FileListField {
-	return &FileListField{
-		NewListField(name, DecodeFileHeader, options...),
-	}
-}
-
-// UnmarshalFiles implements [HeaderReader].
-func (f *FileListField) UnmarshalFiles(files []*multipart.FileHeader) error {
-	defer func() {
-		if len(f.value.V) == 0 {
-			f.value.F |= IsEmpty
+	if v.value != nil {
+		if f := v.value.Filename(); f != "" {
+			res += " " + f
 		}
-		f.postBinding(nil)
-	}()
+	}
+	return res + ">"
+}
+
+// UnmarshalJSON implements [json.Unmarshaler].
+// It decodes the content as a string and produces a [StringOpener].
+func (v *FileValue) UnmarshalJSON(in []byte) error {
+	return DecodeValueData(v, in, func(data []byte) (res *File, err error) {
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return nil, err
+		}
+
+		return new(File(StringOpener(s))), nil
+	})
+}
+
+// UnmarshalValues implements [ValuesUnmarshaler].
+// It decodes the content as a string and produces a [StringOpener].
+func (v *FileValue) UnmarshalValues(values []string) error {
+	return DecodeValueData(v, values, func(data []string) (res *File, err error) {
+		if len(data) == 0 || data[0] == nilText {
+			return nil, nil
+		}
+
+		return new(File(StringOpener([]byte(values[0])))), nil
+	})
+}
+
+// UnmarshalFiles imlements [FilesUnmarshaler].
+// It decodes a the first file into a [MultipartFileOpener].
+func (v *FileValue) UnmarshalFiles(files []*multipart.FileHeader) error {
+	v.SetFlags(v.Flags() | IsEmpty)
 
 	if len(files) == 0 {
-		f.Set(nil)
+		v.SetFlags(IsEmpty | IsBound)
 		return nil
 	}
 
-	// Contrary to the regular list field, we don't need any check here.
-	// Passing a [*multipart.FileHeader] here ensures that the value
-	// always has an [IsOk] flag.
-	f.value = Value[[]FileOpener]{}
-	for _, file := range files {
-		f.value.V = append(f.value.V, f.decoder.DecodeAny(
-			f.preBinding(file),
-		).V)
+	v.value = &MultipartFileOpener{files[0]}
+	v.SetFlags(v.Flags() | IsBound)
+	if v.value.Size() > 0 {
+		v.SetFlags(v.Flags() &^ IsEmpty)
 	}
-
 	return nil
 }

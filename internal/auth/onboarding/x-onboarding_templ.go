@@ -115,7 +115,7 @@ func (_ Views) onboarding(f *onboardingForm) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextField(f.Get("username"),
+			templ_7745c5c3_Err = F.TextField(&f.Username,
 				F.Label(L(ctx).Gettext("Username")),
 				F.Required(true),
 				F.Classes("max"),
@@ -123,7 +123,7 @@ func (_ Views) onboarding(f *onboardingForm) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.PasswordField(f.Get("password"),
+			templ_7745c5c3_Err = F.PasswordField(&f.Password,
 				F.Label(L(ctx).Gettext("Password")),
 				F.Required(true),
 				F.Classes("max"),
@@ -137,7 +137,7 @@ func (_ Views) onboarding(f *onboardingForm) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextField(f.Get("email"),
+			templ_7745c5c3_Err = F.TextField(&f.Email,
 				F.Label(L(ctx).Gettext("Email address")),
 				F.Classes("max"),
 			).Render(ctx, templ_7745c5c3_Buffer)

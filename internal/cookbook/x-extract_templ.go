@@ -59,9 +59,9 @@ func (v Views) extract(f *extractForm, res *extractResult, html io.Reader) templ
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(f.Get(`url`).String())
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(f.URL.Value())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/cookbook/x-extract.templ`, Line: 23, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/cookbook/x-extract.templ`, Line: 23, Col: 26}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -71,12 +71,12 @@ func (v Views) extract(f *extractForm, res *extractResult, html io.Reader) templ
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if f.Get("url").String() != "" && len(f.Get("url").Errors()) > 0 {
+			if f.URL.IsBound() && !f.URL.IsValid() {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<ul class=\"mt-1 list-disc list-inside text-red-800\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				for _, err := range f.Errors() {
+				for _, err := range f.URL.Errors() {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<li>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

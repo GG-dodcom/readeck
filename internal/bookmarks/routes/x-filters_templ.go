@@ -25,7 +25,7 @@ type FilterComponents struct{}
 
 var compactField = F.Classes("field-h--compact")
 
-func (c FilterComponents) filters(f forms.Binder) templ.Component {
+func (c FilterComponents) filters(f *FilterForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -50,74 +50,74 @@ func (c FilterComponents) filters(f forms.Binder) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.TextField(f.Get("search"), F.Label(L(ctx).Gettext("Search"))).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = F.TextField(&f.Search, F.Label(L(ctx).Gettext("Search"))).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = c.autoComplete(f.Get("title"), L(ctx).Gettext("Title"), "title", false).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = c.autoComplete(&f.Title, L(ctx).Gettext("Title"), "title", false).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = c.autoComplete(f.Get("author"), L(ctx).Gettext("Author"), "author", false).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = c.autoComplete(&f.Author, L(ctx).Gettext("Author"), "author", false).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = c.autoComplete(f.Get("site"), L(ctx).Gettext("Site"), "site", false).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = c.autoComplete(&f.Site, L(ctx).Gettext("Site"), "site", false).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = c.autoComplete(f.Get("labels"), L(ctx).Gettext("Label"), "label", true).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = c.autoComplete(&f.Labels, L(ctx).Gettext("Label"), "label", true).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.TextField(f.Get("note"), F.Label(L(ctx).Gettext("Note"))).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = F.TextField(&f.Note, F.Label(L(ctx).Gettext("Note"))).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.TimeTokenField(f.Get("range_start"), F.Label("From date"),
+		templ_7745c5c3_Err = F.TimeTokenField(&f.RangeStart, F.Label("From date"),
 			compactField,
 		).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.TimeTokenField(f.Get("range_end"),
+		templ_7745c5c3_Err = F.TimeTokenField(&f.RangeEnd,
 			F.Label("To date"),
 			compactField,
 		).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.MultiSelectField[string](f.Get("type"),
+		templ_7745c5c3_Err = F.MultiSelectField[string](&f.Type,
 			F.Label(L(ctx).Gettext("Type")),
 			compactField,
 		).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.MultiSelectField[string](f.Get("read_status"),
+		templ_7745c5c3_Err = F.MultiSelectField[string](&f.ReadStatus,
 			F.Label(L(ctx).Pgettext("filter", "Progress")),
 			compactField,
 		).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = c.yesNo(f.Get("is_marked").(*forms.BooleanField), L(ctx).Gettext("Is Favorite")).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = c.yesNo(&f.IsMarked, L(ctx).Gettext("Is Favorite")).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = c.yesNo(f.Get("is_archived").(*forms.BooleanField), L(ctx).Gettext("Is Archived")).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = c.yesNo(&f.IsArchived, L(ctx).Gettext("Is Archived")).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = c.yesNo(f.Get("is_loaded").(*forms.BooleanField), L(ctx).Gettext("Is Loaded")).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = c.yesNo(&f.IsLoaded, L(ctx).Gettext("Is Loaded")).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = c.yesNo(f.Get("has_labels").(*forms.BooleanField), L(ctx).Gettext("With Labels")).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = c.yesNo(&f.HasLabels, L(ctx).Gettext("With Labels")).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = c.yesNo(f.Get("has_errors").(*forms.BooleanField), L(ctx).Gettext("With Errors")).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = c.yesNo(&f.HasErrors, L(ctx).Gettext("With Errors")).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -129,7 +129,7 @@ func (c FilterComponents) filters(f forms.Binder) templ.Component {
 	})
 }
 
-func (c FilterComponents) autoComplete(field forms.Field, label string, ft string, multiple bool) templ.Component {
+func (c FilterComponents) autoComplete(field *forms.TextField, label string, ft string, multiple bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -229,7 +229,7 @@ func (c FilterComponents) yesNo(field *forms.BooleanField, label string) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if field.V() {
+			if field.Value() {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -242,7 +242,7 @@ func (c FilterComponents) yesNo(field *forms.BooleanField, label string) templ.C
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("yes"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-filters.templ`, Line: 78, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-filters.templ`, Line: 78, Col: 74}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -252,7 +252,7 @@ func (c FilterComponents) yesNo(field *forms.BooleanField, label string) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if !field.IsNil() && !field.V() {
+			if field.IsBound() && !field.IsNil() && !field.IsEmpty() && !field.Value() {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " selected")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -265,7 +265,7 @@ func (c FilterComponents) yesNo(field *forms.BooleanField, label string) templ.C
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("no"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-filters.templ`, Line: 79, Col: 89}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/routes/x-filters.templ`, Line: 79, Col: 132}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {

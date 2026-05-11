@@ -17,7 +17,6 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"codeberg.org/readeck/readeck/internal/auth/signin"
 	"codeberg.org/readeck/readeck/internal/server"
-	"codeberg.org/readeck/readeck/pkg/forms"
 
 	. "codeberg.org/readeck/readeck/components"
 	F "codeberg.org/readeck/readeck/components/forms"
@@ -73,7 +72,7 @@ func (v Views) authCode(client *oauthClient, scopes []string) templ.Component {
 }
 
 func (v Views) deviceCode(
-	step deviceCodeStep, f forms.Binder,
+	step deviceCodeStep, f *deviceAuthorizationForm,
 	client *oauthClient, req *deviceAuthorizationRequest, scopes []string,
 ) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
@@ -117,7 +116,7 @@ func (v Views) deviceCode(
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Error"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 31, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 30, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -130,7 +129,7 @@ func (v Views) deviceCode(
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("This code has expired or is not valid"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 32, Col: 64}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 31, Col: 64}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -152,7 +151,7 @@ func (v Views) deviceCode(
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Connect a device"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 35, Col: 77}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 34, Col: 77}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -165,7 +164,7 @@ func (v Views) deviceCode(
 				var templ_7745c5c3_Var8 templ.SafeURL
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(URL(ctx))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 36, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 35, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -175,7 +174,7 @@ func (v Views) deviceCode(
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = F.TextField(f.Get("user_code"),
+				templ_7745c5c3_Err = F.TextField(&f.UserCode,
 					F.Label(L(ctx).Gettext("Enter the code displayed on your device")),
 					F.Classes("max"),
 					F.InputClasses("form-input w-full text-center text-lg font-bold"),
@@ -191,7 +190,7 @@ func (v Views) deviceCode(
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Next"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 44, Col: 30}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 43, Col: 30}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -219,9 +218,9 @@ func (v Views) deviceCode(
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var11 string
-					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(f.Get("user_code").String())
+					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(f.UserCode.Value())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 49, Col: 78}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 48, Col: 69}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 					if templ_7745c5c3_Err != nil {
@@ -245,7 +244,7 @@ func (v Views) deviceCode(
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Connect a device"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 52, Col: 77}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 51, Col: 77}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -258,7 +257,7 @@ func (v Views) deviceCode(
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Authorization request was denied."))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 54, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 53, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {
@@ -271,7 +270,7 @@ func (v Views) deviceCode(
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 55, Col: 10}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 54, Col: 10}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -284,7 +283,7 @@ func (v Views) deviceCode(
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext(" You can now close this page."))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 56, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 55, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
@@ -306,7 +305,7 @@ func (v Views) deviceCode(
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Connect a device"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 60, Col: 77}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 59, Col: 77}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -324,7 +323,7 @@ func (v Views) deviceCode(
 					var templ_7745c5c3_Var17 string
 					templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Authorization granted. Connecting device..."))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 62, Col: 71}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 61, Col: 71}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 					if templ_7745c5c3_Err != nil {
@@ -361,7 +360,7 @@ func (v Views) deviceCode(
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Device is connected!"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 76, Col: 46}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 75, Col: 46}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -374,7 +373,7 @@ func (v Views) deviceCode(
 					var templ_7745c5c3_Var19 string
 					templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 77, Col: 11}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 76, Col: 11}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 					if templ_7745c5c3_Err != nil {
@@ -387,7 +386,7 @@ func (v Views) deviceCode(
 					var templ_7745c5c3_Var20 string
 					templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext(" You can now close this page."))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 78, Col: 55}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 77, Col: 55}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 					if templ_7745c5c3_Err != nil {
@@ -441,7 +440,7 @@ func (v Views) backBtn() templ.Component {
 		var templ_7745c5c3_Var22 templ.SafeURL
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinURLErrs(URL(ctx, "/"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 88, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 87, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
@@ -454,7 +453,7 @@ func (v Views) backBtn() templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Go back to Readeck"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 89, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 88, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -508,7 +507,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Authorization required"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 102, Col: 80}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 101, Col: 80}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -526,7 +525,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(client.Logo)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 105, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 104, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
@@ -555,7 +554,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Review permissions"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 114, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 113, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -577,7 +576,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 119, Col: 9}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 118, Col: 9}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 			if templ_7745c5c3_Err != nil {
@@ -590,7 +589,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(x)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 120, Col: 7}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 119, Col: 7}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
@@ -608,7 +607,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Application information"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 124, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 123, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 		if templ_7745c5c3_Err != nil {
@@ -621,7 +620,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Name"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 126, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 125, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 		if templ_7745c5c3_Err != nil {
@@ -634,7 +633,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 		var templ_7745c5c3_Var32 string
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(client.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 126, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 125, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 		if templ_7745c5c3_Err != nil {
@@ -647,7 +646,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Website"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 127, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 126, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 		if templ_7745c5c3_Err != nil {
@@ -660,7 +659,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 		var templ_7745c5c3_Var34 templ.SafeURL
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinURLErrs(client.URI)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 127, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 126, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 		if templ_7745c5c3_Err != nil {
@@ -673,7 +672,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 		var templ_7745c5c3_Var35 string
 		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(client.URI)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 127, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 126, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 		if templ_7745c5c3_Err != nil {
@@ -686,7 +685,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 		var templ_7745c5c3_Var36 string
 		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Version"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 128, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 127, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 		if templ_7745c5c3_Err != nil {
@@ -699,7 +698,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 		var templ_7745c5c3_Var37 string
 		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(client.SoftwareVersion)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 128, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 127, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 		if templ_7745c5c3_Err != nil {
@@ -712,7 +711,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 		var templ_7745c5c3_Var38 templ.SafeURL
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinURLErrs(URL(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 130, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 129, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 		if templ_7745c5c3_Err != nil {
@@ -725,7 +724,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 		var templ_7745c5c3_Var39 string
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Authorize"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 137, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 136, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 		if templ_7745c5c3_Err != nil {
@@ -738,7 +737,7 @@ func (v Views) form(client *oauthClient, scopes []string) templ.Component {
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Deny"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 145, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/auth/oauth2/x-oauth.templ`, Line: 144, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 		if templ_7745c5c3_Err != nil {

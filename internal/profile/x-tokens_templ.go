@@ -603,7 +603,7 @@ func (v Views) tokenInfo(f *tokenForm, token *tokenItem, encoded string) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextField(f.Get("application"),
+			templ_7745c5c3_Err = F.TextField(&f.Application,
 				F.Label(L(ctx).Gettext("Name")),
 				F.Required(true),
 				F.Classes("field-h"),
@@ -611,14 +611,14 @@ func (v Views) tokenInfo(f *tokenForm, token *tokenItem, encoded string) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.CheckboxField(f.Get("is_enabled"),
+			templ_7745c5c3_Err = F.CheckboxField(&f.IsEnabled,
 				F.Label(L(ctx).Gettext("Enabled")),
 				F.Classes("field-h"),
 			).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.DateField(f.Get("expires"),
+			templ_7745c5c3_Err = F.DateField(&f.Expires,
 				F.Label(L(ctx).Gettext("Expires on")),
 				F.Classes("field-h"),
 			).Render(ctx, templ_7745c5c3_Buffer)
@@ -654,7 +654,7 @@ func (v Views) tokenInfo(f *tokenForm, token *tokenItem, encoded string) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.MultiSelectField[string](f.Get("roles"),
+			templ_7745c5c3_Err = F.MultiSelectField[string](&f.Roles,
 				F.Label(L(ctx).Gettext("Roles")),
 				F.Classes("field-h"),
 			).Render(ctx, templ_7745c5c3_Buffer)

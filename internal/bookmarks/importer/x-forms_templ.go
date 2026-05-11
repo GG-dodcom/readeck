@@ -23,7 +23,7 @@ import (
 
 type formViews struct{}
 
-func (_ formViews) form(f forms.Binder) templ.Component {
+func (_ formViews) form(f forms.FormBinder) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -116,7 +116,7 @@ func (_ formViews) form(f forms.Binder) templ.Component {
 	})
 }
 
-func (v formViews) fileForm(f forms.Binder) templ.Component {
+func (v formViews) fileForm(f *FileImportForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -149,7 +149,7 @@ func (v formViews) fileForm(f forms.Binder) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = F.FiledDropField(f.Get("data"),
+			templ_7745c5c3_Err = F.FiledDropField(&f.Data,
 				F.Label(L(ctx).Gettext("File")),
 				F.Required(true),
 				F.Classes("field-h"),
@@ -161,7 +161,7 @@ func (v formViews) fileForm(f forms.Binder) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = v.options(f).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = v.options(&f.BaseImportForm).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -183,7 +183,7 @@ func (v formViews) fileForm(f forms.Binder) templ.Component {
 	})
 }
 
-func (v formViews) options(f forms.Binder) templ.Component {
+func (v formViews) options(f *BaseImportForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -221,7 +221,7 @@ func (v formViews) options(f forms.Binder) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.TextField(f.Get("label"),
+		templ_7745c5c3_Err = F.TextField(&f.Label,
 			F.Label(L(ctx).Gettext("Label")),
 			F.Classes("field-h"),
 			F.Help(L(ctx).Gettext("A label to add to all imported bookmarks")),
@@ -229,14 +229,14 @@ func (v formViews) options(f forms.Binder) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.CheckboxField(f.Get("ignore_duplicates"),
+		templ_7745c5c3_Err = F.CheckboxField(&f.IgnoreDuplicates,
 			F.Label(L(ctx).Gettext("Ignore links already in your bookmarks")),
 			F.Classes("field-h"),
 		).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.CheckboxField(f.Get("archive"),
+		templ_7745c5c3_Err = F.CheckboxField(&f.Archive,
 			F.Label(L(ctx).Gettext("Archive all links")),
 			F.Classes("field-h"),
 			F.Help(L(ctx).Gettext("Moves all links to archive, regardless of their original status")),
@@ -244,7 +244,7 @@ func (v formViews) options(f forms.Binder) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = F.CheckboxField(f.Get("mark_read"),
+		templ_7745c5c3_Err = F.CheckboxField(&f.MarkRead,
 			F.Label(L(ctx).Gettext("Mark all links as read")),
 			F.Classes("field-h"),
 			F.Help(L(ctx).Gettext("Marks all links as read, regardless of their original status")),
@@ -256,7 +256,7 @@ func (v formViews) options(f forms.Binder) templ.Component {
 	})
 }
 
-func (_ *browserAdapter) Component(f forms.Binder) templ.Component {
+func (_ *browserAdapter) Component(form forms.FormBinder) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -332,6 +332,7 @@ func (_ *browserAdapter) Component(f forms.Binder) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
+		f := form.(*browserAdapterForm)
 		templ_7745c5c3_Var14 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -344,7 +345,7 @@ func (_ *browserAdapter) Component(f forms.Binder) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = F.CheckboxField(f.Get("labels_from_titles"),
+			templ_7745c5c3_Err = F.CheckboxField(&f.LabelsFromTitles,
 				F.Label(L(ctx).Gettext("Convert section titles to labels")),
 				F.Classes("field-h"),
 				F.Help(L(ctx).Gettext("Adds a label on links, based on their section title")),
@@ -354,7 +355,7 @@ func (_ *browserAdapter) Component(f forms.Binder) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = formViews{}.fileForm(f).Render(templ.WithChildren(ctx, templ_7745c5c3_Var14), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = formViews{}.fileForm(&f.FileImportForm).Render(templ.WithChildren(ctx, templ_7745c5c3_Var14), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -362,7 +363,7 @@ func (_ *browserAdapter) Component(f forms.Binder) templ.Component {
 	})
 }
 
-func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
+func (_ *csvAdapter) Component(form forms.FormBinder) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -390,7 +391,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Import Links from a CSV File"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 97, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 98, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -405,7 +406,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 			"Upload a CSV file from Instapaper or any CSV that matches the format specified below.",
 		))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 102, Col: 4}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 103, Col: 4}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -415,7 +416,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = formViews{}.fileForm(f).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = formViews{}.fileForm(form.(*FileImportForm)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -426,7 +427,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("CSV Format"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 106, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 107, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
@@ -450,7 +451,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Here are the columns you can set:"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 114, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 115, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -463,7 +464,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Field"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 118, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 119, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {
@@ -476,7 +477,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Alias"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 119, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 120, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -489,7 +490,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Description"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 120, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 121, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
@@ -502,7 +503,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Required"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 125, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 126, Col: 63}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -515,7 +516,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Link address"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 127, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 128, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
@@ -528,7 +529,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Bookmark title"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 132, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 133, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -541,7 +542,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext(`Bookmark's archived state; only valid value is "%s"`, "archive"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 137, Col: 91}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 138, Col: 91}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
@@ -554,7 +555,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Creation date, can be a UNIX timestamp or an RFC-3339 formatted date"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 142, Col: 97}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 143, Col: 97}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -567,7 +568,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("A JSON encoded list of labels"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 147, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 148, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -580,7 +581,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Example"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 151, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 152, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
@@ -594,7 +595,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs("url,title,state,created,labels\n" +
 			`https://www.the-reframe.com/all-in-the-same-boat/,"All In The Same Boat",,2025-01-12T10:45:56,"[""label 1"",""label 2""]"`)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 154, Col: 127}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 155, Col: 127}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 		if templ_7745c5c3_Err != nil {
@@ -608,7 +609,7 @@ func (_ *csvAdapter) Component(f forms.Binder) templ.Component {
 	})
 }
 
-func (_ *goodlinksAdapter) Component(f forms.Binder) templ.Component {
+func (_ *goodlinksAdapter) Component(form forms.FormBinder) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -636,7 +637,7 @@ func (_ *goodlinksAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var32 string
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Import Links from a GoodLinks export file"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 160, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 161, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 		if templ_7745c5c3_Err != nil {
@@ -651,7 +652,7 @@ func (_ *goodlinksAdapter) Component(f forms.Binder) templ.Component {
 			"Upload a JSON file obtained from your GoodLinks app.",
 		))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 165, Col: 4}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 166, Col: 4}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 		if templ_7745c5c3_Err != nil {
@@ -661,7 +662,7 @@ func (_ *goodlinksAdapter) Component(f forms.Binder) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = formViews{}.fileForm(f).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = formViews{}.fileForm(form.(*FileImportForm)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -669,7 +670,7 @@ func (_ *goodlinksAdapter) Component(f forms.Binder) templ.Component {
 	})
 }
 
-func (_ *pinboardAdapter) Component(f forms.Binder) templ.Component {
+func (_ *linkwardenAdapter) Component(form forms.FormBinder) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -695,9 +696,9 @@ func (_ *pinboardAdapter) Component(f forms.Binder) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var35 string
-		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Import Links from a Pinboard JSON backup file"))
+		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Import Bookmarks from a Linkwarden export file"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 172, Col: 92}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 173, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 		if templ_7745c5c3_Err != nil {
@@ -709,10 +710,10 @@ func (_ *pinboardAdapter) Component(f forms.Binder) templ.Component {
 		}
 		var templ_7745c5c3_Var36 string
 		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext(
-			"Upload a JSON file obtained from your Pinboard account.",
+			"Upload a JSON file obtained from your Linkwarden app.",
 		))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 177, Col: 4}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 178, Col: 4}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 		if templ_7745c5c3_Err != nil {
@@ -722,7 +723,7 @@ func (_ *pinboardAdapter) Component(f forms.Binder) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = formViews{}.fileForm(f).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = formViews{}.fileForm(form.(*FileImportForm)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -730,7 +731,7 @@ func (_ *pinboardAdapter) Component(f forms.Binder) templ.Component {
 	})
 }
 
-func (_ *linkwardenAdapter) Component(f forms.Binder) templ.Component {
+func (_ *omnivoreAPIAdapter) Component(form forms.FormBinder) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -756,9 +757,9 @@ func (_ *linkwardenAdapter) Component(f forms.Binder) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var38 string
-		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Import Bookmarks from a Linkwarden export file"))
+		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Import your Omnivore Articles"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 184, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 185, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 		if templ_7745c5c3_Err != nil {
@@ -769,11 +770,12 @@ func (_ *linkwardenAdapter) Component(f forms.Binder) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var39 string
-		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext(
-			"Upload a JSON file obtained from your Linkwarden app.",
-		))
+		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext(`
+				To import your articles from Omnivore, you must first create an API Key in your
+    		Omnivore's settings and enter it in the the form below.
+			`))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 189, Col: 4}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 191, Col: 5}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 		if templ_7745c5c3_Err != nil {
@@ -783,7 +785,51 @@ func (_ *linkwardenAdapter) Component(f forms.Binder) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = formViews{}.fileForm(f).Render(ctx, templ_7745c5c3_Buffer)
+		f := form.(*omnivoreAPIAdapterForm)
+		templ_7745c5c3_Var40 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = F.TextField(&f.URL,
+				F.Label(L(ctx).Gettext("Omnivore URL")),
+				F.Required(true),
+				F.Classes("field-h"),
+				F.Help(L(ctx).Gettext("URL of your Omnivore homepage")),
+			).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = F.TextField(&f.Token,
+				F.Label(L(ctx).Gettext("API Key")),
+				F.Required(true),
+				F.Classes("field-h"),
+			).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = formViews{}.options(&f.BaseImportForm).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = formViews{}.form(form).Render(templ.WithChildren(ctx, templ_7745c5c3_Var40), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -791,7 +837,7 @@ func (_ *linkwardenAdapter) Component(f forms.Binder) templ.Component {
 	})
 }
 
-func (_ *omnivoreAPIAdapter) Component(f forms.Binder) templ.Component {
+func (_ *pinboardAdapter) Component(form forms.FormBinder) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -807,88 +853,44 @@ func (_ *omnivoreAPIAdapter) Component(f forms.Binder) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var40 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var40 == nil {
-			templ_7745c5c3_Var40 = templ.NopComponent
+		templ_7745c5c3_Var41 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var41 == nil {
+			templ_7745c5c3_Var41 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<h1 class=\"title text-h2\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var41 string
-		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Import your Omnivore Articles"))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 196, Col: 76}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "</h1><div class=\"prose mb-8\"><p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<h1 class=\"title text-h2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var42 string
-		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext(`
-				To import your articles from Omnivore, you must first create an API Key in your
-    		Omnivore's settings and enter it in the the form below.
-			`))
+		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Import Links from a Pinboard JSON backup file"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 202, Col: 5}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 212, Col: 92}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</h1><div class=\"prose mb-8\"><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Var43 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-			if !templ_7745c5c3_IsBuffer {
-				defer func() {
-					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-					if templ_7745c5c3_Err == nil {
-						templ_7745c5c3_Err = templ_7745c5c3_BufErr
-					}
-				}()
-			}
-			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = F.TextField(f.Get("url"),
-				F.Label(L(ctx).Gettext("Omnivore URL")),
-				F.Required(true),
-				F.Classes("field-h"),
-				F.Help(L(ctx).Gettext("URL of your Omnivore homepage")),
-			).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, " ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = F.TextField(f.Get("token"),
-				F.Label(L(ctx).Gettext("API Key")),
-				F.Required(true),
-				F.Classes("field-h"),
-			).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, " ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = formViews{}.options(f).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			return nil
-		})
-		templ_7745c5c3_Err = formViews{}.form(f).Render(templ.WithChildren(ctx, templ_7745c5c3_Var43), templ_7745c5c3_Buffer)
+		var templ_7745c5c3_Var43 string
+		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext(
+			"Upload a JSON file obtained from your Pinboard account.",
+		))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 217, Col: 4}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</p></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = formViews{}.fileForm(form.(*FileImportForm)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -896,7 +898,7 @@ func (_ *omnivoreAPIAdapter) Component(f forms.Binder) templ.Component {
 	})
 }
 
-func (_ *pocketFileAdapter) Component(f forms.Binder) templ.Component {
+func (_ *pocketFileAdapter) Component(form forms.FormBinder) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -924,7 +926,7 @@ func (_ *pocketFileAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var45 string
 		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Import your Pocket Articles"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 222, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 224, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 		if templ_7745c5c3_Err != nil {
@@ -952,7 +954,7 @@ func (_ *pocketFileAdapter) Component(f forms.Binder) templ.Component {
     	every link found it the file.
 		`))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 235, Col: 4}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 237, Col: 4}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 		if templ_7745c5c3_Err != nil {
@@ -981,7 +983,7 @@ func (_ *pocketFileAdapter) Component(f forms.Binder) templ.Component {
 				see in Pocket.
 			`))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 242, Col: 5}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 244, Col: 5}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 			if templ_7745c5c3_Err != nil {
@@ -997,6 +999,7 @@ func (_ *pocketFileAdapter) Component(f forms.Binder) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
+		f := form.(*FileImportForm)
 		templ_7745c5c3_Var49 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -1009,7 +1012,7 @@ func (_ *pocketFileAdapter) Component(f forms.Binder) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = F.FiledDropField(f.Get("data"),
+			templ_7745c5c3_Err = F.FiledDropField(&f.Data,
 				F.Label(L(ctx).Gettext("File")),
 				F.Required(true),
 				F.Classes("field-h"),
@@ -1022,7 +1025,7 @@ func (_ *pocketFileAdapter) Component(f forms.Binder) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = formViews{}.options(f).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = formViews{}.options(&f.BaseImportForm).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1044,7 +1047,7 @@ func (_ *pocketFileAdapter) Component(f forms.Binder) templ.Component {
 	})
 }
 
-func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
+func (_ *readwiseAdapter) Component(form forms.FormBinder) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1072,7 +1075,7 @@ func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var51 string
 		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Import Links from Readwise Reader CSV export"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 258, Col: 91}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 261, Col: 91}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 		if templ_7745c5c3_Err != nil {
@@ -1087,7 +1090,7 @@ func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
 			"Upload a CSV file exported from your Readwise Reader account below.",
 		))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 263, Col: 4}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 266, Col: 4}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 		if templ_7745c5c3_Err != nil {
@@ -1097,7 +1100,7 @@ func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = formViews{}.fileForm(f).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = formViews{}.fileForm(form.(*FileImportForm)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1108,7 +1111,7 @@ func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var53 string
 		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Which information is imported"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 267, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 270, Col: 81}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 		if templ_7745c5c3_Err != nil {
@@ -1121,7 +1124,7 @@ func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var54 string
 		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Article title, URL, and when it was first saved,"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 270, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 273, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 		if templ_7745c5c3_Err != nil {
@@ -1134,7 +1137,7 @@ func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var55 string
 		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("The archived state of an article,"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 271, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 274, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 		if templ_7745c5c3_Err != nil {
@@ -1147,7 +1150,7 @@ func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var56 string
 		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext(`"%s" as Readeck labels,`, "Document tags"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 272, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 275, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 		if templ_7745c5c3_Err != nil {
@@ -1160,7 +1163,7 @@ func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var57 string
 		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext(`When a document tag contains "%s", the bookmark will be added to Readeck Favorites.`, "favorite"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 273, Col: 122}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 276, Col: 122}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 		if templ_7745c5c3_Err != nil {
@@ -1173,7 +1176,7 @@ func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var58 string
 		templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("What is not imported:"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 275, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 278, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 		if templ_7745c5c3_Err != nil {
@@ -1186,7 +1189,7 @@ func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var59 string
 		templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Article reading progress and seen status,"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 277, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 280, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 		if templ_7745c5c3_Err != nil {
@@ -1199,7 +1202,7 @@ func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var60 string
 		templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Articles forwarded to Readwise Reader by email,"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 278, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 281, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 		if templ_7745c5c3_Err != nil {
@@ -1212,7 +1215,7 @@ func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var61 string
 		templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Uploaded documents such as PDFs or EPUB."))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 279, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 282, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 		if templ_7745c5c3_Err != nil {
@@ -1226,7 +1229,7 @@ func (_ *readwiseAdapter) Component(f forms.Binder) templ.Component {
 	})
 }
 
-func (_ *textAdapter) Component(f forms.Binder) templ.Component {
+func (_ *textAdapter) Component(form forms.FormBinder) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1254,7 +1257,7 @@ func (_ *textAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var63 string
 		templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Import Links from a Text File"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 285, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 288, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
 		if templ_7745c5c3_Err != nil {
@@ -1270,7 +1273,7 @@ func (_ *textAdapter) Component(f forms.Binder) templ.Component {
     		all of them and save them in your bookmark list.
 			`))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 291, Col: 5}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 294, Col: 5}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 		if templ_7745c5c3_Err != nil {
@@ -1280,7 +1283,7 @@ func (_ *textAdapter) Component(f forms.Binder) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = formViews{}.fileForm(f).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = formViews{}.fileForm(form.(*FileImportForm)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1288,7 +1291,7 @@ func (_ *textAdapter) Component(f forms.Binder) templ.Component {
 	})
 }
 
-func (_ *wallabagAdapter) Component(f forms.Binder) templ.Component {
+func (_ *wallabagAdapter) Component(form forms.FormBinder) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1316,7 +1319,7 @@ func (_ *wallabagAdapter) Component(f forms.Binder) templ.Component {
 		var templ_7745c5c3_Var66 string
 		templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(L(ctx).Gettext("Import your Wallabag Articles"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 298, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 301, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 		if templ_7745c5c3_Err != nil {
@@ -1343,7 +1346,7 @@ func (_ *wallabagAdapter) Component(f forms.Binder) templ.Component {
 			"You can then enter all the necessary information in the form below.",
 		))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 310, Col: 4}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/bookmarks/importer/x-forms.templ`, Line: 313, Col: 4}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 		if templ_7745c5c3_Err != nil {
@@ -1353,6 +1356,7 @@ func (_ *wallabagAdapter) Component(f forms.Binder) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
+		f := form.(*wallabagAdapterForm)
 		templ_7745c5c3_Var68 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -1365,7 +1369,7 @@ func (_ *wallabagAdapter) Component(f forms.Binder) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = F.TextField(f.Get("url"),
+			templ_7745c5c3_Err = F.TextField(&f.URL,
 				F.Label(L(ctx).Gettext("Wallabag URL")),
 				F.Required(true),
 				F.Classes("field-h"),
@@ -1378,7 +1382,7 @@ func (_ *wallabagAdapter) Component(f forms.Binder) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextField(f.Get("username"),
+			templ_7745c5c3_Err = F.TextField(&f.Username,
 				F.Label(L(ctx).Gettext("Username")),
 				F.Required(true),
 				F.Classes("field-h"),
@@ -1390,7 +1394,7 @@ func (_ *wallabagAdapter) Component(f forms.Binder) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.PasswordField(f.Get("password"),
+			templ_7745c5c3_Err = F.PasswordField(&f.Password,
 				F.Label(L(ctx).Gettext("Password")),
 				F.Required(true),
 				F.Classes("field-h"),
@@ -1403,7 +1407,7 @@ func (_ *wallabagAdapter) Component(f forms.Binder) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextField(f.Get("client_id"),
+			templ_7745c5c3_Err = F.TextField(&f.ClientID,
 				F.Label(L(ctx).Gettext("Client ID")),
 				F.Required(true),
 				F.Classes("field-h"),
@@ -1415,7 +1419,7 @@ func (_ *wallabagAdapter) Component(f forms.Binder) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextField(f.Get("client_secret"),
+			templ_7745c5c3_Err = F.TextField(&f.ClientSecret,
 				F.Label(L(ctx).Gettext("Client Secret")),
 				F.Required(true),
 				F.Classes("field-h"),
@@ -1427,7 +1431,7 @@ func (_ *wallabagAdapter) Component(f forms.Binder) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = formViews{}.options(f).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = formViews{}.options(&f.BaseImportForm).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

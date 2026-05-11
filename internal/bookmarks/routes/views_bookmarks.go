@@ -46,21 +46,21 @@ func (h *viewsRouter) withBaseContext(next http.Handler) http.Handler {
 }
 
 func (h *viewsRouter) bookmarkList(w http.ResponseWriter, r *http.Request) {
-	f := newCreateForm(r)
+	f := forms.New[createForm](r.Context())
 
 	switch r.Method {
 	case http.MethodGet:
 		// prepopulate the URL, no validation takes place at this point
-		f.Get("url").Set(r.URL.Query().Get("url"))
+		_ = forms.UnmarshalValues(r.URL.Query()["url"], &f.URL)
 	case http.MethodPost:
 		// POST => create a new bookmark
-		forms.Bind(f, r)
+		forms.Bind(r, f)
 		if f.IsValid() {
-			f.Get("created").Set(nil)
-			f.Get("feature_find_main").Set(nil)
-			f.Get("resource").Set(nil)
+			f.Created.Set(time.Time{})
+			f.FindMain.Set(false)
+			f.Resources.Set(nil)
 
-			if b, err := f.createBookmark(); err != nil {
+			if b, err := f.createBookmark(r); err != nil {
 				server.Log(r).Error("", slog.Any("err", err))
 			} else {
 				redir := []string{"/bookmarks"}
@@ -81,9 +81,9 @@ func (h *viewsRouter) bookmarkList(w http.ResponseWriter, r *http.Request) {
 
 	tr := server.Locale(r)
 	title := tr.Gettext("All your Bookmarks")
-	filters := newContextFilterForm(r.Context(), tr)
+	filters := newContextFilterForm(r.Context())
 
-	if filters.IsActive() {
+	if filters.IsActive.Value() {
 		title = tr.Gettext("Bookmark Search")
 	} else {
 		switch filters.title {
@@ -176,23 +176,25 @@ func (h *viewsRouter) diagnosis(w http.ResponseWriter, r *http.Request) {
 func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
 	b := getBookmark(r.Context())
-	f := newUpdateForm(server.Locale(r))
+	f := forms.New[updateForm](r.Context())
 
 	status := http.StatusOK
 
 	switch r.Method {
 	case http.MethodGet:
 		// Fields the user can update on the UI
-		f.Get("title").Set(b.Title)
-		f.Get("description").Set(b.Description)
-		f.Get("site_name").Set(b.SiteName)
-		f.Get("authors").Set([]string(b.Authors))
-		f.Get("published").Set(b.Published)
-		f.Get("lang").Set(b.Lang)
-		f.Get("text_direction").Set(b.TextDirection)
+		f.Title.Set(b.Title)
+		f.Description.Set(b.Description)
+		f.SiteName.Set(b.SiteName)
+		f.Authors.Set([]string(b.Authors))
+		f.Lang.Set(b.Lang)
+		f.TextDirection.Set(b.TextDirection)
+		if b.Published != nil {
+			f.Published.Set(*b.Published)
+		}
 
 	case http.MethodPost:
-		forms.Bind(f, r)
+		forms.Bind(r, f)
 		status = http.StatusUnprocessableEntity
 
 		if !f.IsValid() {
@@ -280,8 +282,8 @@ func (h *viewsRouter) bookmarkUpdate(w http.ResponseWriter, r *http.Request) {
 		server.AddFlash(w, r, "success", tr.Gettext("Bookmark updated"))
 
 		redir := "/bookmarks/" + b.UID + "/update"
-		if f.Get("_to").String() != "" {
-			redir = f.Get("_to").String()
+		if f.To.Value() != "" {
+			redir = f.To.Value()
 		}
 		server.Redirect(w, r, redir)
 		return
@@ -326,15 +328,16 @@ func (h *viewsRouter) bookmarkShareLink(w http.ResponseWriter, r *http.Request) 
 
 func (h *viewsRouter) bookmarkShareEmail(w http.ResponseWriter, r *http.Request) {
 	info := getSharedEmail(r.Context())
+	f := info.Form.(*shareForm)
 
 	// Get format from query string
 	if format := r.URL.Query().Get("format"); format != "" {
-		info.Form.Get("format").Set(format)
+		f.Format.Set(format)
 	}
 
 	// Set default email address when sending an EPUB
-	if u := auth.GetRequestUser(r); u != nil && info.Form.Get("format").String() == "epub" && info.Form.Get("email").String() == "" {
-		info.Form.Get("email").Set(u.Settings.EmailSettings.EpubTo)
+	if u := auth.GetRequestUser(r); u != nil && f.Format.Value() == "epub" && f.Email.Value() == "" {
+		f.Email.Set(u.Settings.EmailSettings.EpubTo)
 	}
 
 	if server.IsTurboRequest(r) {
@@ -371,18 +374,17 @@ func (h *viewsRouter) labelInfo(w http.ResponseWriter, r *http.Request) {
 
 	// POST, update label name
 	if r.Method == http.MethodPost {
-		f := newLabelForm(server.Locale(r))
-		forms.Bind(f, r)
+		f := forms.BindAs[labelForm](r)
 
 		if f.IsValid() {
-			_, err := bookmarks.Bookmarks.RenameLabel(auth.GetRequestUser(r), label, f.Get("name").String())
+			_, err := bookmarks.Bookmarks.RenameLabel(auth.GetRequestUser(r), label, f.Name.Value())
 			if err != nil {
 				server.Err(w, r, err)
 				return
 			}
 
 			redir := urls.AbsoluteURL(r, "/bookmarks/labels")
-			redir.RawQuery = url.Values{"name": []string{f.Get("name").String()}}.Encode()
+			redir.RawQuery = url.Values{"name": []string{f.Name.Value()}}.Encode()
 			w.Header().Set("Location", redir.String())
 			w.WriteHeader(http.StatusSeeOther)
 			return
@@ -405,8 +407,7 @@ func (h *viewsRouter) labelDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := newLabelDeleteForm(server.Locale(r))
-	forms.Bind(f, r)
+	f := forms.BindAs[labelDeleteForm](r)
 	if err := f.trigger(auth.GetRequestUser(r), label); err != nil {
 		server.Err(w, r, err)
 		return

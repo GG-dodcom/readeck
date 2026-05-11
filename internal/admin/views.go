@@ -12,7 +12,6 @@ import (
 
 	"codeberg.org/readeck/readeck/components"
 	"codeberg.org/readeck/readeck/internal/auth"
-	"codeberg.org/readeck/readeck/internal/auth/users"
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
 	"codeberg.org/readeck/readeck/pkg/forms"
@@ -60,13 +59,12 @@ func (h *adminViews) userList(w http.ResponseWriter, r *http.Request) {
 
 func (h *adminViews) userCreate(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
-	f := users.NewUserForm(server.Locale(r))
-	f.Get("group").Set("user")
+	f := forms.New[userForm](r.Context())
 
 	if r.Method == http.MethodPost {
-		forms.Bind(f, r)
+		forms.Bind(r, f)
 		if f.IsValid() {
-			u, err := f.CreateUser()
+			u, err := f.createUser()
 			if err != nil {
 				server.Log(r).Error("", slog.Any("err", err))
 			} else {
@@ -89,14 +87,14 @@ func (h *adminViews) userInfo(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
 	u := getUser(r.Context())
 
-	f := users.NewUserForm(server.Locale(r))
+	f := forms.New[userForm](r.Context())
 	f.SetUser(u)
 
 	if r.Method == http.MethodPost {
-		forms.Bind(f, r)
+		forms.Bind(r, f)
 
 		if f.IsValid() {
-			if _, err := f.UpdateUser(u); err != nil {
+			if _, err := f.updateUser(u); err != nil {
 				server.Log(r).Error("", slog.Any("err", err))
 			} else {
 				// Refresh session if same user
@@ -127,9 +125,9 @@ func (h *adminViews) userInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *adminViews) userDelete(w http.ResponseWriter, r *http.Request) {
-	f := newDeleteForm(server.Locale(r))
-	f.Get("_to").Set("/admin/users")
-	forms.Bind(f, r)
+	f := forms.New[deleteForm](r.Context())
+	f.To.Set("/admin/users")
+	forms.Bind(r, f)
 
 	u := getUser(r.Context())
 	if u.ID == auth.GetRequestUser(r).ID {
@@ -141,5 +139,5 @@ func (h *adminViews) userDelete(w http.ResponseWriter, r *http.Request) {
 		server.Err(w, r, err)
 		return
 	}
-	server.Redirect(w, r, f.Get("_to").String())
+	server.Redirect(w, r, f.To.String())
 }

@@ -15,13 +15,11 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"codeberg.org/readeck/readeck/pkg/forms"
-
 	. "codeberg.org/readeck/readeck/components"
 	F "codeberg.org/readeck/readeck/components/forms"
 )
 
-func (v Views) ui(form, formErr *forms.Form) templ.Component {
+func (v Views) ui(form, formErr *cookbookForm) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -198,11 +196,11 @@ func (v Views) ui(form, formErr *forms.Form) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<hr class=\"my-8\"><h2 class=\"title text-h3\">Form Fields</h2>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<h2 class=\"title text-h3\">Form Fields</h2>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextField(form.Get("text"),
+			templ_7745c5c3_Err = F.TextField(&form.Text,
 				F.Name("text"),
 				F.Label("Text Field"),
 				F.Classes("field-h"),
@@ -210,7 +208,7 @@ func (v Views) ui(form, formErr *forms.Form) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextField(form.Get("text"),
+			templ_7745c5c3_Err = F.TextField(&form.Text,
 				F.Name("required"),
 				F.Required(true),
 				F.Label("Required Field"),
@@ -220,7 +218,7 @@ func (v Views) ui(form, formErr *forms.Form) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.PasswordField(form.Get("text"),
+			templ_7745c5c3_Err = F.PasswordField(&form.Text,
 				F.Name("password"),
 				F.Label("Password Field"),
 				F.Classes("field-h"),
@@ -229,7 +227,7 @@ func (v Views) ui(form, formErr *forms.Form) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.DateField(form.Get("text"),
+			templ_7745c5c3_Err = F.DateField(&form.Text,
 				F.Name("date"),
 				F.Label("Date Field"),
 				F.Classes("field-h"),
@@ -237,7 +235,7 @@ func (v Views) ui(form, formErr *forms.Form) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextAreaField(form.Get("text"),
+			templ_7745c5c3_Err = F.TextAreaField(&form.Text,
 				F.Name("textarea"),
 				F.Label("Textarea"),
 				F.Classes("field-h"),
@@ -245,7 +243,7 @@ func (v Views) ui(form, formErr *forms.Form) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.SelectField[string](form.Get("select"),
+			templ_7745c5c3_Err = F.SelectField[string](&form.Select,
 				F.Name("select"),
 				F.Label("Select"),
 				F.Classes("field-h"),
@@ -253,7 +251,7 @@ func (v Views) ui(form, formErr *forms.Form) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.CheckboxField(form.Get("text"),
+			templ_7745c5c3_Err = F.CheckboxField(&form.Checkbox,
 				F.Name("checkbox"),
 				F.Label("Checkbox"),
 				F.Classes("field-h"),
@@ -261,7 +259,7 @@ func (v Views) ui(form, formErr *forms.Form) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.MultiSelectField[string](form.Get("choices"),
+			templ_7745c5c3_Err = F.MultiSelectField[string](&form.Choices,
 				F.Name("checkboxes"),
 				F.Label("Checkboxes"),
 				F.Classes("field-h"),
@@ -269,7 +267,7 @@ func (v Views) ui(form, formErr *forms.Form) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.MultiSelectField[string](form.Get("select"),
+			templ_7745c5c3_Err = F.MultiSelectField[string](&form.Select,
 				F.Name("radio"),
 				F.Label("Radio"),
 				F.Classes("field-h"),
@@ -277,7 +275,7 @@ func (v Views) ui(form, formErr *forms.Form) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TimeTokenField(form.Get("text"),
+			templ_7745c5c3_Err = F.TimeTokenField(&form.Text,
 				F.Name("timetoken"),
 				F.Label("Time Token"),
 				F.Classes("field-h"),
@@ -285,7 +283,7 @@ func (v Views) ui(form, formErr *forms.Form) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.FiledDropField(form.Get("text"),
+			templ_7745c5c3_Err = F.FiledDropField(&form.File,
 				F.Name("dropzone"),
 				F.Label("Drop Zone Field"),
 				F.Classes("field-h"),
@@ -301,7 +299,7 @@ func (v Views) ui(form, formErr *forms.Form) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.TextField(formErr.Get("text"),
+			templ_7745c5c3_Err = F.TextField(&formErr.Text,
 				F.Name("err-text"),
 				F.Label("Text Field"),
 				F.Classes("field-h"),
@@ -309,7 +307,7 @@ func (v Views) ui(form, formErr *forms.Form) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = F.MultiSelectField[string](formErr.Get("choices"),
+			templ_7745c5c3_Err = F.MultiSelectField[string](&formErr.Choices,
 				F.Name("err-checkboxes"),
 				F.Label("Checkboxes"),
 				F.Classes("field-h"),

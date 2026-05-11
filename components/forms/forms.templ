@@ -13,12 +13,14 @@ import (
 	. "codeberg.org/readeck/readeck/components"
 )
 
-templ Errors(f forms.Binder) {
-	if !f.IsValid() {
+templ Errors(form forms.FormBinder) {
+	if !form.IsValid() {
 		<div class="max-w-std" role="alert">
 			@Message(WithMessageType("error")) {
-				<strong class="text-red-800">{ L(ctx).Gettext("Errors") }</strong>
-				if errors := f.Errors(); len(errors) > 0 {
+				<strong class="text-red-800">
+					{ L(ctx).Gettext("Errors") }
+				</strong>
+				if errors := form.Errors(); len(errors) > 0 {
 					for _, err := range errors {
 						<p>{ err.Error() }</p>
 					}
@@ -135,6 +137,7 @@ templ (f *checkboxField) component() {
 		if len(f.Errors()) > 0 {
 			f.classes = append(f.classes, "field--err with-errors")
 		}
+
 		if v, ok := f.value.(bool); ok && v {
 			f.inputAttrs["checked"] = "checked"
 		}
@@ -171,12 +174,13 @@ templ (f *checkboxField) component() {
 templ (f *selectField[T]) component() {
 	{{
 		choices := forms.ValueChoices[T]{}
-		if fc, ok := f.Field.(interface{ Choices() forms.ValueChoices[T] }); ok {
+
+		if fc, ok := f.Binder.(forms.ChoicesProvider[T]); ok {
 			choices = fc.Choices()
 		}
 		if fc, ok := f.inputAttrs["choices"]; ok {
 			delete(f.inputAttrs, "choices")
-			if fc, ok := fc.(interface{ Choices() forms.ValueChoices[T] }); ok {
+			if fc, ok := fc.(forms.ChoicesProvider[T]); ok {
 				choices = fc.Choices()
 			}
 		}
@@ -201,7 +205,7 @@ templ (f *selectField[T]) component() {
 			{ f.ariaAttrs()... }
 		>
 			for _, c := range choices {
-				<option value={ S("%s", c.Value) } selected?={ f.Field.(forms.TypedField[T]).V() == c.Value }>{ c.Name }</option>
+				<option value={ S("%s", c.Value) } selected?={ f.Binder.V() == c.Value }>{ c.Name }</option>
 			}
 			{ children... }
 		</select>
@@ -216,12 +220,12 @@ templ (f *multiSelectField[T]) component() {
 		}
 
 		choices := forms.ValueChoices[T]{}
-		if fc, ok := f.Field.(interface{ Choices() forms.ValueChoices[T] }); ok {
+		if fc, ok := f.Binder.(forms.ChoicesProvider[T]); ok {
 			choices = fc.Choices()
 		}
 		if fc, ok := f.inputAttrs["choices"]; ok {
 			delete(f.inputAttrs, "choices")
-			if fc, ok := fc.(interface{ Choices() forms.ValueChoices[T] }); ok {
+			if fc, ok := fc.(forms.ChoicesProvider[T]); ok {
 				choices = fc.Choices()
 			}
 		}
@@ -235,7 +239,7 @@ templ (f *multiSelectField[T]) component() {
 				{{
 					inputType := "checkbox"
 					inputClasses := append(f.inputClasses, "form-checkbox")
-					if _, ok := f.Field.Value().(T); ok {
+					if _, ok := f.Binder.V().(T); ok {
 						inputType = "radio"
 						inputClasses = append(f.inputClasses, "form-radio")
 					}
@@ -243,9 +247,9 @@ templ (f *multiSelectField[T]) component() {
 				for _, c := range choices {
 					{{
 						checked := false
-						if v, ok := f.Field.Value().(T); ok {
+						if v, ok := f.Binder.V().(T); ok {
 							checked = v == c.Value
-						} else if v, ok := f.Field.Value().([]T); ok {
+						} else if v, ok := f.Binder.V().([]T); ok {
 							checked = slices.Contains(v, c.Value)
 						}
 					}}
@@ -371,7 +375,7 @@ templ (f *timeTokenField) component() {
 	}
 }
 
-templ FiledDropField(field forms.Field, options ...FieldOption) {
+templ FiledDropField(field TypedBinder[forms.File], options ...FieldOption) {
 	{{
 		f := textField{widget(field, options...)}
 		f.inputType = "file"

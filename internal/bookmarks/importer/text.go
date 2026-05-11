@@ -20,24 +20,21 @@ type textAdapter struct {
 	URLs []string `json:"url_list"`
 }
 
-func (adapter *textAdapter) Name(tr forms.Translator) string {
-	return tr.Gettext("Text File")
+func (adapter *textAdapter) Name(ctx context.Context) string {
+	return forms.GetTranslator(ctx).Gettext("Text File")
 }
 
-func (adapter *textAdapter) Form() forms.Binder {
-	return forms.Must(
-		context.Background(),
-		forms.NewFileField("data", forms.Required),
-		forms.NewBooleanField("labels_from_titles"),
-	)
+func (adapter *textAdapter) Form(ctx context.Context) importBinder {
+	return forms.New[FileImportForm](ctx)
 }
 
-func (adapter *textAdapter) Params(form forms.Binder) ([]byte, error) {
+func (adapter *textAdapter) Params(form forms.FormBinder) ([]byte, error) {
 	if !form.IsValid() {
 		return nil, nil
 	}
+	f := form.(*FileImportForm)
 
-	reader, err := form.Get("data").(*forms.FileField).V().Open()
+	reader, err := f.Data.Value().Open()
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +52,7 @@ func (adapter *textAdapter) Params(form forms.Binder) ([]byte, error) {
 	}
 
 	if len(adapter.URLs) == 0 {
-		form.AddErrors("data", errInvalidFile)
+		f.Data.AddErrors(errInvalidFile)
 		return nil, nil
 	}
 

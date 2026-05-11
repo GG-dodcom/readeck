@@ -13,11 +13,12 @@ import (
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
 	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/pkg/utils"
 
 	. "codeberg.org/readeck/readeck/components"
 )
 
-templ (v Views) bookmarkListHead(f *filterForm) {
+templ (v Views) bookmarkListHead(f *FilterForm) {
 	<link
 		rel="alternate"
 		href={ string(URL(ctx, "/api/bookmarks/feed")) + "?" + f.getQueryParams().Encode() }
@@ -27,7 +28,7 @@ templ (v Views) bookmarkListHead(f *filterForm) {
 	<meta name="turbo-refresh-scroll" content="preserve"/>
 }
 
-templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createForm, filters *filterForm) {
+templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createForm, filters *FilterForm) {
 	{{
 		layout := NewLayout()
 		layout.Head = v.bookmarkListHead(filters)
@@ -47,7 +48,11 @@ templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFo
 					<h1 class="flex-grow title mb-0 text-h2 max-md:w-full">{ title }</h1>
 					@Components{}.listActions() {
 						<form action={ URL(ctx) } method="get">
-							<input type="hidden" name="bf" value={ Tern(func() bool { return filters.IsActive() }, 0, 1) }/>
+							<input
+								type="hidden"
+								name={ filters.IsActive.Name() }
+								value={ Tern(func() bool { return filters.IsActive.Value() }, 0, 1) }
+							/>
 							<button
 								type="submit"
 								class="btn-outlined py-1"
@@ -63,7 +68,7 @@ templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFo
 						{{
 							q := filters.getQueryParams()
 							if of, ok := checkOrderForm(ctx); ok {
-								q[of.fieldName] = of.value()
+								q[of.Sort.Name()] = of.Sort.Value()
 							}
 						}}
 						@Components{}.exportMenu(q) {
@@ -80,7 +85,7 @@ templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFo
 					}
 				</div>
 			}
-			if filters.IsActive() {
+			if filters.IsActive.Value() {
 				<p class="mb-2">
 					if bl.Pagination.TotalCount == 0 {
 						@templ.Raw(L(ctx).Gettext("Your search query yielded <strong>no results</strong>."))
@@ -98,7 +103,7 @@ templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFo
 				<details
 					id="filters"
 					class="bookmark-filters"
-					open?={ filters.IsActive() }
+					open?={ filters.IsActive.Value() }
 				>
 					<summary>
 						@Icon("o-filter")
@@ -119,14 +124,14 @@ templ (v Views) bookmarkList(title string, bl *dataset.BookmarkList, f *createFo
 					<form action={ URL(ctx, "/bookmarks") } method="get" aria-label={ L(ctx).Gettext("Bookmark filters") }>
 						@FilterComponents{}.filters(filters)
 						if of, ok := checkOrderForm(ctx); ok {
-							for _, x := range of.value() {
-								<input type="hidden" name={ of.fieldName } value={ x }/>
+							for _, x := range of.Sort.Value() {
+								<input type="hidden" name={ of.Sort.Name() } value={ x }/>
 							}
 						}
 						<input type="hidden" name="bf" value="1"/>
 						<div class="bookmark-filters--actions mt-4">
 							<button class="btn btn-primary">{ L(ctx).Pgettext("action", "Search") }</button>
-							if filters.IsActive() {
+							if filters.IsActive.Value() {
 								<a href={ URL(ctx, "?bf=1") } class="btn btn-default rounded text-center">
 									{ L(ctx).Gettext("Reset search") }
 								</a>
@@ -170,11 +175,11 @@ templ (c Components) createForm(f *createForm) {
 			<div class="flex p-1 form-input rounded-full border">
 				<input
 					type="text"
-					name="url"
+					name={ f.URL.Name() }
 					id="create-url"
 					size="15"
 					class="leading-tight w-full rounded-full px-4 py-2 bg-gray-light focus-visible:bg-gray-light text-gray-dark ring-0 ring-offset-0"
-					value={ f.Get("url").String() }
+					value={ f.URL.Value() }
 					placeholder="https://"
 				/>
 				<button type="submit" class="whitespace-nowrap btn btn-primary rounded-full pl-0.5 py-0 inline-flex gap-1 items-center leading-none">
@@ -185,21 +190,21 @@ templ (c Components) createForm(f *createForm) {
 			for _, err := range f.Errors() {
 				<p class="ml-4 text-red-700"><strong>{ err.Error() }</strong> </p>
 			}
-			{{ urlErrors := f.Get("url").Errors() }}
-			if len(urlErrors) > 0 && errors.Is(f.Get("url").Errors()[0], forms.ErrInvalidURL) {
+			{{ urlErrors := f.URL.Errors() }}
+			if len(urlErrors) > 0 && errors.Is(f.URL.Errors()[0], forms.ErrInvalidURL) {
 				// Maybe it was a search request?
 				{{
 					searchURL := urls.AbsoluteURLContext(ctx, "/bookmarks")
-					q := url.Values{"bf": {"1"}, "search": {f.Get("url").String()}}
+					q := url.Values{"bf": {"1"}, "search": {f.URL.Value()}}
 					searchURL.RawQuery = q.Encode()
 					searchHref := urls.PathOnly(searchURL)
 				}}
 				@Message() {
 					@templ.Raw(L(ctx).Gettext(
 						`"%[1]s" is not a valid address. Did you mean to search your bookmarks for %[2]s?`,
-						templ.EscapeString(f.Get("url").String()),
+						templ.EscapeString(f.URL.Value()),
 						`<a data-turbo-frame="_top" href="`+searchHref+`" class="link font-bold">`+
-							templ.EscapeString(f.Get("url").String())+"</a>",
+							templ.EscapeString(f.URL.Value())+"</a>",
 					))
 				}
 			} else if len(urlErrors) > 0 {
@@ -337,7 +342,7 @@ templ (c Components) listActions() {
 		if orderForm, ok := checkOrderForm(ctx); ok {
 			{{
 				currentOrder := "-created"
-				if v := orderForm.value(); len(v) > 0 {
+				if v := orderForm.Sort.Value(); len(v) > 0 {
 					currentOrder = v[0]
 				}
 				orderOptions := orderForm.getOptions(server.GetRequest(ctx), L(ctx))
@@ -402,7 +407,7 @@ templ (c Components) exportMenu(q url.Values) {
 					{{
 						q2 := maps.Clone(q)
 						if f, ok := checkOrderForm(ctx); ok {
-							delete(q2, f.fieldName)
+							delete(q2, f.Sort.Name())
 						}
 					}}
 					<li>
@@ -489,7 +494,7 @@ templ (c Components) card(b *dataset.Bookmark) {
 							href={ bURL }
 							data-turbo-frame="_top"
 						>
-							{ Tern(func() bool { return b.Title != ""}, b.Title, "untitled") }
+							{ utils.ShortText(Tern(func() bool { return b.Title != ""}, b.Title, "untitled"), 90) }
 						</a>
 					</h3>
 				</div>
@@ -498,7 +503,7 @@ templ (c Components) card(b *dataset.Bookmark) {
 						title={ b.SiteName }
 						dir={ Tern(func() bool { return b.TextDirection != "" }, b.TextDirection, "ltr") }
 					>
-						{ b.SiteName }
+						{ utils.ShortText(b.SiteName, 50) }
 					</strong>
 					if b.ReadingTime > 0 {
 						<span>{ " " }•&nbsp;{ L(ctx).Npgettext("abbr", "%d min", "%d min", b.ReadingTime, b.ReadingTime) }</span>

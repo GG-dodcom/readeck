@@ -180,8 +180,8 @@ templ (v importViews) progress(trackID string, isRunning bool, progress importer
 	</turbo-frame>
 }
 
-templ (v importViews) form(adapter importer.ImportLoader, f forms.Binder) {
-	@v.base(adapter.Name(L(ctx)) + " - " + L(ctx).Gettext("Import")) {
-		@adapter.Component(f)
+templ (v importViews) form(adapter importer.ImportLoader, form forms.FormBinder) {
+	@v.base(adapter.Name(ctx) + " - " + L(ctx).Gettext("Import")) {
+		@adapter.Component(form)
 	}
 }

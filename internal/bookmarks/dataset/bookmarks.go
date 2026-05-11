@@ -429,7 +429,7 @@ func (bsl BookmarkSyncList) UpdateEtag(h hash.Hash) {
 
 // BookmarkSync represent a bookmark's ID and last update time.
 type BookmarkSync struct {
-	ID   string    `json:"id" db:"uid"`
+	ID   string    `json:"id"   db:"uid"`
 	Time time.Time `json:"time" db:"time"`
 	Type string    `json:"type" db:"type"`
 }
@@ -444,7 +444,7 @@ type SharedLink struct {
 
 // SharedEmail contains the informat for sending a bookmark by email.
 type SharedEmail struct {
-	Form  forms.Binder
+	Form  forms.FormBinder
 	Title string
 	ID    string
 	Error error

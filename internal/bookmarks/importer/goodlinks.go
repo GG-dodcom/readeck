@@ -5,6 +5,7 @@
 package importer
 
 import (
+	"context"
 	"time"
 
 	"codeberg.org/readeck/readeck/internal/db/types"
@@ -36,8 +37,8 @@ func newGoodlinksAdapter() *goodlinksAdapter {
 	}
 }
 
-func (adapter *goodlinksAdapter) Name(tr forms.Translator) string {
-	return tr.Gettext("GoodLinks Export File")
+func (adapter *goodlinksAdapter) Name(ctx context.Context) string {
+	return forms.GetTranslator(ctx).Gettext("GoodLinks Export File")
 }
 
 func (bi *goodlinksItem) URL() string {

@@ -5,6 +5,7 @@
 package importer
 
 import (
+	"context"
 	"encoding/json"
 	"net/url"
 	"slices"
@@ -35,11 +36,11 @@ type csvBookmarkItem struct {
 }
 
 type csvEntry struct {
-	URL     string `csv:"url" case:"ignore"`
-	Title   string `csv:"title" case:"ignore"`
-	Folder  string `csv:"folder,state" case:"ignore"`
+	URL     string `csv:"url"               case:"ignore"`
+	Title   string `csv:"title"             case:"ignore"`
+	Folder  string `csv:"folder,state"      case:"ignore"`
 	Created string `csv:"created,timestamp" case:"ignore"`
-	Labels  string `csv:"labels,tags" case:"ignore"`
+	Labels  string `csv:"labels,tags"       case:"ignore"`
 }
 
 func newCsvAdapter() *csvAdapter {
@@ -51,8 +52,8 @@ func newCsvAdapter() *csvAdapter {
 	}
 }
 
-func (adapter *csvAdapter) Name(tr forms.Translator) string {
-	return tr.Gettext("CSV File")
+func (adapter *csvAdapter) Name(ctx context.Context) string {
+	return forms.GetTranslator(ctx).Gettext("CSV File")
 }
 
 func newCsvBookmarkItem(e *csvEntry) (*csvBookmarkItem, error) {

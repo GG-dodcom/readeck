@@ -254,13 +254,31 @@ func GetRequestProvider(r *http.Request) Provider {
 	return nil
 }
 
-// GetRequestAuthInfo returns the current request's auth info.
-func GetRequestAuthInfo(r *http.Request) *Info {
-	info, _ := CheckAuthInfo(r.Context())
+// GetAuthInfo returns the contetx's [Info].
+func GetAuthInfo(ctx context.Context) *Info {
+	info, _ := CheckAuthInfo(ctx)
 	return info
 }
 
+// GetUser returns the context's [users.User].
+func GetUser(ctx context.Context) *users.User {
+	if info, ok := CheckAuthInfo(ctx); ok {
+		return info.User
+	}
+
+	// we should never reach this since [defaultProviderHandler] sets
+	// an empty user already.
+	return &users.User{}
+}
+
+// GetRequestAuthInfo returns the current request's auth info.
+// TODO: replace with [GetAuthInfo].
+func GetRequestAuthInfo(r *http.Request) *Info {
+	return GetAuthInfo(r.Context())
+}
+
 // GetRequestUser returns the current request's user.
+// TODO: replace with [GetUser].
 func GetRequestUser(r *http.Request) *users.User {
-	return GetRequestAuthInfo(r).User
+	return GetUser(r.Context())
 }

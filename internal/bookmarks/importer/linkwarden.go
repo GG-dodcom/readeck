@@ -5,13 +5,14 @@
 package importer
 
 import (
+	"context"
 	"time"
 
 	"golang.org/x/net/html"
 
-	"codeberg.org/readeck/readeck/internal/db/types"
-	"codeberg.org/readeck/readeck/pkg/forms"
 	"github.com/araddon/dateparse"
+
+	"codeberg.org/readeck/readeck/internal/db/types"
 )
 
 var (
@@ -59,7 +60,7 @@ func newLinkwardenAdapter() *linkwardenAdapter {
 	}
 }
 
-func (adapter *linkwardenAdapter) Name(_ forms.Translator) string {
+func (adapter *linkwardenAdapter) Name(_ context.Context) string {
 	return "Linkwarden"
 }
 

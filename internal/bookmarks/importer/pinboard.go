@@ -5,6 +5,7 @@
 package importer
 
 import (
+	"context"
 	"strings"
 
 	"github.com/araddon/dateparse"
@@ -39,8 +40,8 @@ func newPinboardAdapter() *pinboardAdapter {
 	}
 }
 
-func (adapter *pinboardAdapter) Name(tr forms.Translator) string {
-	return tr.Gettext("Pinboard JSON backup File")
+func (adapter *pinboardAdapter) Name(ctx context.Context) string {
+	return forms.GetTranslator(ctx).Gettext("Pinboard JSON backup File")
 }
 
 func (bi *pinboardItem) URL() string {

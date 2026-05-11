@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: © 2025 Olivier Meunier <olivier@neokraft.net>
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -8,8 +8,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -18,43 +16,79 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kinbiko/jsonassert"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
-type ctxSimpleKey struct{}
-
-type mimeType string
-
-var (
-	mimeJSON   mimeType = "application/json"
-	mimeValues mimeType = "application/x-www-form-urlencoded"
-)
-
-type prefixTranslator string
-
-func (tr prefixTranslator) Gettext(s string, vars ...any) string {
-	return fmt.Sprintf("%s:%s", tr, fmt.Sprintf(s, vars...))
+type testForm struct {
+	forms.Form
+	Bool forms.BooleanField  `json:"bool"`
+	Text forms.TextField     `json:"text"`
+	Int  forms.IntegerField  `json:"int"`
+	Time forms.DatetimeField `json:"time"`
 }
 
-func (tr prefixTranslator) Pgettext(ctx string, str string, vars ...any) string {
-	return fmt.Sprintf("%s:%s", ctx, tr.Gettext(str, vars...))
+func newTestFormDefaults() *testForm {
+	form := forms.New[testForm](context.Background())
+	form.Bool.Set(true)
+	form.Text.Set("abc")
+	form.Int.Set(123)
+	form.Time.Set(must(time.Parse(time.DateTime, "2024-01-04 12:35:02")))
+
+	return form
+}
+
+type customValidationForm struct {
+	forms.Form
+	Name forms.TextField
+	City customValidationField
+}
+
+func (f *customValidationForm) Validate() error {
+	if f.Name.Value() == "bob" {
+		f.Name.AddErrors(forms.Gettext("forbidden name"))
+		return forms.Gettext("form error")
+	}
+	return nil
+}
+
+type customValidationField struct {
+	forms.TextField
+}
+
+func (f *customValidationField) Validate() error {
+	if f.Value() == "paris" {
+		return forms.Gettext("invalid city")
+	}
+	return nil
+}
+
+type customUnmarshalForm struct {
+	forms.Form
+	unmarshaledBy string
+}
+
+func (f *customUnmarshalForm) UnmarshalValues(url.Values) error {
+	f.unmarshaledBy = "values"
+	return nil
+}
+
+func (f *customUnmarshalForm) UnmarshalJSON([]byte) error {
+	f.unmarshaledBy = "json"
+	return nil
 }
 
 type testResult string
 
-func (result testResult) assert(t *testing.T, f forms.Binder) {
-	assert := require.New(t)
-	assert.True(f.IsBound())
-	data, err := json.Marshal(f)
-	assert.NoError(err)
+func (result testResult) assert(t *testing.T, f forms.FormBinder) {
+	assert.True(t, f.IsBound())
+	data, err := json.MarshalIndent(f, "", "  ")
+	require.NoError(t, err)
 
-	jsonassert.New(t).Assertf(string(data), "%s", result)
-	if t.Failed() {
-		t.Errorf("received JSON: %s\n", string(data))
-		t.FailNow()
+	if !assert.JSONEq(t, string(result), string(data)) {
+		t.Logf("GOT:\n%s", data)
 	}
 }
 
@@ -68,139 +102,145 @@ type multipartTest struct {
 	result testResult
 }
 
-func runRequestForm(contentType mimeType, constructor func() forms.Binder, tests []formTest) func(t *testing.T) {
+func runRequestForm(
+	contentType forms.MimeType,
+	constructor func() forms.FormBinder,
+	tests []formTest) func(t *testing.T,
+) {
 	return func(t *testing.T) {
 		for i, test := range tests {
 			t.Run(strconv.Itoa(i+1), func(t *testing.T) {
-				f := constructor()
-				assert := require.New(t)
-				assert.False(f.IsBound())
-
-				r, _ := http.NewRequest(http.MethodPost, "/", strings.NewReader(test.data))
+				r, err := http.NewRequest(http.MethodPost, "/", strings.NewReader(test.data))
+				require.NoError(t, err)
 				r.Header.Set("content-type", string(contentType))
-				forms.Bind(f, r)
-				test.result.assert(t, f)
+
+				form := constructor()
+				assert.False(t, form.IsBound())
+				forms.Bind(r, form)
+				test.result.assert(t, form)
 			})
 		}
 	}
 }
 
-func runMultipartForm(constructor func() forms.Binder, tests []multipartTest) func(t *testing.T) {
+func runMultipartForm(
+	constructor func() forms.FormBinder,
+	tests []multipartTest,
+) func(t *testing.T) {
 	return func(t *testing.T) {
 		for i, test := range tests {
 			t.Run(strconv.Itoa(i+1), func(t *testing.T) {
-				f := constructor()
-				assert := require.New(t)
-				assert.False(f.IsBound())
-
 				body := new(bytes.Buffer)
 				mp := multipart.NewWriter(body)
-				assert.NoError(test.data(mp))
-				assert.NoError(mp.Close())
+				require.NoError(t, test.data(mp))
+				require.NoError(t, mp.Close())
 
-				r, _ := http.NewRequest(http.MethodPost, "/", body)
+				r, err := http.NewRequest(http.MethodPost, "/", body)
+				require.NoError(t, err)
 				r.Header.Set("content-type", mp.FormDataContentType())
-				forms.Bind(f, r)
-				test.result.assert(t, f)
+
+				form := constructor()
+				assert.False(t, form.IsBound())
+				forms.Bind(r, form)
+				test.result.assert(t, form)
 			})
 		}
 	}
-}
-
-type simpleForm struct {
-	*forms.Form
-}
-
-func newSimpleForm() *simpleForm {
-	return &simpleForm{forms.Must(
-		context.Background(),
-		forms.NewTextField("name"),
-		forms.NewIntegerField("id", forms.Required),
-	)}
-}
-
-func (f *simpleForm) Validate() {
-	if f.Context().Value(ctxSimpleKey{}) != nil {
-		f.AddErrors("", errors.New("simple context error"))
-	}
-}
-
-type l10nForm struct {
-	*forms.Form
-}
-
-func (f *l10nForm) Validate() {
-	f.AddErrors("", forms.Gettext("global error"))
-}
-
-func newL10nForm() *l10nForm {
-	return &l10nForm{forms.Must(
-		forms.WithTranslator(context.Background(), prefixTranslator("prefix")),
-		forms.NewIntegerField("id", forms.Required),
-	)}
-}
-
-type defaultsForm struct {
-	*forms.Form
-}
-
-func newDefaultsForm() *defaultsForm {
-	dt, _ := time.Parse(time.DateTime, "2024-01-04 12:35:02")
-	f := &defaultsForm{forms.Must(
-		context.Background(),
-		forms.NewBooleanField("bool", forms.Default(true)),
-		forms.NewTextField("text", forms.Default("abc")),
-		forms.NewIntegerField("int", forms.Default(123)),
-		forms.NewDatetimeField("time", forms.Default(dt)),
-	)}
-
-	return f
 }
 
 func TestNewForm(t *testing.T) {
-	t.Run("create", func(t *testing.T) {
-		assert := require.New(t)
+	type PanicForm int
 
-		f, err := forms.New(
-			context.Background(),
-			forms.NewTextField(""),
-		)
-		assert.Nil(f)
-		assert.Errorf(err, "unamed field")
+	type NonBinder struct {
+		A forms.TextField
+	}
 
-		f, err = forms.New(
-			context.Background(),
-			forms.NewTextField("name"),
-			forms.NewTextField("name"),
-		)
-		assert.Nil(f)
-		assert.Errorf(err, `field "name" already defined`)
+	type OkForm struct {
+		forms.Form
+		A forms.TextField `json:"a"`
+	}
 
-		assert.Panics(func() {
-			forms.Must(
-				context.Background(),
-				forms.NewTextField(""),
-			)
-		})
-
-		assert.Panics(func() {
-			forms.Must(
-				context.Background(),
-				forms.NewTextField("name"),
-				forms.NewTextField("name"),
-			)
-		})
+	assert.Panics(t, func() {
+		forms.New[PanicForm](context.Background())
 	})
 
-	t.Run("form context", func(t *testing.T) {
-		f := newSimpleForm()
-		f.Get("name").Set("alice")
-		assert := require.New(t)
-		assert.Exactly(f.Form, forms.GetForm(f.Get("id")))
-
-		field := forms.NewTextField("")
-		assert.Nil(forms.GetForm(field))
+	assert.Panics(t, func() {
+		forms.New[NonBinder](context.Background())
 	})
+
+	f := forms.New[OkForm](context.Background())
+
+	assert.Equal(t,
+		map[string]forms.Binder{
+			"a": &f.A,
+		},
+		f.Fields(),
+	)
+
+	assert.Equal(t, "a", f.A.Name())
+}
+
+func TestFormValues(t *testing.T) {
+	type FormX struct {
+		C forms.TextField
+	}
+
+	type SimpleForm struct {
+		forms.Form
+		FormX
+		A forms.TextField `json:"a"`
+		B forms.IntegerField
+	}
+
+	type NestedForm struct {
+		SimpleForm
+		D struct {
+			S forms.TextField `json:"s"`
+		} `json:"nested"`
+	}
+
+	tests := []struct {
+		fn       func() forms.FormBinder
+		expected map[string]any
+	}{
+		{
+			func() forms.FormBinder {
+				f := forms.New[SimpleForm](context.Background())
+				f.A.Set("a value")
+				f.B.Set(10)
+				f.C.Set("c value")
+				return f
+			},
+			map[string]any{
+				"B": 10,
+				"C": "c value",
+				"a": "a value",
+			},
+		},
+		{
+			func() forms.FormBinder {
+				f := forms.New[NestedForm](context.Background())
+				f.A.Set("a value")
+				f.D.S.Set("s value")
+				return f
+			},
+			map[string]any{
+				"B": 0,
+				"C": "",
+				"a": "a value",
+				"nested": map[string]any{
+					"s": "s value",
+				},
+			},
+		},
+	}
+
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			f := test.fn()
+			assert.Equal(t, test.expected, forms.MarshalValues(f))
+		})
+	}
 }
 
 func TestValuePriority(t *testing.T) {
@@ -212,90 +252,83 @@ func TestValuePriority(t *testing.T) {
 	}{
 		{
 			http.MethodGet,
-			"/?name=abc",
+			"/?text=abc",
 			nil,
 			"abc",
 		},
 		{
 			http.MethodGet,
-			"/?name=abc",
+			"/?text=abc",
 			url.Values{},
 			"abc",
 		},
 		{
 			http.MethodPost,
-			"/?name=abc",
-			url.Values{"name": []string{"xyz"}},
+			"/?text=abc",
+			url.Values{"text": {"xyz"}},
 			"xyz",
 		},
 		{
 			http.MethodPost,
 			"/",
-			url.Values{"name": []string{"xyz"}},
+			url.Values{"text": {"xyz"}},
 			"xyz",
 		},
 	}
 
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
-			f := forms.Must(
-				context.Background(),
-				forms.NewTextField("name"),
-			)
-
 			body := new(bytes.Buffer)
 			if test.body != nil {
 				body.WriteString(test.body.Encode())
 			}
-
 			r, _ := http.NewRequest(test.method, test.url, body)
-			r.Header.Set("Content-Type", string(mimeValues))
+			r.Header.Set("Content-Type", string(forms.MimeURLEncoded))
 
-			forms.Bind(f, r)
+			f := forms.BindAs[testForm](r)
 
-			assert := require.New(t)
-			assert.True(f.IsBound())
-			assert.Equal(test.expect, f.Get("name").Value())
+			assert.True(t, f.IsValid())
+			assert.Equal(t, test.expect, f.Text.Value())
 		})
 	}
 }
 
-func TestBindURL(t *testing.T) {
+func TestBindValues(t *testing.T) {
 	tests := []struct {
 		url    string
 		expect any
 	}{
 		{
-			"/?name=abc",
+			"/?text=abc",
 			"abc",
 		},
 		{
 			"/",
-			nil,
+			"",
 		},
 	}
 
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
-			f := forms.Must(
-				context.Background(),
-				forms.NewTextField("name"),
-			)
-
 			r, _ := http.NewRequest(http.MethodGet, test.url, nil)
 
-			forms.BindURL(f, r)
+			f := forms.BindAs[testForm](r)
 
-			assert := require.New(t)
-			assert.True(f.IsBound())
-			assert.Equal(test.expect, f.Get("name").Value())
+			assert.True(t, f.IsValid())
+			assert.Equal(t, test.expect, f.Text.Value())
 		})
 	}
 }
 
 func TestSimpleForm(t *testing.T) {
-	t.Run("json", runRequestForm(mimeJSON, func() forms.Binder {
-		return newSimpleForm()
+	type SimpleForm struct {
+		forms.Form
+		Name forms.TextField    `json:"name"`
+		ID   forms.IntegerField `json:"id"   validate:"required"`
+	}
+
+	t.Run("json", runRequestForm(forms.MimeJSON, func() forms.FormBinder {
+		return forms.New[SimpleForm](context.Background())
 	}, []formTest{
 		{
 			`{"name": "test", "id": 2}`,
@@ -327,13 +360,13 @@ func TestSimpleForm(t *testing.T) {
 				],
 				"fields": {
 					"id": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": 0,
 						"errors": ["field is required"]
 					},
 					"name": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": "",
 						"errors": null
@@ -348,7 +381,7 @@ func TestSimpleForm(t *testing.T) {
 				"errors": null,
 				"fields": {
 					"id": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": 0,
 						"errors": [
@@ -368,8 +401,8 @@ func TestSimpleForm(t *testing.T) {
 		},
 	}))
 
-	t.Run("form values", runRequestForm(mimeValues, func() forms.Binder {
-		return newSimpleForm()
+	t.Run("values", runRequestForm(forms.MimeURLEncoded, func() forms.FormBinder {
+		return forms.New[SimpleForm](context.Background())
 	}, []formTest{
 		{
 			`name=test&name=alice&id=2`,
@@ -399,7 +432,7 @@ func TestSimpleForm(t *testing.T) {
 				"errors": null,
 				"fields": {
 					"id": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": 0,
 						"errors": [
@@ -407,7 +440,7 @@ func TestSimpleForm(t *testing.T) {
 						]
 					},
 					"name": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": "",
 						"errors": null
@@ -422,7 +455,7 @@ func TestSimpleForm(t *testing.T) {
 				"errors": null,
 				"fields": {
 					"id": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": 0,
 						"errors": [
@@ -440,8 +473,8 @@ func TestSimpleForm(t *testing.T) {
 		},
 	}))
 
-	t.Run("multipart values", runMultipartForm(func() forms.Binder {
-		return newSimpleForm()
+	t.Run("multipart values", runMultipartForm(func() forms.FormBinder {
+		return forms.New[SimpleForm](context.Background())
 	}, []multipartTest{
 		{
 			func(_ *multipart.Writer) error { return nil },
@@ -450,7 +483,7 @@ func TestSimpleForm(t *testing.T) {
 				"errors": null,
 				"fields": {
 					"id": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": 0,
 						"errors": [
@@ -458,7 +491,7 @@ func TestSimpleForm(t *testing.T) {
 						]
 					},
 					"name": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": "",
 						"errors": null
@@ -493,35 +526,11 @@ func TestSimpleForm(t *testing.T) {
 			}`,
 		},
 	}))
-
-	t.Run("l10n", runRequestForm(mimeJSON, func() forms.Binder {
-		return newL10nForm()
-	}, []formTest{
-		{
-			`{"name": 123}`,
-			`{
-				"is_valid": false,
-				"errors": [
-					"prefix:global error"
-				],
-				"fields": {
-					"id": {
-						"is_null": true,
-						"is_bound": false,
-						"value": 0,
-						"errors": [
-							"prefix:field is required"
-						]
-					}
-				}
-			}`,
-		},
-	}))
 }
 
 func TestDefaultValues(t *testing.T) {
-	t.Run("json", runRequestForm(mimeJSON, func() forms.Binder {
-		return newDefaultsForm()
+	t.Run("json", runRequestForm(forms.MimeJSON, func() forms.FormBinder {
+		return newTestFormDefaults()
 	}, []formTest{
 		{
 			`{}`,
@@ -608,7 +617,7 @@ func TestDefaultValues(t *testing.T) {
 					"bool": {
 						"is_null": false,
 						"is_bound": false,
-						"value": false,
+						"value": true,
 						"errors": [
 							"invalid value"
 						]
@@ -616,7 +625,7 @@ func TestDefaultValues(t *testing.T) {
 					"int": {
 						"is_null": false,
 						"is_bound": false,
-						"value": 0,
+						"value":123,
 						"errors": [
 							"invalid value"
 						]
@@ -624,7 +633,7 @@ func TestDefaultValues(t *testing.T) {
 					"text": {
 						"is_null": false,
 						"is_bound": false,
-						"value": "",
+						"value": "abc",
 						"errors": [
 							"invalid value"
 						]
@@ -632,7 +641,7 @@ func TestDefaultValues(t *testing.T) {
 					"time": {
 						"is_null": false,
 						"is_bound": false,
-						"value": "0001-01-01T00:00:00Z",
+						"value": "2024-01-04T12:35:02Z",
 						"errors": [
 							"invalid value"
 						]
@@ -642,8 +651,8 @@ func TestDefaultValues(t *testing.T) {
 		},
 	}))
 
-	t.Run("form values", runRequestForm(mimeValues, func() forms.Binder {
-		return newDefaultsForm()
+	t.Run("values", runRequestForm(forms.MimeURLEncoded, func() forms.FormBinder {
+		return newTestFormDefaults()
 	}, []formTest{
 		{
 			``,
@@ -720,7 +729,7 @@ func TestDefaultValues(t *testing.T) {
 					"bool": {
 						"is_null": false,
 						"is_bound": false,
-						"value": false,
+						"value": true,
 						"errors": [
 							"invalid value"
 						]
@@ -728,7 +737,7 @@ func TestDefaultValues(t *testing.T) {
 					"int": {
 						"is_null": false,
 						"is_bound": false,
-						"value": 0,
+						"value":123,
 						"errors": [
 							"invalid value"
 						]
@@ -742,7 +751,7 @@ func TestDefaultValues(t *testing.T) {
 					"time": {
 						"is_null": false,
 						"is_bound": false,
-						"value": "0001-01-01T00:00:00Z",
+						"value": "2024-01-04T12:35:02Z",
 						"errors": [
 							"invalid value"
 						]
@@ -753,36 +762,147 @@ func TestDefaultValues(t *testing.T) {
 	}))
 }
 
-type complexForm struct {
-	*forms.Form
-}
-
-func newComplexForm(tr forms.Translator) *complexForm {
-	return &complexForm{forms.Must(
-		forms.WithTranslator(context.Background(), tr),
-		forms.NewTextField("name",
-			forms.Trim, forms.Required,
-			forms.ValueValidatorFunc[string](func(_ forms.Field, v string) error {
-				if strings.Contains(v, "xx") {
-					return forms.Gettext("value contains xx")
+func TestCustomValidation(t *testing.T) {
+	runRequestForm(forms.MimeJSON, func() forms.FormBinder {
+		return forms.New[customValidationForm](context.Background())
+	}, []formTest{
+		{
+			`{}`,
+			`{
+				"is_valid": true,
+				"errors": null,
+				"fields": {
+					"City": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": null
+					},
+					"Name": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": null
+					}
 				}
-				return nil
-			}),
-		),
-		forms.NewTextField("group", forms.Trim, forms.Choices(
-			forms.Choice("User", "user"),
-			forms.Choice("Admin", "admin"),
-		), forms.Default("user")),
-		forms.NewTextListField("acls", forms.Trim, forms.Choices(
-			forms.Choice("Read", "r"),
-			forms.Choice("Write", "w"),
-		)),
-	)}
+			}`,
+		},
+		{
+			`{"name":"alice", "city":"amsterdam"}`,
+			`{
+				"is_valid": true,
+				"errors": null,
+				"fields": {
+					"City": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "amsterdam",
+						"errors": null
+					},
+					"Name": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "alice",
+						"errors": null
+					}
+				}
+			}`,
+		},
+		{
+			`{"name":"bob", "city":"amsterdam"}`,
+			`{
+				"is_valid": false,
+				"errors": [
+					"form error"
+				],
+				"fields": {
+					"City": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "amsterdam",
+						"errors": null
+					},
+					"Name": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "bob",
+						"errors": [
+							"forbidden name"
+						]
+					}
+				}
+			}`,
+		},
+		{
+			`{"name":"eve", "city":"paris"}`,
+			`{
+				"is_valid": false,
+				"errors": null,
+				"fields": {
+					"City": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "paris",
+						"errors": [
+							"invalid city"
+						]
+					},
+					"Name": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "eve",
+						"errors": null
+					}
+				}
+			}`,
+		},
+	})(t)
 }
 
-func TestComplexForm(t *testing.T) {
-	runRequestForm("application/json", func() forms.Binder {
-		return newComplexForm(prefixTranslator("E"))
+func TestCustomUnmarshl(t *testing.T) {
+	t.Run("json", func(t *testing.T) {
+		f := forms.New[customUnmarshalForm](context.Background())
+		require.NoError(t, json.Unmarshal([]byte("{}"), f))
+		assert.Equal(t, "json", f.unmarshaledBy)
+	})
+
+	t.Run("values", func(t *testing.T) {
+		f := forms.New[customUnmarshalForm](context.Background())
+		require.NoError(t, forms.UnmarshalURLValues(url.Values{}, f))
+		assert.Equal(t, "values", f.unmarshaledBy)
+	})
+}
+
+func TestChoiceForm(t *testing.T) {
+	type choiceForm struct {
+		forms.Form
+		Name  forms.TextField     `json:"name"  validate:"trim required"`
+		Group forms.TextField     `json:"group" validate:"trim"`
+		Acls  forms.TextListField `json:"acls"  validate:"trim"`
+	}
+
+	newChoiceForm := func() *choiceForm {
+		form := forms.New[choiceForm](
+			forms.WithTranslator(context.Background(), prefixTranslator("E")),
+		)
+
+		vf := forms.ValueValidatorFunc[string](func(_ forms.Binder, v string) error {
+			if strings.Contains(v, "xx") {
+				return forms.Gettext("value contains xx")
+			}
+			return nil
+		})
+		form.Name.SetValidators(append(form.Name.Validators(), vf))
+
+		forms.Choices(&form.Group, forms.Choice("User", "user"), forms.Choice("Admin", "admin"))
+		form.Group.Set("user")
+
+		forms.Choices(&form.Acls, forms.Choice("Read", "r"), forms.Choice("Write", "w"))
+
+		return form
+	}
+	runRequestForm(forms.MimeJSON, func() forms.FormBinder {
+		return newChoiceForm()
 	}, []formTest{
 		{
 			`{}`,
@@ -791,9 +911,9 @@ func TestComplexForm(t *testing.T) {
 				"errors": null,
 				"fields": {
 					"acls": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
-						"value": null,
+						"value": [],
 						"errors": null
 					},
 					"group": {
@@ -803,7 +923,7 @@ func TestComplexForm(t *testing.T) {
 						"errors": null
 					},
 					"name": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": "",
 						"errors": [
@@ -811,7 +931,7 @@ func TestComplexForm(t *testing.T) {
 						]
 					}
 				}
-			}`,
+        	}`,
 		},
 		{
 			`{"name": "alice"}`,
@@ -820,9 +940,9 @@ func TestComplexForm(t *testing.T) {
 				"errors": null,
 				"fields": {
 					"acls": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
-						"value": null,
+						"value": [],
 						"errors": null
 					},
 					"group": {
@@ -847,15 +967,15 @@ func TestComplexForm(t *testing.T) {
 				"errors": null,
 				"fields": {
 					"acls": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
-						"value": null,
+						"value": [],
 						"errors": null
 					},
 					"group": {
 						"is_null": true,
 						"is_bound": true,
-						"value": "",
+						"value": "user",
 						"errors": null
 					},
 					"name": {
@@ -901,9 +1021,9 @@ func TestComplexForm(t *testing.T) {
 				"errors": null,
 				"fields": {
 					"acls": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
-						"value": null,
+						"value": [],
 						"errors": null
 					},
 					"group": {
@@ -934,7 +1054,7 @@ func TestComplexForm(t *testing.T) {
 						"is_bound": true,
 						"value": ["r", "g"],
 						"errors": [
-							"E:g is not one of r, w"
+							"E:g is not one of \"r\", \"w\""
 						]
 					},
 					"group": {
@@ -942,7 +1062,7 @@ func TestComplexForm(t *testing.T) {
 						"is_bound": true,
 						"value": "foo",
 						"errors": [
-							"E:foo is not one of user, admin"
+							"E:foo is not one of \"user\", \"admin\""
 						]
 					},
 					"name": {
@@ -959,114 +1079,291 @@ func TestComplexForm(t *testing.T) {
 	})(t)
 }
 
-func TestContextForm(t *testing.T) {
-	type ctxKeyUser struct{}
+func TestFullForm(t *testing.T) {
+	type UserInfoForm struct {
+		Username forms.TextField `json:"username" validate:"trim required"`
+		Email    forms.TextField `json:"email"    validate:"trim required"`
+		Password forms.TextField `json:"password" validate:"trim required"`
+		Address  struct {
+			City    forms.TextField `json:"city"    validate:"trim required"`
+			Country forms.TextField `json:"country" validate:"trim required"`
+		} `json:"address"`
+	}
 
-	t.Run("alice",
-		runRequestForm(mimeValues, func() forms.Binder {
-			ctx := context.WithValue(context.Background(), ctxKeyUser{}, "alice")
-			return forms.Must(
-				forms.WithTranslator(ctx, prefixTranslator("E")),
-				forms.NewTextField("group",
-					forms.Default("user"),
-					forms.Required,
-					forms.ValueValidatorFunc[string](func(f forms.Field, _ string) error {
-						username := f.Context().Value(ctxKeyUser{}).(string)
-						if username != "alice" {
-							return forms.FatalError(errors.New("forbidden"))
-						}
-						return nil
-					}),
-				),
-			)
-		}, []formTest{
-			{
-				"",
-				`{
-					"is_valid": false,
-					"errors": null,
-					"fields": {
-						"group": {
-							"is_null": false,
-							"is_bound": false,
-							"value": "user",
-							"errors": [
-								"E:field is required"
-							]
-						}
-					}
-				}`,
-			},
-			{
-				"group=",
-				`{
-					"is_valid": false,
-					"errors": null,
-					"fields": {
-						"group": {
-							"is_null": false,
-							"is_bound": true,
-							"value": "",
-							"errors": [
-								"E:field is required"
-							]
-						}
-					}
-				}`,
-			},
-			{
-				"group=admin",
-				`{
-					"is_valid": true,
-					"errors": null,
-					"fields": {
-						"group": {
-							"is_null": false,
-							"is_bound": true,
-							"value": "admin",
-							"errors": null
-						}
-					}
-				}`,
-			},
-		}),
-	)
+	type OptionForm struct {
+		Age   forms.NumberField[uint] `json:"age"   validate:"gte:18"`
+		Links forms.URLListField      `json:"links" validate:"trim"`
+	}
 
-	t.Run("bob",
-		runRequestForm(mimeValues, func() forms.Binder {
-			ctx := context.WithValue(context.Background(), ctxKeyUser{}, "bob")
-			return forms.Must(
-				forms.WithTranslator(ctx, prefixTranslator("E")),
-				forms.NewTextField("group",
-					forms.Default("user"),
-					forms.Required,
-					forms.ValueValidatorFunc[string](func(f forms.Field, _ string) error {
-						username := f.Context().Value(ctxKeyUser{}).(string)
-						if username != "alice" {
-							return forms.FatalError(forms.Gettext("forbidden"))
-						}
-						return nil
-					}),
-				),
-			)
-		}, []formTest{
-			{
-				"group=admin",
-				`{
-					"is_valid": false,
-					"errors": null,
-					"fields": {
-						"group": {
-							"is_null": false,
-							"is_bound": true,
-							"value": "admin",
-							"errors": [
-								"E:forbidden"
-							]
-						}
+	type fullForm struct {
+		forms.Form
+		UserInfoForm
+		OptionForm
+	}
+
+	newFullForm := func() *fullForm {
+		f := forms.New[fullForm](forms.WithTranslator(context.Background(), prefixTranslator("E")))
+		return f
+	}
+
+	t.Run("json", runRequestForm(forms.MimeJSON, func() forms.FormBinder {
+		return newFullForm()
+	}, []formTest{
+		{
+			`{}`,
+			`{
+				"is_valid": false,
+				"errors": null,
+				"fields": {
+					"address.city": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": [
+							"E:field is required"
+						]
+					},
+					"address.country": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": [
+							"E:field is required"
+						]
+					},
+					"age": {
+						"is_null": false,
+						"is_bound": false,
+						"value": 0,
+						"errors": null
+					},
+					"email": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": [
+							"E:field is required"
+						]
+					},
+					"links": {
+						"is_null": false,
+						"is_bound": false,
+						"value": [],
+						"errors": null
+					},
+					"password": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": [
+							"E:field is required"
+						]
+					},
+					"username": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": [
+							"E:field is required"
+						]
 					}
-				}`,
-			},
-		}),
-	)
+				}
+			}`,
+		},
+		{
+			`{
+				"username": "alice",
+				"email": "alice@example.org",
+				"password": "th1s 1s not safe",
+				"address": {
+					"city": "Brussels",
+					"country": "Belgium"
+				},
+				"age": 20,
+				"links": [
+					"https://example.org",
+					"http://example.net"
+				]
+			}`,
+			`{
+				"is_valid": true,
+				"errors": null,
+				"fields": {
+					"address.city": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "Brussels",
+						"errors": null
+					},
+					"address.country": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "Belgium",
+						"errors": null
+					},
+					"age": {
+						"is_null": false,
+						"is_bound": true,
+						"value": 20,
+						"errors": null
+					},
+					"email": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "alice@example.org",
+						"errors": null
+					},
+					"links": {
+						"is_null": false,
+						"is_bound": true,
+						 "value": [
+							"https://example.org",
+							"http://example.net"
+						],
+						"errors": null
+					},
+					"password": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "th1s 1s not safe",
+						"errors": null
+					},
+					"username": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "alice",
+						"errors": null
+					}
+				}
+			}`,
+		},
+	}))
+
+	t.Run("values", runRequestForm(forms.MimeURLEncoded, func() forms.FormBinder {
+		return newFullForm()
+	}, []formTest{
+		{
+			"",
+			`{
+				"is_valid": false,
+				"errors": null,
+				"fields": {
+					"address.city": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": [
+							"E:field is required"
+						]
+					},
+					"address.country": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": [
+							"E:field is required"
+						]
+					},
+					"age": {
+						"is_null": false,
+						"is_bound": false,
+						"value": 0,
+						"errors": null
+					},
+					"email": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": [
+							"E:field is required"
+						]
+					},
+					"links": {
+						"is_null": false,
+						"is_bound": false,
+						"value": [],
+						"errors": null
+					},
+					"password": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": [
+							"E:field is required"
+						]
+					},
+					"username": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": [
+							"E:field is required"
+						]
+					}
+				}
+			}`,
+		},
+		{
+			url.Values{
+				"username":        {"alice"},
+				"email":           {"alice@example.org"},
+				"password":        {"th1s 1s not safe"},
+				"address.city":    {"Brussels"},
+				"address.country": {"Belgium"},
+				"age":             {"20"},
+				"links":           {"https://example.org", "http://example.net"},
+			}.Encode(),
+			`{
+				"is_valid": true,
+				"errors": null,
+				"fields": {
+					"address.city": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "Brussels",
+						"errors": null
+					},
+					"address.country": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "Belgium",
+						"errors": null
+					},
+					"age": {
+						"is_null": false,
+						"is_bound": true,
+						"value": 20,
+						"errors": null
+					},
+					"email": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "alice@example.org",
+						"errors": null
+					},
+					"links": {
+						"is_null": false,
+						"is_bound": true,
+						"value": [
+							"https://example.org",
+							"http://example.net"
+						],
+						"errors": null
+					},
+					"password": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "th1s 1s not safe",
+						"errors": null
+					},
+					"username": {
+						"is_null": false,
+						"is_bound": true,
+						"value": "alice",
+						"errors": null
+					}
+				}
+			}`,
+		},
+	}))
 }

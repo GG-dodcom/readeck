@@ -11,11 +11,10 @@ import (
 
 	"codeberg.org/readeck/readeck/internal/bookmarks"
 	"codeberg.org/readeck/readeck/internal/bookmarks/dataset"
-	"codeberg.org/readeck/readeck/pkg/forms"
+	"codeberg.org/readeck/readeck/internal/server"
 
 	. "codeberg.org/readeck/readeck/components"
 	F "codeberg.org/readeck/readeck/components/forms"
-	"codeberg.org/readeck/readeck/internal/server"
 )
 
 templ (v Views) bookmarkRefreshHead() {
@@ -250,37 +249,37 @@ templ (c Components) bookmarkUpdate(b *bookmarks.Bookmark, f *updateForm) {
 			lang={ b.Lang }
 		>
 			@F.Errors(f)
-			@F.TextField(f.Get("title"),
+			@F.TextField(&f.Title,
 				F.Label(L(ctx).Gettext("Title")),
 				F.Required(true),
 				F.Classes("field-h"),
 			)
-			@F.TextAreaField(f.Get("description"),
+			@F.TextAreaField(&f.Description,
 				F.Label(L(ctx).Gettext("Description")),
 				F.Classes("field-h"),
 				F.InputAttr("rows", 5),
 			)
-			@F.TextField(f.Get("site_name"),
+			@F.TextField(&f.SiteName,
 				F.Label(L(ctx).Gettext("Site Name")),
 				F.Required(true),
 				F.Classes("field-h"),
 			)
-			@F.TextAreaField(f.Get("authors"),
+			@F.TextAreaField(&f.Authors,
 				F.Label(L(ctx).Gettext("Authors")),
-				F.Value(strings.Join(f.Get("authors").(*forms.TextListField).V(), "\n")),
+				F.Value(strings.Join((&f.Authors).Value(), "\n")),
 				F.Classes("field-h"),
 				F.Help(L(ctx).Gettext("One value per line")),
 				F.InputAttr("rows", 3),
 			)
-			@F.DateField(f.Get("published"),
+			@F.DateField(&f.Published,
 				F.Label(L(ctx).Gettext("Published")),
 				F.Classes("field-h"),
 			)
-			@F.TextField(f.Get("lang"),
+			@F.TextField(&f.Lang,
 				F.Label(L(ctx).Gettext("Language")),
 				F.Classes("field-h"),
 			)
-			@F.SelectField[string](f.Get("text_direction"),
+			@F.SelectField[string](&f.TextDirection,
 				F.Label(L(ctx).Gettext("Text Direction")),
 				F.Classes("field-h"),
 			)
@@ -326,7 +325,10 @@ templ (c Components) shareByLink(link dataset.SharedLink) {
 }
 
 templ (c Components) shareByEmail(info dataset.SharedEmail) {
-	{{ turbo := server.IsTurboRequest(server.GetRequest(ctx)) }}
+	{{
+		turbo := server.IsTurboRequest(server.GetRequest(ctx))
+		f := info.Form.(*shareForm)
+	}}
 	<turbo-frame id={ "bookmark-share-" + info.ID }>
 		<form
 			id="share-email-form"
@@ -338,24 +340,24 @@ templ (c Components) shareByEmail(info dataset.SharedEmail) {
 		>
 			if !info.Sent {
 				if turbo {
-					switch info.Form.Get("format").String() {
+					switch f.Format.Value() {
 						case "html":
 							<p class="mb-4">{ L(ctx).Gettext("Sends this bookmark's content in the message.") }</p>
 						case "epub":
 							<p class="mb-4">{ L(ctx).Gettext("Sends this bookmark as an attached EPUB file.") }</p>
 					}
 				}
-				@F.Errors(info.Form)
+				@F.Errors(f)
 				if turbo {
-					<input type="hidden" name="format" value={ info.Form.Get(`format`).String() }/>
+					<input type="hidden" name={ f.Format.Name() } value={ f.Format.Value() }/>
 				} else {
-					@F.SelectField[string](info.Form.Get("format"),
+					@F.SelectField[string](&f.Format,
 						F.Label(L(ctx).Gettext("Format")),
 						F.Required(true),
 						F.Classes("field-h"),
 					)
 				}
-				@F.TextField(info.Form.Get("email"),
+				@F.TextField(&f.Email,
 					F.Label(L(ctx).Gettext("Send To")),
 					F.InputType("email"),
 					F.Required(true),
@@ -363,7 +365,7 @@ templ (c Components) shareByEmail(info dataset.SharedEmail) {
 				)
 			} else {
 				@Message(WithMessageType("success")) {
-					{ L(ctx).Gettext("The bookmark was sent to %s", info.Form.Get("email")) }
+					{ L(ctx).Gettext("The bookmark was sent to %s", f.Email.Value()) }
 				}
 			}
 			<div class={ templ.KV("btn-block max-sm:flex-col", !turbo) }>

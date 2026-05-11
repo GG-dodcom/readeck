@@ -1,11 +1,13 @@
-// SPDX-FileCopyrightText: © 2024 Olivier Meunier <olivier@neokraft.net>
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 package forms
 
 import (
+	"context"
 	"encoding/json"
+	"iter"
 	"strings"
 )
 
@@ -42,36 +44,45 @@ func (e Errors) MarshalJSON() ([]byte, error) {
 	return json.Marshal(res)
 }
 
-type fatalError struct {
-	err error
+func (e Errors) Unwrap() []error {
+	return e
 }
 
-// FatalError returns an error that has the effect to stop any
-// subsequent validation.
-func FatalError(err error) error {
-	return &fatalError{err}
-}
-
-func (e *fatalError) Error() string {
-	return e.err.Error()
-}
-
-func (e *fatalError) Err() error {
-	return e.err
-}
-
-// unwrapErrors returns an [error] list, unwrapping any
-// error that implements Unwrap (like any [errors.Join]'s result).
-func unwrapErrors(errs ...error) (res []error) {
-	for _, err := range errs {
-		if err == nil {
-			continue
+// IterErrors returns an iterator over an error and flatens the result.
+// It recursively yields errors contained in the error when it implements
+// Unwrap() []error (like [errors.Join] or [Errors] do).
+// Every result is wrapped in a [localizedError] so its call to Error()
+// produces a translated error.
+func IterErrors(err error) iter.Seq[error] {
+	return func(yield func(error) bool) {
+		if !pushErrors(err, yield) {
+			return
 		}
-		if err, ok := err.(interface{ Unwrap() []error }); ok {
-			res = append(res, err.Unwrap()...)
-			continue
-		}
-		res = append(res, err)
 	}
-	return
+}
+
+// IterErrorsTr returns an iterator that yields errors wrapped as
+// localized error so they can be translated when calling their
+// Error() method.
+func IterErrorsTr(ctx context.Context, err error) iter.Seq[error] {
+	return func(yield func(error) bool) {
+		for err := range IterErrors(err) {
+			if !yield(WrapTrError(ctx, err)) {
+				return
+			}
+		}
+	}
+}
+
+func pushErrors(err error, yield func(error) bool) bool {
+	if err, ok := err.(interface{ Unwrap() []error }); ok {
+		for _, err := range err.Unwrap() {
+			if !pushErrors(err, yield) {
+				return false
+			}
+		}
+		return true
+	}
+
+	return yield(err)
 }

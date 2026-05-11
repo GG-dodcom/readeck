@@ -59,23 +59,23 @@ type config struct {
 }
 
 type configMain struct {
-	LogLevel      slog.Level `json:"log_level" env:"LOG_LEVEL"`
-	LogFormat     string     `json:"log_format" env:"LOG_FORMAT"`
+	LogLevel      slog.Level `json:"log_level"       env:"LOG_LEVEL"`
+	LogFormat     string     `json:"log_format"      env:"LOG_FORMAT"`
 	LogTimeFormat string     `json:"log_time_format" env:"LOG_TIME_FORMAT"`
-	SecretKey     string     `json:"secret_key" env:"SECRET_KEY,unset"`
-	DataDirectory string     `json:"data_directory" env:"DATA_DIRECTORY,unset"`
+	SecretKey     string     `json:"secret_key"      env:"SECRET_KEY,unset"`
+	DataDirectory string     `json:"data_directory"  env:"DATA_DIRECTORY,unset"`
 }
 
 type configServer struct {
-	Host           string        `json:"host" env:"SERVER_HOST"`
-	Port           int           `json:"port" env:"SERVER_PORT"`
-	BaseURL        *configURL    `json:"base_url" env:"SERVER_BASE_URL"`
-	Prefix         string        `json:"prefix" env:"SERVER_PREFIX"`
+	Host           string        `json:"host"            env:"SERVER_HOST"`
+	Port           int           `json:"port"            env:"SERVER_PORT"`
+	BaseURL        *configURL    `json:"base_url"        env:"SERVER_BASE_URL"`
+	Prefix         string        `json:"prefix"          env:"SERVER_PREFIX"`
 	TrustedProxies []configIPNet `json:"trusted_proxies" env:"TRUSTED_PROXIES,unset"`
-	AllowedHosts   []string      `json:"allowed_hosts" env:"ALLOWED_HOSTS"`
-	CertFile       string        `json:"cert_file" env:"CERT_FILE"`
-	KeyFile        string        `json:"key_file" env:"KEY_FILE"`
-	ClientCAFile   string        `json:"client_ca_file" env:"CLIENT_CA_FILE"`
+	AllowedHosts   []string      `json:"allowed_hosts"   env:"ALLOWED_HOSTS"`
+	CertFile       string        `json:"cert_file"       env:"CERT_FILE"`
+	KeyFile        string        `json:"key_file"        env:"KEY_FILE"`
+	ClientCAFile   string        `json:"client_ca_file"  env:"CLIENT_CA_FILE"`
 	Session        configSession `json:"session"`
 }
 
@@ -84,9 +84,9 @@ type configAuth struct {
 }
 
 type configForwardedAuth struct {
-	Enabled             bool   `json:"enabled" env:"AUTH_FORWARDED_ENABLED"`
+	Enabled             bool   `json:"enabled"      env:"AUTH_FORWARDED_ENABLED"`
 	ProvisioningEnabled bool   `json:"provisioning" env:"AUTH_FORWARDED_PROVISIONING"`
-	HeaderUser          string `json:"header_user" env:"AUTH_FORWARDED_HEADER_USER"`
+	HeaderUser          string `json:"header_user"  env:"AUTH_FORWARDED_HEADER_USER"`
 	HeaderEmail         string `json:"header_email" env:"AUTH_FORWARDED_HEADER_EMAIL"`
 	HeaderGroup         string `json:"header_group" env:"AUTH_FORWARDED_HEADER_GROUP"`
 }
@@ -105,14 +105,14 @@ type configBookmarks struct {
 }
 
 type configEmail struct {
-	Debug       bool            `json:"debug" env:"MAIL_DEBUG,unset"`
-	Host        string          `json:"host" env:"MAIL_HOST,unset"`
-	Port        int             `json:"port" env:"MAIL_PORT,unset"`
-	Username    string          `json:"username" env:"MAIL_USERNAME,unset"`
-	Password    string          `json:"password" env:"MAIL_PASSWORD,unset"`
-	Encryption  string          `json:"encryption" env:"MAIL_ENCRYPTION,unset"`
-	Insecure    bool            `json:"insecure" env:"MAIL_INSECURE,unset"`
-	From        configEmailAddr `json:"from" env:"MAIL_FROM,unset"`
+	Debug       bool            `json:"debug"        env:"MAIL_DEBUG,unset"`
+	Host        string          `json:"host"         env:"MAIL_HOST,unset"`
+	Port        int             `json:"port"         env:"MAIL_PORT,unset"`
+	Username    string          `json:"username"     env:"MAIL_USERNAME,unset"`
+	Password    string          `json:"password"     env:"MAIL_PASSWORD,unset"`
+	Encryption  string          `json:"encryption"   env:"MAIL_ENCRYPTION,unset"`
+	Insecure    bool            `json:"insecure"     env:"MAIL_INSECURE,unset"`
+	From        configEmailAddr `json:"from"         env:"MAIL_FROM,unset"`
 	FromNoReply configEmailAddr `json:"from_noreply" env:"MAIL_FROMNOREPLY,unset"`
 }
 
@@ -122,8 +122,8 @@ type configAccounts struct {
 }
 
 type configWorker struct {
-	DSN         string `json:"dsn" env:"WORKER_DSN,unset"`
-	NumWorkers  int    `json:"num_workers" env:"WORKER_NUMBER"`
+	DSN         string `json:"dsn"          env:"WORKER_DSN,unset"`
+	NumWorkers  int    `json:"num_workers"  env:"WORKER_NUMBER"`
 	StartWorker bool   `json:"start_worker" env:"WORKER_START"`
 }
 

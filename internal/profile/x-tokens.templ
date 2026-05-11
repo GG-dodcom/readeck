@@ -124,16 +124,16 @@ templ (v Views) tokenInfo(f *tokenForm, token *tokenItem, encoded string) {
 					}
 				</div>
 			</div>
-			@F.TextField(f.Get("application"),
+			@F.TextField(&f.Application,
 				F.Label(L(ctx).Gettext("Name")),
 				F.Required(true),
 				F.Classes("field-h"),
 			)
-			@F.CheckboxField(f.Get("is_enabled"),
+			@F.CheckboxField(&f.IsEnabled,
 				F.Label(L(ctx).Gettext("Enabled")),
 				F.Classes("field-h"),
 			)
-			@F.DateField(f.Get("expires"),
+			@F.DateField(&f.Expires,
 				F.Label(L(ctx).Gettext("Expires on")),
 				F.Classes("field-h"),
 			)
@@ -145,7 +145,7 @@ templ (v Views) tokenInfo(f *tokenForm, token *tokenItem, encoded string) {
         Leave all the choices blank to grant all your permissions to this token.
       `))
 			</p>
-			@F.MultiSelectField[string](f.Get("roles"),
+			@F.MultiSelectField[string](&f.Roles,
 				F.Label(L(ctx).Gettext("Roles")),
 				F.Classes("field-h"),
 			)

@@ -1,14 +1,14 @@
-// SPDX-FileCopyrightText: © 2025 Olivier Meunier <olivier@neokraft.net>
+// SPDX-FileCopyrightText: © 2020 Olivier Meunier <olivier@neokraft.net>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-package bookmarks_test
+
+package routes
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"net/http"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/doug-martin/goqu/v9"
@@ -20,34 +20,6 @@ import (
 	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
-func filterForm() forms.Binder {
-	return forms.Must(
-		context.Background(),
-		forms.NewTextField("search", forms.Trim),
-		forms.NewTextField("title", forms.Trim),
-		forms.NewTextField("author", forms.Trim),
-		forms.NewTextField("site", forms.Trim),
-		forms.NewTextListField("type", forms.Choices(
-			forms.Choice("article", "article"),
-			forms.Choice("article", "photo"),
-			forms.Choice("article", "video"),
-		), forms.Trim),
-		forms.NewBooleanField("is_loaded"),
-		forms.NewBooleanField("has_errors"),
-		forms.NewBooleanField("has_labels"),
-		forms.NewTextField("labels", forms.Trim),
-		forms.NewTextListField("read_status", forms.Choices(
-			forms.Choice("Unviewed", "unread"),
-			forms.Choice("In-Progress", "reading"),
-			forms.Choice("Completed", "read"),
-		), forms.Trim),
-		forms.NewBooleanField("is_marked"),
-		forms.NewBooleanField("is_archived"),
-		forms.NewTextField("range_start", forms.Trim),
-		forms.NewTextField("range_end", forms.Trim),
-	)
-}
-
 func runFiltersFromForm(tests []struct {
 	body     string
 	expected string
@@ -56,16 +28,17 @@ func runFiltersFromForm(tests []struct {
 	return func(t *testing.T) {
 		for i, test := range tests {
 			t.Run(strconv.Itoa(i+1), func(t *testing.T) {
-				assert := require.New(t)
+				require := require.New(t)
 
-				form := filterForm()
-				r, _ := http.NewRequest("POST", "/", strings.NewReader(test.body))
-				r.Header.Set("content-type", "application/json")
-				forms.Bind(form, r)
-				filters := bookmarks.NewFiltersFromForm(form)
+				form := forms.New[FilterForm](context.Background())
+				buf := new(bytes.Buffer)
+				buf.WriteString(test.body)
+				err := json.NewDecoder(buf).Decode(form)
+				require.NoError(err)
+				filters := form.toFilters()
 				data, err := json.Marshal(filters)
-				assert.NoError(err)
-				assert.JSONEq(test.expected, string(data))
+				require.NoError(err)
+				require.JSONEq(test.expected, string(data))
 			})
 		}
 	}
@@ -81,10 +54,10 @@ func runFiltersToForm(tests []struct {
 			t.Run(strconv.Itoa(i+1), func(t *testing.T) {
 				assert := require.New(t)
 
-				form := filterForm()
-				form.Get("title").Set("original title")
+				form := forms.New[FilterForm](context.Background())
+				form.Title.Set("original title")
 
-				test.filters.UpdateForm(form)
+				form.fromFilters(&test.filters)
 				data, err := json.Marshal(form)
 				assert.NoError(err)
 				assert.JSONEq(test.expected, string(data))
@@ -125,10 +98,11 @@ func runFiltersToSQL(tests []struct {
 func TestFilters(t *testing.T) {
 	t.Run("escapes", func(t *testing.T) {
 		text := `test" import]\`
+		form := forms.New[FilterForm](context.Background())
+		// forms.UnmarshalValues([]string{text}, &form.Labels)
+		form.Labels.Set(strconv.Quote(text))
+		filters := form.toFilters()
 
-		form := filterForm()
-		form.Get("labels").Set(strconv.Quote(text))
-		filters := bookmarks.NewFiltersFromForm(form)
 		require.Exactly(t, strconv.Quote(text), filters.Labels)
 	})
 
@@ -193,7 +167,7 @@ func TestFilters(t *testing.T) {
 				"type": ["article", "video"],
 				"labels": "",
 				"note": "",
-				"read_status": null,
+				"read_status": [],
 				"is_marked": null,
 				"is_archived": null,
 				"is_loaded": null,
@@ -264,6 +238,12 @@ func TestFilters(t *testing.T) {
 				"is_valid": true,
 				"errors": null,
 				"fields": {
+					"bf": {
+						"is_null": false,
+						"is_bound": false,
+						"value": false,
+						"errors": null
+					},
 					"author": {
 						"is_null": false,
 						"is_bound": false,
@@ -271,36 +251,48 @@ func TestFilters(t *testing.T) {
 						"errors": null
 					},
 					"has_errors": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": false,
 						"errors": null
 					},
 					"has_labels": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": false,
 						"errors": null
 					},
+					"id": {
+						"is_null": false,
+						"is_bound": false,
+						"value": [],
+						"errors": null
+					},
 					"is_archived": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": false,
 						"errors": null
 					},
 					"is_loaded": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": false,
 						"errors": null
 					},
 					"is_marked": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": false,
 						"errors": null
 					},
 					"labels": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": null
+					},
+					"note": {
 						"is_null": false,
 						"is_bound": false,
 						"value": "",
@@ -321,7 +313,7 @@ func TestFilters(t *testing.T) {
 					"read_status": {
 						"is_null": false,
 						"is_bound": false,
-						"value": null,
+						"value": [],
 						"errors": null
 					},
 					"search": {
@@ -345,7 +337,7 @@ func TestFilters(t *testing.T) {
 					"type": {
 						"is_null": false,
 						"is_bound": false,
-						"value": null,
+						"value": [],
 						"errors": null
 					}
 				}
@@ -362,6 +354,12 @@ func TestFilters(t *testing.T) {
 				"is_valid": true,
 				"errors": null,
 				"fields": {
+					"bf": {
+						"is_null": false,
+						"is_bound": false,
+						"value": false,
+						"errors": null
+					},
 					"author": {
 						"is_null": false,
 						"is_bound": false,
@@ -369,36 +367,48 @@ func TestFilters(t *testing.T) {
 						"errors": null
 					},
 					"has_errors": {
-						"is_null": true,
-						"is_bound": false,
-						"value": false,
-						"errors": null
-					},
-					"has_labels": {
-						"is_null": true,
-						"is_bound": false,
-						"value": false,
-						"errors": null
-					},
-					"is_archived": {
 						"is_null": false,
 						"is_bound": false,
 						"value": false,
 						"errors": null
 					},
+					"has_labels": {
+						"is_null": false,
+						"is_bound": false,
+						"value": false,
+						"errors": null
+					},
+					"id": {
+						"is_null": false,
+						"is_bound": false,
+						"value": [],
+						"errors": null
+					},
+					"is_archived": {
+						"is_null": false,
+						"is_bound": true,
+						"value": false,
+						"errors": null
+					},
 					"is_loaded": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": false,
 						"errors": null
 					},
 					"is_marked": {
 						"is_null": false,
-						"is_bound": false,
+						"is_bound": true,
 						"value": true,
 						"errors": null
 					},
 					"labels": {
+						"is_null": false,
+						"is_bound": false,
+						"value": "",
+						"errors": null
+					},
+					"note": {
 						"is_null": false,
 						"is_bound": false,
 						"value": "",
@@ -419,7 +429,7 @@ func TestFilters(t *testing.T) {
 					"read_status": {
 						"is_null": false,
 						"is_bound": false,
-						"value": null,
+						"value": [],
 						"errors": null
 					},
 					"search": {
@@ -443,7 +453,7 @@ func TestFilters(t *testing.T) {
 					"type": {
 						"is_null": false,
 						"is_bound": false,
-						"value": ["article", "video"],
+						"value": ["article","video"],
 						"errors": null
 					}
 				}

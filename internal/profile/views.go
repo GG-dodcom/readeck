@@ -73,13 +73,12 @@ func newProfileViews(api *profileAPI) *profileViews {
 func (v *profileViews) userProfile(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
 	user := auth.GetRequestUser(r)
-	f := newProfileForm(tr)
-	f.setUser(user)
+	f := forms.New[profileForm](r.Context(), withProfileUser(user))
 
 	if r.Method == http.MethodPost {
-		forms.Bind(f, r)
+		forms.Bind(r, f)
 		if f.IsValid() {
-			if _, err := f.updateUser(user); err != nil {
+			if _, err := f.update(); err != nil {
 				server.Log(r).Error("", slog.Any("err", err))
 			} else {
 				// Set the new seed in the session.
@@ -105,7 +104,7 @@ func (v *profileViews) userProfile(w http.ResponseWriter, r *http.Request) {
 func (v *profileViews) userPassword(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
 	user := auth.GetRequestUser(r)
-	f := newChangePasswordForm(tr, user)
+	f := forms.New[changePasswordForm](r.Context())
 
 	if r.Method == http.MethodPost {
 		if err := r.ParseForm(); err != nil {
@@ -119,9 +118,9 @@ func (v *profileViews) userPassword(w http.ResponseWriter, r *http.Request) {
 				server.Status(w, r, http.StatusForbidden)
 				return
 			}
-			forms.Bind(f, r)
+			forms.Bind(r, f)
 			if f.IsValid() {
-				if err := f.updatePassword(); err != nil {
+				if err := f.update(); err != nil {
 					server.Log(r).Error("", slog.Any("err", err))
 				} else {
 					// Set the new seed in the session.
@@ -158,14 +157,14 @@ func (v *profileViews) userPassword(w http.ResponseWriter, r *http.Request) {
 func (v *profileViews) userTOTP(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
 	user := auth.GetRequestUser(r)
-	f := newTOTPForm(server.Locale(r), user)
+	f := forms.New[totpForm](r.Context())
 
 	switch r.Method {
 	case http.MethodGet:
 		f.generate()
 
 	case http.MethodPost:
-		forms.Bind(f, r)
+		forms.Bind(r, f)
 		if !f.IsValid() {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			break
@@ -202,8 +201,7 @@ func (v *profileViews) userSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := newSessionPrefForm(server.Locale(r))
-	forms.Bind(f, r)
+	f := forms.BindAs[sessionPrefForm](r)
 
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
@@ -211,7 +209,7 @@ func (v *profileViews) userSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sess := server.GetSession(r)
-	updated, err := f.updateSession(sess.Payload)
+	updated, err := f.update(sess.Payload)
 	if err != nil {
 		server.Err(w, r, err)
 		return
@@ -264,16 +262,12 @@ func (v *profileViews) tokenCreate(w http.ResponseWriter, r *http.Request) {
 func (v *profileViews) tokenInfo(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
 	ti := getToken(r.Context())
-	f := newTokenForm(server.Locale(r), auth.GetRequestUser(r))
-
-	if r.Method == http.MethodGet {
-		f.setToken(ti.Token)
-	}
+	f := forms.New[tokenForm](r.Context(), withTokenInfo(ti.Token))
 
 	if r.Method == http.MethodPost {
-		forms.Bind(f, r)
+		forms.Bind(r, f)
 		if f.IsValid() {
-			if err := f.updateToken(ti.Token); err != nil {
+			if err := f.update(ti.Token); err != nil {
 				server.Log(r).Error("", slog.Any("err", err))
 			} else {
 				server.AddFlash(w, r, "success", tr.Gettext("Token was updated."))
@@ -300,16 +294,16 @@ func (v *profileViews) tokenInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (v *profileViews) tokenDelete(w http.ResponseWriter, r *http.Request) {
-	f := newDeleteTokenForm(server.Locale(r))
-	f.Get("_to").Set("/profile/tokens")
-	forms.Bind(f, r)
+	f := forms.New[deleteTokenForm](r.Context())
+	f.To.Set("/profile/tokens")
+	forms.Bind(r, f)
 
 	ti := getToken(r.Context())
 	if err := f.trigger(ti.Token); err != nil {
 		server.Err(w, r, err)
 		return
 	}
-	server.Redirect(w, r, f.Get("_to").String())
+	server.Redirect(w, r, f.To.Value())
 }
 
 func (v *profileViews) exportData(w http.ResponseWriter, r *http.Request) {
@@ -350,15 +344,15 @@ func (v *profileViews) exportData(w http.ResponseWriter, r *http.Request) {
 
 func (v *profileViews) importData(w http.ResponseWriter, r *http.Request) {
 	tr := server.Locale(r)
-	f := newImportForm(tr, auth.GetRequestUser(r))
+	f := forms.New[importForm](r.Context())
 
 	if r.Method == http.MethodPost {
-		forms.Bind(f, r)
+		forms.Bind(r, f)
 
 		if f.IsValid() {
-			if err := f.importFile(r); err != nil {
+			if err := f.load(r); err != nil {
 				server.Log(r).Error("", slog.Any("err", err))
-				f.AddErrors("data", err)
+				f.Data.AddErrors(err)
 			} else {
 				server.AddFlash(w, r, "success", tr.Gettext("Profile imported."))
 				server.Redirect(w, r, "/profile")

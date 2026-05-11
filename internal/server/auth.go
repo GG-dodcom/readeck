@@ -283,7 +283,10 @@ func (p *ForwardedAuthProvider) Handler(next http.Handler) http.Handler {
 		}
 
 		// Load user
-		f := users.NewProvisioningForm(Locale(r))
+		f := forms.New[users.ProvisioningForm](
+			forms.WithTranslator(r.Context(), Locale(r)),
+		)
+
 		user, update, err := f.LoadUser(username, email, group)
 		if err != nil {
 			if fe, ok := errors.AsType[forms.Errors](err); ok {

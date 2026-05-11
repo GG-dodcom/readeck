@@ -26,6 +26,11 @@ type browserAdapter struct {
 	Items []browserBookmarkItem `json:"items"`
 }
 
+type browserAdapterForm struct {
+	FileImportForm
+	LabelsFromTitles forms.BooleanField `json:"labels_from_titles"`
+}
+
 type browserBookmarkItem struct {
 	Link       string        `json:"url"`
 	Title      string        `json:"title"`
@@ -47,24 +52,21 @@ func (bi *browserBookmarkItem) Meta() (*BookmarkMeta, error) {
 	}, nil
 }
 
-func (adapter *browserAdapter) Name(tr forms.Translator) string {
-	return tr.Gettext("Browser Bookmarks")
+func (adapter *browserAdapter) Name(ctx context.Context) string {
+	return forms.GetTranslator(ctx).Gettext("Browser Bookmarks")
 }
 
-func (adapter *browserAdapter) Form() forms.Binder {
-	return forms.Must(
-		context.Background(),
-		forms.NewFileField("data", forms.Required),
-		forms.NewBooleanField("labels_from_titles"),
-	)
+func (adapter *browserAdapter) Form(ctx context.Context) importBinder {
+	return forms.New[browserAdapterForm](ctx)
 }
 
-func (adapter *browserAdapter) Params(form forms.Binder) ([]byte, error) {
+func (adapter *browserAdapter) Params(form forms.FormBinder) ([]byte, error) {
 	if !form.IsValid() {
 		return nil, nil
 	}
+	f := form.(*browserAdapterForm)
 
-	reader, err := form.Get("data").(*forms.FileField).V().Open()
+	reader, err := f.Data.Value().Open()
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +74,7 @@ func (adapter *browserAdapter) Params(form forms.Binder) ([]byte, error) {
 
 	root, err := html.Parse(reader)
 	if err != nil {
-		form.AddErrors("data", forms.Gettext("Unable to read HTML content"), err)
+		f.Data.AddErrors(forms.Gettext("Unable to read HTML content"), err)
 		return nil, nil
 	}
 
@@ -117,7 +119,7 @@ func (adapter *browserAdapter) Params(form forms.Binder) ([]byte, error) {
 			item.IsArchived = true
 		}
 
-		if v, ok := form.Get("labels_from_titles").Value().(bool); ok && v {
+		if f.LabelsFromTitles.Value() {
 			// Fetch hierarchy titles and make them labels
 			item.Labels = append(item.Labels, adapter.findNodeTitles(n))
 		}
@@ -126,7 +128,7 @@ func (adapter *browserAdapter) Params(form forms.Binder) ([]byte, error) {
 	}
 
 	if len(adapter.Items) == 0 {
-		form.AddErrors("data", errInvalidFile)
+		f.Data.AddErrors(errInvalidFile)
 		return nil, nil
 	}
 

@@ -7,7 +7,6 @@ package oauth2
 import (
 	"codeberg.org/readeck/readeck/internal/auth/signin"
 	"codeberg.org/readeck/readeck/internal/server"
-	"codeberg.org/readeck/readeck/pkg/forms"
 
 	. "codeberg.org/readeck/readeck/components"
 	F "codeberg.org/readeck/readeck/components/forms"
@@ -22,7 +21,7 @@ templ (v Views) authCode(client *oauthClient, scopes []string) {
 }
 
 templ (v Views) deviceCode(
-	step deviceCodeStep, f forms.Binder,
+	step deviceCodeStep, f *deviceAuthorizationForm,
 	client *oauthClient, req *deviceAuthorizationRequest, scopes []string,
 ) {
 	@signin.SigninLayout(L(ctx).Gettext("Authorization required")) {
@@ -34,7 +33,7 @@ templ (v Views) deviceCode(
 			case stepCode:
 				<h2 class="text-h3 mb-8 text-center">{ L(ctx).Gettext("Connect a device") }</h2>
 				<form class="" action={ URL(ctx) } method="post">
-					@F.TextField(f.Get("user_code"),
+					@F.TextField(&f.UserCode,
 						F.Label(L(ctx).Gettext("Enter the code displayed on your device")),
 						F.Classes("max"),
 						F.InputClasses("form-input w-full text-center text-lg font-bold"),
@@ -46,7 +45,7 @@ templ (v Views) deviceCode(
 				</form>
 			case stepPending:
 				@v.form(client, scopes) {
-					<input type="hidden" name="user_code" value={ f.Get("user_code").String() }/>
+					<input type="hidden" name="user_code" value={ f.UserCode.Value() }/>
 				}
 			case stepDenied:
 				<h2 class="text-h3 mb-8 text-center">{ L(ctx).Gettext("Connect a device") }</h2>

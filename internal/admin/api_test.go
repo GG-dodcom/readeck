@@ -123,7 +123,7 @@ func TestAPI(t *testing.T) {
 				"fields": {
 					"email": {
 						"is_bound": false,
-						"is_null": true,
+						"is_null": false,
 						"value": "",
 						"errors": [
 							"field is required"
@@ -137,7 +137,7 @@ func TestAPI(t *testing.T) {
 					},
 					"password": {
 						"is_bound": false,
-						"is_null": true,
+						"is_null": false,
 						"value": "",
 						"errors": [
 							"field is required"
@@ -145,7 +145,7 @@ func TestAPI(t *testing.T) {
 					},
 					"username": {
 						"is_bound": false,
-						"is_null": true,
+						"is_null": false,
 						"value": "",
 						"errors": [
 							"field is required"
@@ -168,7 +168,7 @@ func TestAPI(t *testing.T) {
 				"fields": {
 					"email": {
 						"is_bound": false,
-						"is_null": true,
+						"is_null": false,
 						"value": "",
 						"errors": [
 							"field is required"
@@ -178,11 +178,11 @@ func TestAPI(t *testing.T) {
 						"is_bound": true,
 						"is_null": false,
 						"value": "foo",
-						"errors": ["foo is not one of none, admin, staff, user"]
+						"errors": ["foo is not one of \"none\", \"admin\", \"staff\", \"user\""]
 					},
 					"password": {
 						"is_bound": false,
-						"is_null": true,
+						"is_null": false,
 						"value": "",
 						"errors": [
 							"field is required"
@@ -190,7 +190,7 @@ func TestAPI(t *testing.T) {
 					},
 					"username": {
 						"is_bound": false,
-						"is_null": true,
+						"is_null": false,
 						"value": "",
 						"errors": [
 							"field is required"
@@ -207,7 +207,7 @@ func TestAPI(t *testing.T) {
 				"username": "test3@localhost",
 				"email":    "test3",
 				"group":    "user",
-				"password": "1234",
+				"password": "  ",
 			}),
 			AssertStatus(422),
 			AssertJSON(`{
@@ -231,8 +231,8 @@ func TestAPI(t *testing.T) {
 					"password": {
 						"is_bound": true,
 						"is_null": false,
-						"value": "1234",
-						"errors": null
+						"value": "  ",
+						"errors": ["password is empty"]
 					},
 					"username": {
 						"is_bound": true,
@@ -449,6 +449,48 @@ func TestAPI(t *testing.T) {
 						"errors":[
 							"username is not valid"
 						]
+					}
+				}
+			}`),
+		)
+
+		client.RT(t,
+			WithMethod(http.MethodPatch),
+			WithTarget("/api/admin/users/"+u1.User.UID),
+			WithBody(map[string]any{
+				"username": "test3",
+				"email":    "test3@localhost",
+				"group":    "user",
+				"password": "    ",
+			}),
+			AssertStatus(422),
+			AssertJSON(`{
+				"is_valid":false,
+				"errors":null,
+				"fields":{
+					"email":{
+						"is_null":false,
+						"is_bound":true,
+						"value":"test3@localhost",
+						"errors":null
+					},
+					"group":{
+						"is_null":false,
+						"is_bound":true,
+						"value":"user",
+						"errors":null
+					},
+					"password":{
+						"is_null":false,
+						"is_bound":true,
+						"value":"    ",
+						"errors":["password is empty"]
+					},
+					"username":{
+						"is_null":false,
+						"is_bound":true,
+						"value":"test3",
+						"errors":null
 					}
 				}
 			}`),

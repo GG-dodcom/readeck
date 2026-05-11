@@ -32,9 +32,9 @@ func (api *apiRouter) collectionInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *apiRouter) collectionCreate(w http.ResponseWriter, r *http.Request) {
-	f := newCollectionForm(server.Locale(r), r)
+	f := newCollectionForm(r)
+	forms.Bind(r, f)
 
-	forms.Bind(f, r)
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
@@ -53,9 +53,9 @@ func (api *apiRouter) collectionCreate(w http.ResponseWriter, r *http.Request) {
 func (api *apiRouter) collectionUpdate(w http.ResponseWriter, r *http.Request) {
 	c := getCollection(r.Context())
 
-	f := newCollectionForm(server.Locale(r), r)
+	f := newCollectionForm(r)
 	f.setCollection(c)
-	forms.Bind(f, r)
+	forms.Bind(r, f)
 
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
@@ -99,8 +99,8 @@ func (api *apiRouter) withColletionList(next http.Handler) http.Handler {
 			)
 
 		ds = ds.Order(goqu.I("name").Asc()).
-			Limit(uint(pf.Limit())).
-			Offset(uint(pf.Offset()))
+			Limit(uint(pf.Limit.Value())).
+			Offset(uint(pf.Offset.Value()))
 
 		res, err := dataset.NewCollectionList(r.Context(), ds)
 		if err != nil {

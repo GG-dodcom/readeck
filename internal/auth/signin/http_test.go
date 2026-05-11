@@ -13,9 +13,9 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/readeck/readeck/internal/auth/users"
 	"codeberg.org/readeck/readeck/pkg/totp"
 
-	"codeberg.org/readeck/readeck/internal/auth/users"
 	. "codeberg.org/readeck/readeck/internal/testing" //revive:disable:dot-imports
 )
 

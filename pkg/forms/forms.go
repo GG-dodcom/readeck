@@ -1,339 +1,372 @@
-// SPDX-FileCopyrightText: © 2024 Olivier Meunier <olivier@neokraft.net>
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Package forms provides helpers and functions to create and validate forms.
 package forms
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
-	"iter"
-	"maps"
-	"mime"
 	"net/http"
 	"net/url"
+	"reflect"
+	"slices"
+	"strings"
 )
-
-var ctxFormKey = &contextKey{"form"}
 
 var (
-	// ErrInvalidInput is the error for invalid data.
-	ErrInvalidInput = errors.New("invalid input data")
-	// ErrUnexpected is an error that can be used during custom validation
-	// or form actions.
-	ErrUnexpected = Gettext("an unexpected error has occurred")
+	_ FormBinder    = (*Form)(nil)
+	_ ContextHolder = (*Form)(nil)
 )
 
-// Binder describes the basic needed method for a form that can be bound
-// from JSON or URL values.
-type Binder interface {
-	Contexter
-	Fields() iter.Seq2[string, Field]
-	Get(string) Field
-	Bind()
-	IsBound() bool
-	IsValid() bool
-	AddErrors(string, ...error)
-	Errors() Errors
-}
+// Error definitions.
+var (
+	ErrFormIsBound        = errors.New("form is already bound")
+	ErrFormInvalidInput   = errors.New("invalid input data")
+	ErrUnknownContentType = errors.New("unknown content type")
+	ErrUnexpected         = Gettext("an unexpected error has occurred")
+)
+
+// MimeType is a mime type forms can be loaded from.
+type MimeType string
+
+// Common input mime types.
+const (
+	MimeJSON       MimeType = "application/json"
+	MimeURLEncoded MimeType = "application/x-www-form-urlencoded"
+	MimeMultipart  MimeType = "multipart/form-data"
+)
 
 type marshalledForm struct {
-	IsValid bool             `json:"is_valid"`
-	Errors  Errors           `json:"errors"`
-	Fields  map[string]Field `json:"fields"`
+	IsValid bool              `json:"is_valid"`
+	Errors  Errors            `json:"errors"`
+	Fields  map[string]Binder `json:"fields"`
 }
 
-// Form is a list of fields.
+// ValidateChecker describes a type that can bring its own validation method.
+// The returned error is added to the error list. To return several errors at once,
+// one can use [Errors] or [errors.Join].
+type ValidateChecker interface {
+	Validate() error
+}
+
+// FormBinder is the interface implented by types that can
+// act as a form.
+type FormBinder interface {
+	Fields() map[string]Binder
+	Errors() Errors
+	AddErrors(...error)
+	IsBound() bool
+	Bind()
+	IsValid() bool
+}
+
+// Form is our based type for form composition.
 type Form struct {
-	isBound  bool
-	fields   []Field
-	fieldMap map[string]int
-	context  context.Context
+	bound    bool
+	valid    *bool
+	instance FormBinder
+	fields   map[string]Binder
 	errors   Errors
+	ctx      context.Context
 }
 
-// New returns a new Form instance.
-// The context is passed to the field's own context using a naive merge strategy.
-// That means that the global form's context is accessible to all fields, which can be used
-// for translation or by validators.
-func New(ctx context.Context, fields ...Field) (*Form, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	f := &Form{
-		context:  ctx,
-		fields:   []Field{},
-		fieldMap: map[string]int{},
+// New prepares and returns a new instance of T.
+// It panics if T is not a struct implementing [FormBinder]
+// or when a field's "validate" tag does not exist.
+func New[T any](ctx context.Context, options ...func(FormBinder)) *T {
+	t := reflect.TypeFor[T]()
+
+	// Must be a struct
+	if t.Kind() != reflect.Struct {
+		panic("type is not a struct")
 	}
 
-	for _, field := range fields {
-		if field.Name() == "" {
-			return nil, errors.New("unamed field")
+	// Must be a [FormBinder].
+	if !reflect.PointerTo(t).Implements(reflect.TypeFor[FormBinder]()) {
+		panic("type is not a forms.FormBinder")
+	}
+
+	form := new(T)
+	if form, ok := any(form).(ContextHolder); ok {
+		form.SetContext(ctx)
+	}
+
+	// Set each field and a field list for the form
+	fields := map[string]Binder{}
+	for info := range recurseStructFields(reflect.ValueOf(form).Elem(), "") {
+		if info.field.Tag.Get("json") == "-" {
+			continue
 		}
-		if _, exists := f.fieldMap[field.Name()]; exists {
-			return nil, fmt.Errorf(`field "%s" already defined`, field.Name())
+
+		// Only [Binder] fields are allowed.
+		if !info.value.Addr().Type().Implements(reflect.TypeFor[Binder]()) {
+			continue
 		}
-		f.fields = append(f.fields, field)
-		f.fieldMap[field.Name()] = len(f.fields) - 1
+
+		// Prepare field
+		field := info.value.Addr().Interface()
+		if field, ok := field.(interface{ SetName(string) }); ok {
+			field.SetName(info.name)
+		}
+
+		if field, ok := field.(ContextHolder); ok {
+			field.SetContext(ctx)
+		}
+
+		// Add validators from tag
+		if t := info.field.Tag.Get(ValidateTagName); len(t) > 0 {
+			if field, ok := field.(ValidatorsProvider); ok {
+				// Note: we don't set validators at once with [slices.Collect] because each
+				// iteration of [collectValidators] can have side effects.
+				// Thus, we must append to the existing validators, each time.
+				for v := range collectValidators(ctx, any(form).(FormBinder), field.(Binder), strings.Fields(t)...) {
+					field.SetValidators(append(field.Validators(), v))
+				}
+			}
+		}
+
+		fields[info.name] = field.(Binder)
 	}
 
-	// Pass the form's context — with the form itself — to each field
-	for _, field := range f.fields {
-		field.SetContext(mergeContext(
-			field.Context(),
-			context.WithValue(f.context, ctxFormKey, f),
-		))
+	// Set fields
+	if form, ok := any(form).(interface{ SetFields(map[string]Binder) }); ok {
+		form.SetFields(fields)
 	}
 
-	return f, nil
+	// Set form
+	if f, ok := any(form).(interface{ SetInstance(FormBinder) }); ok {
+		f.SetInstance(any(form).(FormBinder))
+	}
+
+	for _, fn := range options {
+		fn(any(form).(FormBinder))
+	}
+
+	return form
 }
 
-// Must returns a new Form instance and panics if there was any error.
-func Must(ctx context.Context, fields ...Field) *Form {
-	f, err := New(ctx, fields...)
-	if err != nil {
-		panic(err)
+// Fields returns the form's registered [Binder] fields.
+// Their respective name matches the name used during
+// [url.Values] unmarshaling
+// (with dot separated prefix and name for nested values).
+func (f *Form) Fields() map[string]Binder {
+	return f.fields
+}
+
+// SetFields is used by [New] and will panic if called more than once.
+func (f *Form) SetFields(fields map[string]Binder) {
+	if f.fields != nil {
+		panic("can't mutate form's field list")
 	}
-	return f
+	f.fields = fields
+}
+
+// SetInstance is used by [New] and will panic if called more than once.
+func (f *Form) SetInstance(instance FormBinder) {
+	if f.instance != nil {
+		panic("can't set Form.instance more than once")
+	}
+	f.instance = instance
 }
 
 // Context returns the form's context.
-func (f Form) Context() context.Context {
-	return f.context
+func (f *Form) Context() context.Context {
+	return f.ctx
 }
 
-// SetContext sets the form's context.
+// SetContext sets the form's context. It implements [ContextHolder].
 func (f *Form) SetContext(ctx context.Context) {
-	f.context = ctx
+	f.ctx = ctx
 }
 
-// Fields returns the form's field list.
-func (f *Form) Fields() iter.Seq2[string, Field] {
-	return iterFields(f.fields)
+// Errors return a flat list of errors.
+func (f Form) Errors() Errors {
+	return slices.Collect(IterErrorsTr(f.ctx, f.errors))
 }
 
-// Get returns a field by its name, or nil when it doesn't exist.
-func (f *Form) Get(name string) Field {
-	if i, ok := f.fieldMap[name]; ok {
-		return f.fields[i]
+// AddErrors adds errors to the form.
+func (f *Form) AddErrors(errs ...error) {
+	for _, err := range errs {
+		if err != nil {
+			f.errors = append(f.errors, err)
+		}
 	}
-	return nil
 }
 
-// Bind set the form as bound.
-func (f *Form) Bind() {
-	f.isBound = true
-}
-
-// IsBound returns true if the form has been bound to input data.
+// IsBound returns whether the form is bound.
 func (f *Form) IsBound() bool {
-	return f.isBound
+	return f.bound
 }
 
-// IsValid returns true if the form has no error and all fields are valid.
+// Bind marks the form as bound.
+func (f *Form) Bind() {
+	f.bound = true
+}
+
+// IsValid returns true when the form is valid.
 func (f *Form) IsValid() bool {
 	if !f.IsBound() {
 		return true
 	}
 
-	// We must first ensure that each field's validator is processed.
-	ok := true
-	for _, field := range f.Fields() {
-		ok = field.IsValid() && ok
-	}
-
-	return len(f.errors) == 0 && ok
-}
-
-// AddErrors adds errors to the form or one of its fields.
-// An empty name adds the errors go to the form itself.
-func (f *Form) AddErrors(name string, errs ...error) {
-	if len(errs) == 0 {
-		return
-	}
-
-	if name == "" {
-		tr := GetTranslator(f.context)
-		for _, err := range errs {
-			if err == nil {
-				continue
+	if f.valid == nil {
+		// We only run validators once
+		f.valid = new(true)
+		for _, field := range f.fields {
+			// This runs the field's validators
+			if field, ok := field.(ValidatorProvider); ok {
+				field.IsValid()
 			}
-			f.errors = append(f.errors, localizedError{err: err, tr: tr})
+
+			// Call Validate() on each field when they implement it.
+			if field, ok := field.(ValidateChecker); ok {
+				if err := field.Validate(); err != nil {
+					if field, ok := field.(interface{ AddErrors(...error) }); ok {
+						field.AddErrors(err)
+					}
+				}
+			}
 		}
-		return
+
+		// Call Validate() on the actual form if it implements it.
+		if form, ok := f.instance.(ValidateChecker); ok {
+			if err := form.Validate(); err != nil {
+				f.AddErrors(err)
+			}
+		}
+
 	}
 
-	if field := f.Get(name); field != nil {
-		field.AddErrors(errs...)
+	// Check for each field error list.
+	for _, field := range f.fields {
+		if len(field.Errors()) > 0 {
+			*f.valid = false
+			break
+		}
 	}
+
+	return len(f.errors) == 0 && *f.valid
 }
 
-// Errors returns the form's [Errors].
-func (f *Form) Errors() Errors {
-	return f.errors
-}
-
-// MarshalJSON returns the JSON serialization of a form.
+// MarshalJSON implement [json.Marshaler].
 func (f *Form) MarshalJSON() ([]byte, error) {
-	return formMarshalJSON(f)
+	res := marshalledForm{
+		IsValid: f.IsValid(),
+		Errors:  slices.Collect(IterErrorsTr(f.ctx, f.Errors())),
+		Fields:  f.fields,
+	}
+
+	return json.Marshal(res)
 }
 
-// unmarshalJSON decodes JSON values into the form.
-// It does so by decoding first the input value into a map
-// of raw values. Then each registered field that's present in
-// the resulting map is decoded.
-func unmarshalJSON(f Binder, r io.Reader) {
-	values := map[string]json.RawMessage{}
-	if err := json.NewDecoder(r).Decode(&values); err != nil {
-		f.AddErrors("", ErrInvalidInput)
-		return
-	}
-
-	for _, field := range f.Fields() {
-		data, exists := values[field.Name()]
-		if !exists {
-			continue
-		}
-		if err := field.UnmarshalJSON(data); err != nil {
-			continue
-		}
-	}
+// MarshalValues calls [MarshalValues] on the form's concrete instance.
+func (f *Form) MarshalValues() map[string]any {
+	return MarshalValues(f.instance)
 }
 
-// unmarshalValues decodes url encoded values into the form.
-// It passes every value item to each matching [Field.unmarshalValues].
-func unmarshalValues(f Binder, values url.Values) {
-	for _, field := range f.Fields() {
-		v, exists := values[field.Name()]
-		if !exists {
+// MarshalValues returns a recursive map of all values implementing [Binder].
+// It panics when "in" is not a struct.
+func MarshalValues(in any) map[string]any {
+	res := map[string]any{}
+
+	for info := range iterStructFields(reflect.ValueOf(in).Elem()) {
+		if v, ok := info.value.Interface().(Binder); ok {
+			res[info.name] = v.V()
 			continue
 		}
-
-		if err := field.UnmarshalValues(v); err != nil {
-			continue
+		if info.field.Type.Kind() == reflect.Struct {
+			res[info.name] = MarshalValues(info.value.Addr().Interface())
 		}
 	}
-}
-
-func unmarshalMultipart(f Binder, r *http.Request) {
-	if r.MultipartForm == nil {
-		if err := r.ParseMultipartForm(16 << 20); err != nil {
-			f.AddErrors("", errors.New("error loading data"))
-			return
-		}
-	}
-
-	// Bind the file fields
-	for name, headers := range r.MultipartForm.File {
-		if len(headers) == 0 {
-			continue
-		}
-		field := f.Get(name)
-		if field == nil {
-			continue
-		}
-
-		if field, ok := field.(HeaderReader); ok {
-			if err := field.UnmarshalFiles(headers); err != nil {
-				continue
-			}
-		}
-	}
-
-	// Always finish with loading the regular values
-	unmarshalValues(f, r.Form)
-}
-
-// LoadValues loads the values from any JSON marshal enabled value.
-func LoadValues(f Binder, v any) error {
-	buf := new(bytes.Buffer)
-	enc := json.NewEncoder(buf)
-	if err := enc.Encode(v); err != nil {
-		return err
-	}
-	unmarshalJSON(f, buf)
-
-	return nil
+	return res
 }
 
 // Bind loads the data using the method tied
 // to the request's content-type header.
-func Bind(f Binder, r *http.Request) {
+func Bind(r *http.Request, f FormBinder) {
 	if f.IsBound() {
-		f.AddErrors("", errors.New("form is already bound"))
+		f.AddErrors(ErrFormIsBound)
 		return
 	}
-
 	f.Bind()
-	mediaType, _, err := mime.ParseMediaType(r.Header.Get("content-type"))
-	if err != nil {
-		f.AddErrors("", errors.New("Invalid content-type"))
-		return
+
+	mediaType, _, _ := strings.Cut(r.Header.Get("Content-Type"), ";")
+	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+
+	// Default to application/x-www-form-urlencoded.
+	if mediaType == "" {
+		mediaType = string(MimeURLEncoded)
 	}
 
-	switch mediaType {
-	case "application/json", "text/json":
-		defer r.Body.Close() //nolint:errcheck
-		unmarshalJSON(f, r.Body)
-	case "application/x-www-form-urlencoded":
-		if err := r.ParseForm(); err != nil {
-			f.AddErrors("", errors.New("invalid input"))
+	if fn, ok := RequestLoaders[mediaType]; ok {
+		if err := fn(r, f); err != nil {
+			f.AddErrors(err)
 		}
-		unmarshalValues(f, r.Form)
-	case "multipart/form-data":
-		unmarshalMultipart(f, r)
-	default:
-		f.AddErrors("", errors.New("Unknown content-type"))
+		if r.Body != nil {
+			_ = r.Body.Close()
+		}
+		return
 	}
 
-	// Validate the form
-	f.IsValid()
-	if f, ok := f.(interface{ Validate() }); ok {
-		f.Validate()
-	}
+	f.AddErrors(ErrUnknownContentType)
 }
 
-// BindValues binds a form using [url.Values] parameters.
-func BindValues(f Binder, values url.Values) {
+// BindValues loads the data from a [url.Values] input.
+// This can be used to load values only from the URL's query string.
+func BindValues(values url.Values, f FormBinder) {
 	if f.IsBound() {
-		f.AddErrors("", errors.New("form is already bound"))
+		f.AddErrors(ErrFormIsBound)
 		return
 	}
 	f.Bind()
-	unmarshalValues(f, values)
-	f.IsValid()
-	if f, ok := f.(interface{ Validate() }); ok {
-		f.Validate()
+
+	if err := UnmarshalURLValues(values, f); err != nil {
+		f.AddErrors(err)
 	}
 }
 
-// BindURL binds a form using its URL parameters only.
-func BindURL(f Binder, r *http.Request) {
-	BindValues(f, r.URL.Query())
+// BindAs combines [New] and [Bind] in one step, returning
+// the newly created form.
+func BindAs[T any](r *http.Request, options ...func(FormBinder)) *T {
+	form := New[T](r.Context(), options...)
+	Bind(r, any(form).(FormBinder))
+	return form
 }
 
-func iterFields(fields []Field) iter.Seq2[string, Field] {
-	return func(yield func(string, Field) bool) {
-		for _, field := range fields {
-			if !yield(field.Name(), field) {
-				return
+func unmarshalMultipart(r *http.Request, v any) (err error) {
+	if r.MultipartForm == nil {
+		if err = r.ParseMultipartForm(16 << 20); err != nil {
+			return err
+		}
+	}
+
+	// Bind the file fields
+	if v, ok := v.(FormBinder); ok {
+		fields := v.Fields()
+		if len(fields) == 0 {
+			goto URLValues
+		}
+
+		for name, headers := range r.MultipartForm.File {
+			if len(headers) == 0 {
+				continue
+			}
+			field, ok := fields[name]
+			if !ok {
+				continue
+			}
+
+			if field, ok := field.(FilesUnmarshaler); ok {
+				if err := field.UnmarshalFiles(headers); err != nil {
+					return err
+				}
 			}
 		}
 	}
-}
 
-func formMarshalJSON(f Binder) ([]byte, error) {
-	res := marshalledForm{
-		IsValid: f.IsValid(),
-		Errors:  f.Errors(),
-		Fields:  map[string]Field{},
-	}
-	maps.Insert(res.Fields, f.Fields())
-
-	return json.Marshal(res)
+	// Bind the [url.Values]
+URLValues:
+	return UnmarshalURLValues(r.Form, v)
 }

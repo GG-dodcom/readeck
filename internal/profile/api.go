@@ -123,16 +123,14 @@ func (api *profileAPI) profileInfo(w http.ResponseWriter, r *http.Request) {
 // profileUpdate updates the current user profile information.
 func (api *profileAPI) profileUpdate(w http.ResponseWriter, r *http.Request) {
 	user := auth.GetRequestUser(r)
-	f := newProfileForm(server.Locale(r))
-	f.setUser(user)
-	forms.Bind(f, r)
+	f := forms.BindAs[profileForm](r, withProfileUser(user))
 
 	if !f.IsValid() {
 		server.Render(w, r, http.StatusUnprocessableEntity, f)
 		return
 	}
 
-	updated, err := f.updateUser(user)
+	updated, err := f.update()
 	if err != nil {
 		server.Err(w, r, err)
 		return
@@ -158,8 +156,8 @@ func (api *profileAPI) withTokenList(t tokenType) func(next http.Handler) http.H
 					exp.DateTime(goqu.C("last_used").Table("t")).Desc().NullsLast(),
 					exp.DateTime(goqu.C("created").Table("t")).Desc(),
 				).
-				Limit(uint(pf.Limit())).
-				Offset(uint(pf.Offset()))
+				Limit(uint(pf.Limit.Value())).
+				Offset(uint(pf.Offset.Value()))
 
 			switch t {
 			case userToken:

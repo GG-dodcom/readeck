@@ -5,7 +5,6 @@
 package admin
 
 import (
-	"codeberg.org/readeck/readeck/internal/auth/users"
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/pkg/utils"
 
@@ -68,29 +67,29 @@ templ (v Views) userList(ul *userList) {
 	}
 }
 
-templ (v Views) userCreate(f *users.UserForm) {
+templ (v Views) userCreate(f *userForm) {
 	{{ title := L(ctx).Gettext("New User") }}
 	@v.base(title) {
 		<h1 class="title text-h2">{ title }</h1>
 		<form action={ URL(ctx) } method="post">
 			@F.Errors(f)
-			@F.TextField(f.Get("username"),
+			@F.TextField(&f.Username,
 				F.Label(L(ctx).Gettext("Username")),
 				F.Required(true),
 				F.Classes("field-h"),
 			)
-			@F.TextField(f.Get("email"),
+			@F.TextField(&f.Email,
 				F.InputType("email"),
 				F.Label(L(ctx).Gettext("Email address")),
 				F.Required(true),
 				F.Classes("field-h"),
 			)
-			@F.SelectField[string](f.Get("group"),
+			@F.SelectField[string](&f.Group,
 				F.Label(L(ctx).Gettext("Group")),
 				F.Required(true),
 				F.Classes("field-h"),
 			)
-			@F.PasswordField(f.Get("password"),
+			@F.PasswordField(&f.Password,
 				F.Label(L(ctx).Gettext("Password")),
 				F.Required(true),
 				F.Classes("field-h"),
@@ -103,7 +102,7 @@ templ (v Views) userCreate(f *users.UserForm) {
 	}
 }
 
-templ (v Views) userInfo(f *users.UserForm, u *extendedUserItem) {
+templ (v Views) userInfo(f *userForm, u *extendedUserItem) {
 	{{
 		title := L(ctx).Gettext("Users") + " - " + u.Username
 		user := server.GetUser(ctx)
@@ -122,23 +121,23 @@ templ (v Views) userInfo(f *users.UserForm, u *extendedUserItem) {
 		}
 		<form class="mb-8" action={ URL(ctx) } method="post">
 			@F.Errors(f)
-			@F.TextField(f.Get("username"),
+			@F.TextField(&f.Username,
 				F.Label(L(ctx).Gettext("Username")),
 				F.Required(true),
 				F.Classes("field-h"),
 			)
-			@F.TextField(f.Get("email"),
+			@F.TextField(&f.Email,
 				F.InputType("email"),
 				F.Label(L(ctx).Gettext("Email address")),
 				F.Required(true),
 				F.Classes("field-h"),
 			)
-			@F.SelectField[string](f.Get("group"),
+			@F.SelectField[string](&f.Group,
 				F.Label(L(ctx).Gettext("Group")),
 				F.Required(true),
 				F.Classes("field-h"),
 			)
-			@F.PasswordField(f.Get("password"),
+			@F.PasswordField(&f.Password,
 				F.Label(L(ctx).Gettext("Password")),
 				F.Classes("field-h"),
 				F.InputAttr("autocomplete", "off"),

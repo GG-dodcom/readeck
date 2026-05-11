@@ -20,10 +20,10 @@ type LabelList []*Label
 
 // Label contains a label's information.
 type Label struct {
-	Name          string `db:"name"  json:"name"`
-	Count         int    `db:"count" json:"count"`
-	Href          string `db:"-"     json:"href"`
-	HrefBookmarks string `db:"-"     json:"href_bookmarks"`
+	Name          string `json:"name"           db:"name"`
+	Count         int    `json:"count"          db:"count"`
+	Href          string `json:"href"           db:"-"`
+	HrefBookmarks string `json:"href_bookmarks" db:"-"`
 }
 
 // NewLabelList returns a new [LabelList] from a select dataset.

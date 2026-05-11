@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: © 2025 Olivier Meunier <olivier@neokraft.net>
+// SPDX-FileCopyrightText: © 2026 Olivier Meunier <olivier@neokraft.net>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -13,221 +13,278 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/readeck/readeck/pkg/forms"
 )
 
-func TestFileHeaderDecoder(t *testing.T) {
+func runValuesFile[T any, V forms.Valuer[T]](tests []valueTest[[]*multipart.FileHeader, T]) func(t *testing.T) {
+	return func(t *testing.T) {
+		for i, test := range tests {
+			t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+				value := *new(V)
+				var err error
+				if value, ok := any(&value).(forms.FilesUnmarshaler); ok {
+					err = value.UnmarshalFiles(test.data)
+				} else {
+					panic("value is not a FileUnmarshaler")
+				}
+				test.assert(t, value, err)
+			})
+		}
+	}
+}
+
+func TestFileValue(t *testing.T) {
 	fh := &multipart.FileHeader{
 		Filename: "test.txt",
 		Header:   textproto.MIMEHeader{"Content-Type": []string{"text/plain"}},
 		Size:     int64(14),
 	}
+
 	fhEmpty := &multipart.FileHeader{
 		Filename: "test.txt",
 		Header:   textproto.MIMEHeader{"Content-Type": []string{"text/plain"}},
 		Size:     int64(0),
 	}
 
-	t.Run("any", runAnyDecoder(forms.DecodeFileHeader, []anyValueTest[forms.FileOpener]{
-		{nil, forms.Value[forms.FileOpener]{
-			V: forms.FileOpener(nil),
-			F: forms.IsNil | forms.IsEmpty,
-		}},
-		{"test", forms.Value[forms.FileOpener]{
-			V: forms.StringOpener("test"),
-			F: forms.IsOk,
-		}},
-		{"", forms.Value[forms.FileOpener]{
-			V: forms.StringOpener(""),
-			F: forms.IsOk | forms.IsEmpty,
-		}},
-		{fh, forms.Value[forms.FileOpener]{
-			V: &forms.MultipartFileOpener{fh},
-			F: forms.IsOk,
-		}},
-		{fhEmpty, forms.Value[forms.FileOpener]{
-			V: &forms.MultipartFileOpener{fhEmpty},
-			F: forms.IsOk | forms.IsEmpty,
-		}},
-		{12, forms.Value[forms.FileOpener]{
-			V: forms.FileOpener(nil),
-			F: forms.IsEmpty,
-		}},
+	t.Run("fileHeader", runValuesFile[forms.File, forms.FileValue]([]valueTest[[]*multipart.FileHeader, forms.File]{
+		{
+			data:  []*multipart.FileHeader{},
+			flags: forms.IsBound | forms.IsEmpty,
+			str:   "<file>",
+		},
+		{
+			data:  []*multipart.FileHeader{fhEmpty},
+			value: &forms.MultipartFileOpener{fhEmpty},
+			flags: forms.IsBound | forms.IsEmpty,
+			str:   "<file test.txt>",
+		},
+		{
+			data:  []*multipart.FileHeader{fh},
+			value: &forms.MultipartFileOpener{fh},
+			flags: forms.IsBound,
+			str:   "<file test.txt>",
+		},
 	}))
 
-	t.Run("text", runTextDecoder(forms.DecodeFileHeader, []textValueTest[forms.FileOpener]{
-		{"", forms.Value[forms.FileOpener]{
-			V: forms.StringOpener(""),
-			F: forms.IsOk | forms.IsEmpty,
-		}},
-		{"test", forms.Value[forms.FileOpener]{
-			V: forms.StringOpener("test"),
-			F: forms.IsOk,
-		}},
+	t.Run("json", runJSONValue[forms.File, forms.FileValue]([]valueTest[string, forms.File]{
+		{
+			data:  "null",
+			flags: forms.IsBound | forms.IsEmpty | forms.IsNil,
+			value: nil,
+			str:   "<file>",
+		},
+		{
+			data:  `""`,
+			flags: forms.IsBound | forms.IsEmpty,
+			value: forms.StringOpener(""),
+			str:   "<file>",
+		},
+		{
+			data:  `"abc"`,
+			flags: forms.IsBound,
+			value: forms.StringOpener("abc"),
+			str:   "<file>",
+		},
+	}))
+
+	t.Run("values", runValuesValue[forms.File, forms.FileValue]([]valueTest[[]string, forms.File]{
+		{
+			data:  []string{},
+			flags: forms.IsBound | forms.IsEmpty,
+			str:   "<file>",
+		},
+		{
+			data:  []string{"\uff00"},
+			flags: forms.IsBound | forms.IsEmpty | forms.IsNil,
+			str:   "<file>",
+		},
+		{
+			data:  []string{""},
+			flags: forms.IsBound | forms.IsEmpty,
+			value: forms.StringOpener(""),
+			str:   "<file>",
+		},
+		{
+			data:  []string{"abc"},
+			flags: forms.IsBound,
+			value: forms.StringOpener("abc"),
+			str:   "<file>",
+		},
+		{
+			data:  []string{"xyz", "abc"},
+			flags: forms.IsBound,
+			value: forms.StringOpener("xyz"),
+			str:   "<file>",
+		},
 	}))
 }
 
-func TestPMultipart(t *testing.T) {
-	t.Run("single file", func(t *testing.T) {
-		f := forms.Must(
-			context.Background(),
-			forms.NewTextField("name"),
-			forms.NewFileField("file"),
-		)
+func TestFileField(t *testing.T) {
+	type mpForm struct {
+		forms.Form
+		Name forms.TextField `json:"name"`
+		File forms.FileField `json:"file"`
+	}
 
-		assert := require.New(t)
+	t.Run("single file", func(t *testing.T) {
+		assert := assert.New(t)
+		require := require.New(t)
 
 		body := new(bytes.Buffer)
 		mp := multipart.NewWriter(body)
 
 		// Normal field
-		assert.NoError(mp.WriteField("name", "alice"))
+		require.NoError(mp.WriteField("name", "alice"))
 
 		// File field
 		w, err := mp.CreateFormFile("file", "file.txt")
-		assert.NoError(err)
+		require.NoError(err)
 		_, err = w.Write([]byte("test\ncontent\n"))
-		assert.NoError(err)
+		require.NoError(err)
 
-		assert.NoError(mp.Close())
+		require.NoError(mp.Close())
 
 		r, _ := http.NewRequest(http.MethodPost, "/", body)
 		r.Header.Set("content-type", mp.FormDataContentType())
-		forms.Bind(f, r)
 
-		assert.True(f.IsBound())
-		assert.True(f.IsValid())
+		form := forms.BindAs[mpForm](r)
 
-		assert.False(f.Get("name").IsNil())
-		assert.Equal("alice", f.Get("name").Value())
+		assert.True(form.IsBound())
+		assert.True(form.IsValid())
 
-		assert.Equal("-file-", fmt.Sprint(f.Get("file")))
+		assert.False(form.Name.IsNil())
+		assert.Equal("alice", form.Name.Value())
+
+		assert.False(form.File.IsEmpty())
+
+		assert.Equal("<file file.txt>", fmt.Sprint(form.File))
 
 		var content io.ReadCloser
 		buf := new(strings.Builder)
-		content, err = f.Get("file").(*forms.FileField).V().Open()
-		assert.NoError(err)
+		content, err = form.File.Value().Open()
+		require.NoError(err)
 		io.Copy(buf, content)
-		assert.NoError(content.Close())
+		require.NoError(content.Close())
 		assert.Equal("test\ncontent\n", buf.String())
 	})
 
 	t.Run("single file json", func(t *testing.T) {
-		f := forms.Must(
-			context.Background(),
-			forms.NewTextField("name"),
-			forms.NewFileField("file"),
-		)
-
-		assert := require.New(t)
+		assert := assert.New(t)
+		require := require.New(t)
 
 		body := new(bytes.Buffer)
 		enc := json.NewEncoder(body)
-		assert.NoError(enc.Encode(map[string]string{
+		require.NoError(enc.Encode(map[string]string{
 			"name": "alice",
 			"file": "test\ncontent\n",
 		}))
 
 		r, _ := http.NewRequest(http.MethodPost, "/", body)
 		r.Header.Set("content-type", "application/json")
-		forms.Bind(f, r)
 
-		assert.True(f.IsBound())
-		assert.True(f.IsValid())
+		form := forms.BindAs[mpForm](r)
 
-		assert.False(f.Get("name").IsNil())
-		assert.Equal("alice", f.Get("name").Value())
+		assert.True(form.IsBound())
+		assert.True(form.IsValid())
 
-		assert.Equal("-file-", fmt.Sprint(f.Get("file")))
+		assert.False(form.Name.IsNil())
+		assert.Equal("alice", form.Name.Value())
 
-		var content io.ReadCloser
+		assert.False(form.File.IsEmpty())
+
+		assert.Equal("<file>", fmt.Sprint(form.File))
+
 		buf := new(strings.Builder)
-		content, err := f.Get("file").(*forms.FileField).V().Open()
-		assert.NoError(err)
+		content, err := form.File.Value().Open()
+		require.NoError(err)
 		io.Copy(buf, content)
-		assert.NoError(content.Close())
+		require.NoError(content.Close())
 		assert.Equal("test\ncontent\n", buf.String())
 	})
 
 	t.Run("file list", func(t *testing.T) {
-		f := forms.Must(
-			context.Background(),
-			forms.NewTextField("name"),
-			forms.NewFileListField("file"),
-		)
+		type lForm struct {
+			forms.Form
+			Name  forms.TextField     `json:"name"`
+			Files forms.FileListField `json:"file"`
+		}
 
-		assert := require.New(t)
+		assert := assert.New(t)
+		require := require.New(t)
 
 		body := new(bytes.Buffer)
 		mp := multipart.NewWriter(body)
 
 		// Normal field
-		assert.NoError(mp.WriteField("name", "alice"))
+		require.NoError(mp.WriteField("name", "alice"))
 
 		// File field
 		w, err := mp.CreateFormFile("file", "file.txt")
-		assert.NoError(err)
+		require.NoError(err)
 		_, err = w.Write([]byte("test 1\n"))
-		assert.NoError(err)
+		require.NoError(err)
 
 		w, err = mp.CreateFormFile("file", "file.txt")
-		assert.NoError(err)
+		require.NoError(err)
 		_, err = w.Write([]byte("test 2\n"))
-		assert.NoError(err)
+		require.NoError(err)
 
-		assert.NoError(mp.Close())
+		require.NoError(mp.Close())
 
 		r, _ := http.NewRequest(http.MethodPost, "/", body)
 		r.Header.Set("content-type", mp.FormDataContentType())
-		forms.Bind(f, r)
 
-		assert.True(f.IsBound())
-		assert.True(f.IsValid())
+		form := forms.BindAs[lForm](r)
 
-		assert.False(f.Get("name").IsNil())
-		assert.Equal("alice", f.Get("name").Value())
+		assert.True(form.IsBound())
+		assert.True(form.IsValid())
+
+		assert.False(form.Name.IsNil())
+		assert.Equal("alice", form.Name.Value())
+
+		assert.False(form.Files.IsEmpty())
+
+		require.Len(form.Files.Value(), 2)
 
 		var content io.ReadCloser
 		buf := new(strings.Builder)
-		content, err = f.Get("file").(*forms.FileListField).V()[0].Open()
-		assert.NoError(err)
+		content, err = form.Files.Value()[0].Open()
+		require.NoError(err)
 		io.Copy(buf, content)
-		assert.NoError(content.Close())
+		require.NoError(content.Close())
 		assert.Equal("test 1\n", buf.String())
 
 		buf.Reset()
-		content, err = f.Get("file").(*forms.FileListField).V()[1].Open()
-		assert.NoError(err)
+		content, err = form.Files.Value()[1].Open()
+		require.NoError(err)
 		io.Copy(buf, content)
-		assert.NoError(content.Close())
+		require.NoError(content.Close())
 		assert.Equal("test 2\n", buf.String())
 	})
 }
 
 func TestMultipartForm(t *testing.T) {
-	newForm := func() *forms.Form {
-		return forms.Must(
-			context.Background(),
-			forms.NewTextField("name", forms.Trim, forms.Required),
-			forms.NewFileField("file", forms.Required),
-		)
+	type mpForm struct {
+		forms.Form
+		Name forms.TextField `json:"name" validate:"trim required"`
+		File forms.FileField `json:"file" validate:"required"`
 	}
 
-	newFormList := func() *forms.Form {
-		return forms.Must(
-			context.Background(),
-			forms.NewTextField("name", forms.Trim, forms.Required),
-			forms.NewFileListField("files", forms.Required),
-		)
+	type mpListForm struct {
+		forms.Form
+		Name  forms.TextField     `json:"name"  validate:"trim required"`
+		Files forms.FileListField `json:"files" validate:"required"`
 	}
 
-	t.Run("single file", runMultipartForm(func() forms.Binder {
-		return newForm()
+	t.Run("single file", runMultipartForm(func() forms.FormBinder {
+		return forms.New[mpForm](context.Background())
 	}, []multipartTest{
 		{
 			func(_ *multipart.Writer) error {
@@ -238,7 +295,7 @@ func TestMultipartForm(t *testing.T) {
 				"errors": null,
 				"fields": {
 					"file": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": null,
 						"errors": [
@@ -246,7 +303,7 @@ func TestMultipartForm(t *testing.T) {
 						]
 					},
 					"name": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": "",
 						"errors": [
@@ -294,8 +351,8 @@ func TestMultipartForm(t *testing.T) {
 		},
 	}))
 
-	t.Run("file list", runMultipartForm(func() forms.Binder {
-		return newFormList()
+	t.Run("file list", runMultipartForm(func() forms.FormBinder {
+		return forms.New[mpListForm](context.Background())
 	}, []multipartTest{
 		{
 			func(_ *multipart.Writer) error {
@@ -306,15 +363,15 @@ func TestMultipartForm(t *testing.T) {
 				"errors": null,
 				"fields": {
 					"files": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
-						"value": null,
+						"value": [],
 						"errors": [
 							"field is required"
 						]
 					},
 					"name": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": "",
 						"errors": [
@@ -372,8 +429,8 @@ func TestMultipartForm(t *testing.T) {
 		},
 	}))
 
-	t.Run("single file json", runRequestForm(mimeJSON, func() forms.Binder {
-		return newForm()
+	t.Run("single file json", runRequestForm(forms.MimeJSON, func() forms.FormBinder {
+		return forms.New[mpForm](context.Background())
 	}, []formTest{
 		{
 			`{}`,
@@ -382,7 +439,7 @@ func TestMultipartForm(t *testing.T) {
 				"errors": null,
 				"fields": {
 					"file": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": null,
 						"errors": [
@@ -390,7 +447,7 @@ func TestMultipartForm(t *testing.T) {
 						]
 					},
 					"name": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": "",
 						"errors": [
@@ -482,8 +539,8 @@ func TestMultipartForm(t *testing.T) {
 		},
 	}))
 
-	t.Run("single file values", runRequestForm(mimeValues, func() forms.Binder {
-		return newForm()
+	t.Run("single file values", runRequestForm(forms.MimeURLEncoded, func() forms.FormBinder {
+		return forms.New[mpForm](context.Background())
 	}, []formTest{
 		{
 			"",
@@ -492,7 +549,7 @@ func TestMultipartForm(t *testing.T) {
 				"errors": null,
 				"fields": {
 					"file": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": null,
 						"errors": [
@@ -500,7 +557,7 @@ func TestMultipartForm(t *testing.T) {
 						]
 					},
 					"name": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": "",
 						"errors": [
@@ -564,8 +621,8 @@ func TestMultipartForm(t *testing.T) {
 		},
 	}))
 
-	t.Run("file list json", runRequestForm(mimeJSON, func() forms.Binder {
-		return newFormList()
+	t.Run("file list json", runRequestForm(forms.MimeJSON, func() forms.FormBinder {
+		return forms.New[mpListForm](context.Background())
 	}, []formTest{
 		{
 			`{}`,
@@ -574,15 +631,15 @@ func TestMultipartForm(t *testing.T) {
 				"errors": null,
 				"fields": {
 					"files": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
-						"value": null,
+						"value": [],
 						"errors": [
 							"field is required"
 						]
 					},
 					"name": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": "",
 						"errors": [
@@ -601,13 +658,13 @@ func TestMultipartForm(t *testing.T) {
 					"files": {
 						"is_null": false,
 						"is_bound": true,
-						"value": null,
+						"value": [],
 						"errors": [
 							"field is required"
 						]
 					},
 					"name": {
-						"is_null": true,
+						"is_null": false,
 						"is_bound": false,
 						"value": "",
 						"errors": [
@@ -724,7 +781,7 @@ func TestMultipartForm(t *testing.T) {
 					"files": {
 						"is_null": false,
 						"is_bound": false,
-						"value": null,
+						"value": [],
 						"errors": [
 							"invalid value"
 						]

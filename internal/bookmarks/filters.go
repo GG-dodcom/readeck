@@ -7,7 +7,6 @@ package bookmarks
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"reflect"
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
@@ -16,7 +15,6 @@ import (
 	"codeberg.org/readeck/readeck/internal/db/exp"
 	"codeberg.org/readeck/readeck/internal/db/types"
 	"codeberg.org/readeck/readeck/internal/searchstring"
-	"codeberg.org/readeck/readeck/pkg/forms"
 	"codeberg.org/readeck/readeck/pkg/timetoken"
 )
 
@@ -48,18 +46,6 @@ type Filters struct {
 	RangeEnd   string        `json:"range_end"`
 }
 
-// NewFiltersFromForm return a new [Filters] instance
-// populated with the given [forms.Binder] fields.
-func NewFiltersFromForm(form forms.Binder) Filters {
-	res := Filters{}
-	if form != nil {
-		(&res).applyForm(form)
-		(&res).updateValues()
-	}
-
-	return res
-}
-
 // Scan loads a [Filters] instance from a column.
 func (f *Filters) Scan(value any) error {
 	if value == nil {
@@ -83,83 +69,9 @@ func (f Filters) Value() (driver.Value, error) {
 	return string(v), nil
 }
 
-func (f *Filters) getFields() map[string]reflect.StructField {
-	res := map[string]reflect.StructField{}
-	t := reflect.TypeFor[Filters]()
-	for sf := range t.Fields() {
-		if tag := sf.Tag.Get("json"); tag != "" {
-			res[tag] = sf
-		}
-	}
-
-	return res
-}
-
-func (f *Filters) applyForm(form forms.Binder) {
-	sfields := f.getFields()
-	rv := reflect.ValueOf(f).Elem()
-	for name, field := range form.Fields() {
-		sf, ok := sfields[name]
-		if !ok {
-			continue
-		}
-
-		prop := rv.FieldByName(sf.Name)
-
-		switch {
-		case sf.Type.Kind() == reflect.Pointer:
-			if field.IsNil() {
-				prop.SetZero()
-			} else {
-				prop.Set(reflect.New(sf.Type.Elem()))
-				prop.Elem().Set(reflect.ValueOf(field.Value()))
-			}
-		default:
-			if field.IsNil() {
-				prop.SetZero()
-			} else {
-				prop.Set(reflect.ValueOf(field.Value()))
-			}
-		}
-	}
-}
-
-// UpdateForm updates the given [forms.Binder]'s fields using the [Filters]
-// properties.
-func (f Filters) UpdateForm(form forms.Binder) {
-	rv := reflect.ValueOf(f)
-	for name, sf := range f.getFields() {
-		if field := form.Get(name); field != nil {
-			_ = rv
-			_ = sf
-			prop := reflect.Indirect(rv).FieldByName(sf.Name)
-
-			// types of [types.Strings] need to be converted to []string
-			// so we can set its value to the field later.
-			if prop.Type().ConvertibleTo(reflect.TypeFor[[]string]()) {
-				prop = prop.Convert(reflect.TypeFor[[]string]())
-			}
-
-			k := sf.Type.Kind()
-			switch {
-			case k == reflect.Pointer && prop.IsNil():
-				// Nil pointer, the field is nil
-				field.Set(nil)
-			case k == reflect.Slice && prop.IsNil():
-				// Empty slice
-				field.Set(reflect.New(prop.Type()).Interface())
-			case prop.IsZero():
-				// Empty value
-				field.Set(reflect.New(sf.Type).Interface())
-			default:
-				// A value with something
-				field.Set(prop.Interface())
-			}
-		}
-	}
-}
-
-func (f *Filters) updateValues() {
+// Normalize updates the filters, moving tagged terms in the "search" value
+// to their proper location and removing duplicates so search filters stay consistent.
+func (f *Filters) Normalize() {
 	// First, we must build a search string based on
 	// the provided free form search and
 	// what we might have in the following fields:
@@ -201,10 +113,31 @@ func (f *Filters) updateValues() {
 	updateValues("note", &f.Note)
 }
 
+// ToMap returns a map of all filters.
+func (f Filters) ToMap() map[string]any {
+	return map[string]any{
+		"search":      f.Search,
+		"title":       f.Title,
+		"author":      f.Author,
+		"site":        f.Site,
+		"type":        []string(f.Type),
+		"labels":      f.Labels,
+		"note":        f.Note,
+		"read_status": []string(f.ReadStatus),
+		"is_marked":   f.IsMarked,
+		"is_archived": f.IsArchived,
+		"is_loaded":   f.IsLoaded,
+		"has_errors":  f.HasErrors,
+		"has_labels":  f.HasLabels,
+		"range_start": f.RangeStart,
+		"range_end":   f.RangeEnd,
+	}
+}
+
 // ToSelectDataSet adds the query parameters to the given [*goqu.SelectDataset]
 // and returns it.
 func (f Filters) ToSelectDataSet(ds *goqu.SelectDataset) *goqu.SelectDataset {
-	(&f).updateValues()
+	(&f).Normalize()
 
 	// Separate labels from the final search string
 	var labels searchstring.SearchQuery

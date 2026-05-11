@@ -18,19 +18,17 @@ type jsonBaseAdapter[S any, T BookmarkImporter] struct {
 	loadItems func(*S) ([]T, error)
 }
 
-func (adapter *jsonBaseAdapter[S, T]) Form() forms.Binder {
-	return forms.Must(
-		context.Background(),
-		forms.NewFileField("data", forms.Required),
-	)
+func (adapter *jsonBaseAdapter[S, T]) Form(ctx context.Context) importBinder {
+	return forms.New[FileImportForm](ctx)
 }
 
-func (adapter *jsonBaseAdapter[S, T]) Params(form forms.Binder) ([]byte, error) {
+func (adapter *jsonBaseAdapter[S, T]) Params(form forms.FormBinder) ([]byte, error) {
 	if !form.IsValid() {
 		return nil, nil
 	}
+	f := form.(*FileImportForm)
 
-	reader, err := form.Get("data").(*forms.FileField).V().Open()
+	reader, err := f.Data.Value().Open()
 	if err != nil {
 		return nil, err
 	}
@@ -39,12 +37,12 @@ func (adapter *jsonBaseAdapter[S, T]) Params(form forms.Binder) ([]byte, error) 
 	dec := json.NewDecoder(reader)
 	data := new(S)
 	if err := dec.Decode(data); err != nil {
-		form.AddErrors("data", errInvalidFile)
+		f.Data.AddErrors(errInvalidFile)
 		return nil, nil
 	}
 
 	if adapter.Items, err = adapter.loadItems(data); err != nil {
-		form.AddErrors("data", err)
+		f.Data.AddErrors(err)
 		return nil, nil
 	}
 

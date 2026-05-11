@@ -48,6 +48,7 @@ linters:
     - revive
     - sloglint
     - staticcheck
+    - tagalign
     - testifylint
     - unused
   settings:
@@ -135,6 +136,17 @@ linters:
       checks:
         - all
         - "-ST1005"
+    tagalign:
+      align: true
+      sort: true
+      strict: false
+      order:
+        - json
+        - env
+        - db
+        - validate
+        - csv
+        - case
     testifylint:
       enable-all: true
   exclusions:

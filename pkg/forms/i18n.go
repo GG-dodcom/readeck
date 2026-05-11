@@ -10,23 +10,54 @@ import (
 	"fmt"
 )
 
-var ctxTranslatorKey = &contextKey{"translator"}
+type ctxTranslatorKey struct{}
 
-// WithTranslator returns a [context.Context] with the given [Translator].
+// WithTranslator adds a [Translator] to the given [context.Context].
 func WithTranslator(ctx context.Context, tr Translator) context.Context {
-	return context.WithValue(ctx, ctxTranslatorKey, tr)
+	return context.WithValue(ctx, ctxTranslatorKey{}, tr)
 }
 
-// GetTranslator returns the given [Translator] from a context.
+// GetTranslator returns the [Translator] from the context.
 func GetTranslator(ctx context.Context) Translator {
-	v, _ := ctx.Value(ctxTranslatorKey).(Translator)
-	return v
+	if ctx == nil {
+		return NoopTranslator{}
+	}
+
+	if tr, ok := ctx.Value(ctxTranslatorKey{}).(Translator); ok {
+		return tr
+	}
+	return NoopTranslator{}
 }
 
 // Translator describes a type that implements a translation method.
 type Translator interface {
-	Gettext(string, ...any) string
-	Pgettext(ctx, str string, vars ...any) string
+	Gettext(string, ...interface{}) string
+	Pgettext(ctx, str string, vars ...interface{}) string
+}
+
+// ContextHolder is an interface implemented by types that can carry a [context.Context].
+type ContextHolder interface {
+	SetContext(context.Context)
+}
+
+// TranslatorProvider describes a type that can store and
+// return a [Translator].
+type TranslatorProvider interface {
+	Translator() Translator
+	SetTranslator(Translator)
+}
+
+// NoopTranslator is a dummy translator.
+type NoopTranslator struct{}
+
+// Gettext implements [Translator].
+func (NoopTranslator) Gettext(s string, args ...any) string {
+	return fmt.Sprintf(s, args...)
+}
+
+// Pgettext implements [Translator].
+func (NoopTranslator) Pgettext(_, s string, args ...any) string {
+	return fmt.Sprintf(s, args...)
 }
 
 // FormError is a form's or field's error that contains an error message
@@ -100,4 +131,20 @@ func (le localizedError) Error() string {
 	}
 
 	return le.err.Error()
+}
+
+// WrapTrError wraps a given error into a new l10n aware error.
+func WrapTrError(ctx context.Context, err error) error {
+	if _, ok := err.(localizedError); ok {
+		return err
+	}
+	tr := GetTranslator(ctx)
+	if tr == nil {
+		return err
+	}
+
+	return localizedError{
+		err: err,
+		tr:  tr,
+	}
 }

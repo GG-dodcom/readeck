@@ -8,11 +8,24 @@ package forms
 import (
 	"maps"
 	"slices"
+	"time"
 
 	"github.com/a-h/templ"
 
 	"codeberg.org/readeck/readeck/pkg/forms"
 )
+
+// Binder is a [forms.Binder] with a Name method.
+type Binder interface {
+	forms.Binder
+	Name() string
+}
+
+// TypedBinder is a typed [Binder].
+type TypedBinder[T any] interface {
+	forms.TypedBinder[T]
+	Binder
+}
 
 type baseWidget struct {
 	name          string
@@ -31,16 +44,16 @@ type baseWidget struct {
 type FieldOption func(f *baseWidget)
 
 type fieldWidget struct {
-	forms.Field
+	Binder
 	baseWidget
 }
 
-func widget(field forms.Field, options ...FieldOption) fieldWidget {
+func widget(field Binder, options ...FieldOption) fieldWidget {
 	f := fieldWidget{
-		Field: field,
+		Binder: field,
 		baseWidget: baseWidget{
 			name:          field.Name(),
-			value:         field.Value(),
+			value:         field.V(),
 			classes:       templ.CSSClasses{},
 			controllAttrs: templ.Attributes{},
 			inputClasses:  templ.CSSClasses{},
@@ -151,7 +164,7 @@ type textField struct {
 }
 
 // TextField renders a text field (text, email, etc.)
-func TextField(field forms.Field, options ...FieldOption) templ.Component {
+func TextField(field Binder, options ...FieldOption) templ.Component {
 	return (&textField{widget(
 		field,
 		append([]FieldOption{InputType("text")}, options...)...,
@@ -159,9 +172,9 @@ func TextField(field forms.Field, options ...FieldOption) templ.Component {
 }
 
 // DateField renders a [TextField] with a date type.
-func DateField(field forms.Field, options ...FieldOption) templ.Component {
-	if f, ok := field.(*forms.DatetimeField); ok {
-		options = slices.Insert(options, 0, Value(f.String()))
+func DateField(field Binder, options ...FieldOption) templ.Component {
+	if v, ok := field.V().(time.Time); ok && !v.IsZero() {
+		options = slices.Insert(options, 0, Value(v.Format(time.DateOnly)))
 	}
 	return TextField(
 		field,
@@ -174,7 +187,7 @@ type textAreaField struct {
 }
 
 // TextAreaField renders a textarea field.
-func TextAreaField(field forms.Field, options ...FieldOption) templ.Component {
+func TextAreaField(field Binder, options ...FieldOption) templ.Component {
 	return (&textAreaField{widget(field, options...)}).component()
 }
 
@@ -183,7 +196,7 @@ type checkboxField struct {
 }
 
 // CheckboxField renders a checkbox field.
-func CheckboxField(field forms.Field, options ...FieldOption) templ.Component {
+func CheckboxField(field TypedBinder[bool], options ...FieldOption) templ.Component {
 	return (&checkboxField{widget(field, options...)}).component()
 }
 
@@ -192,7 +205,7 @@ type selectField[T comparable] struct {
 }
 
 // SelectField renders a select field with options.
-func SelectField[T comparable](field forms.Field, options ...FieldOption) templ.Component {
+func SelectField[T comparable](field Binder, options ...FieldOption) templ.Component {
 	return (&selectField[T]{widget(field, options...)}).component()
 }
 
@@ -201,7 +214,7 @@ type multiSelectField[T comparable] struct {
 }
 
 // MultiSelectField renders a list of checkboxes.
-func MultiSelectField[T comparable](field forms.Field, options ...FieldOption) templ.Component {
+func MultiSelectField[T comparable](field Binder, options ...FieldOption) templ.Component {
 	return (&multiSelectField[T]{widget(field, options...)}).component()
 }
 
@@ -210,7 +223,7 @@ type passwordField struct {
 }
 
 // PasswordField renders a password field with a reveal controller.
-func PasswordField(field forms.Field, options ...FieldOption) templ.Component {
+func PasswordField(field Binder, options ...FieldOption) templ.Component {
 	return (&passwordField{widget(
 		field,
 		append([]FieldOption{InputType("text")}, options...)...,
@@ -222,6 +235,6 @@ type timeTokenField struct {
 }
 
 // TimeTokenField renders a field with a helper to select time tokens.
-func TimeTokenField(field forms.Field, options ...FieldOption) templ.Component {
+func TimeTokenField(field Binder, options ...FieldOption) templ.Component {
 	return (&timeTokenField{widget(field, options...)}).component()
 }

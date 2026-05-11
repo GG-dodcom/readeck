@@ -23,13 +23,13 @@ templ (v Views) userPassword(f *changePasswordForm) {
 				@F.Errors(f)
 				<fieldset>
 					<legend class="title text-h3">{ L(ctx).Gettext("Change my password") }</legend>
-					@F.PasswordField(f.Get("current"),
+					@F.PasswordField(&f.Current,
 						F.Label(L(ctx).Gettext("Current password")),
 						F.Required(true),
 						F.Classes("field-h"),
 						F.InputAttr("autocomplete", "current-password"),
 					)
-					@F.PasswordField(f.Get("password"),
+					@F.PasswordField(&f.Password,
 						F.Label(L(ctx).Gettext("New password")),
 						F.Required(true),
 						F.Classes("field-h"),
@@ -86,7 +86,7 @@ templ (v Views) setupTOTP(f *totpForm) {
 	@v.base(title) {
 		<h1 class="title text-h2">{  title }</h1>
 		<form action={ URL(ctx) } method="post">
-			<input type="hidden" name="secret" value={ f.Get(`secret`).String() }/>
+			<input type="hidden" name={ f.Secret.Name() } value={ f.Secret.Value() }/>
 			if f.code.Secret != "" {
 				<h2 class="title text-h3">{ L(ctx).Gettext("Scan this QR code with your app") }</h2>
 				<p class="my-4">{ L(ctx).Gettext("Scan the QR code below with a two-factor authentication app on your phone.") }</p>
@@ -105,7 +105,7 @@ templ (v Views) setupTOTP(f *totpForm) {
 			<p class="mb-4">
 				{ L(ctx).Gettext("After scanning the QR code, the app will display a six-digit code that you need to enter below.") }
 			</p>
-			@F.TextField(f.Get("otp"),
+			@F.TextField(&f.OTP,
 				F.Label(L(ctx).Gettext("Code from your device")),
 				F.Required(true),
 				F.InputClasses("form-input"),

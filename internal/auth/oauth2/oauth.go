@@ -51,8 +51,7 @@ func (api *oauthAPI) tokenHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
 
-	f := newTokenForm(server.Locale(r))
-	forms.Bind(f, r)
+	f := forms.BindAs[tokenForm](r)
 
 	if !f.IsValid() {
 		server.Err(w, r, newFormError(f))
@@ -62,7 +61,7 @@ func (api *oauthAPI) tokenHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := withTokenForm(r.Context(), f)
 	r = r.WithContext(ctx)
 
-	switch f.Get("grant_type").String() {
+	switch f.GrantType.Value() {
 	case grantTypeAuthCode:
 		api.authorizationCodeHandler(w, r)
 	case grantTypeDeviceCode:
@@ -71,8 +70,7 @@ func (api *oauthAPI) tokenHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *oauthAPI) revokeToken(w http.ResponseWriter, r *http.Request) {
-	f := newRevokeTokenForm(server.Locale(r))
-	forms.Bind(f, r)
+	f := forms.BindAs[revokeTokenForm](r)
 
 	if !f.IsValid() {
 		server.Err(w, r, newFormError(f))

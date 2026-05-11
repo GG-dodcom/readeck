@@ -5,9 +5,10 @@
 package routes
 
 import (
-	"context"
 	"errors"
+	"maps"
 	"net/http"
+	"slices"
 	"time"
 
 	"codeberg.org/readeck/readeck/internal/bookmarks"
@@ -16,19 +17,13 @@ import (
 )
 
 type collectionDeleteForm struct {
-	*forms.Form
-}
-
-func newCollectionDeleteForm(tr forms.Translator) *collectionDeleteForm {
-	return &collectionDeleteForm{forms.Must(
-		forms.WithTranslator(context.Background(), tr),
-		forms.NewBooleanField("cancel"),
-		forms.NewTextField("_to", forms.MaxLen(512)),
-	)}
+	forms.Form
+	Cancel forms.BooleanField `json:"cancel"`
+	To     forms.TextField    `json:"_to"    validate:"max_len:512"`
 }
 
 func (f *collectionDeleteForm) trigger(c *bookmarks.Collection) error {
-	if !f.Get("cancel").IsNil() && f.Get("cancel").Value().(bool) {
+	if f.Cancel.Value() {
 		return tasks.DeleteCollectionTask.Cancel(c.ID)
 	}
 
@@ -36,48 +31,37 @@ func (f *collectionDeleteForm) trigger(c *bookmarks.Collection) error {
 }
 
 type collectionForm struct {
-	*forms.JoinedForms
+	// *forms.JoinedForms
+	FilterForm
+	Name     forms.TextField    `json:"name"      validate:"trim max_len:128"`
+	IsPinned forms.BooleanField `json:"is_pinned"`
 }
 
-func newCollectionForm(tr forms.Translator, r *http.Request) *collectionForm {
-	return &collectionForm{forms.Join(
-		forms.WithTranslator(context.Background(), tr),
-		newFilterForm(tr),
-		forms.Must(
-			forms.WithTranslator(context.Background(), tr),
-			forms.NewTextField("name", forms.Trim, forms.FieldValidatorFunc(func(f forms.Field) error {
-				switch r.Method {
-				case http.MethodPatch:
-					return forms.RequiredOrNil(f)
-				case http.MethodPost:
-					return forms.Required(f)
-				}
-				return nil
-			}), forms.MaxLen(128)),
-			forms.NewBooleanField("is_pinned"),
-		),
-	)}
-}
-
-func (f *collectionForm) setFilters(filters *filterForm) {
-	for name, field := range filters.Fields() {
-		field.Set(f.Get(name).Value())
+func newCollectionForm(r *http.Request) *collectionForm {
+	f := forms.New[collectionForm](r.Context())
+	switch r.Method {
+	case http.MethodPatch:
+		f.Name.SetValidators(append(f.Name.Validators(), forms.RequiredOrNil))
+	case http.MethodPost:
+		f.Name.SetValidators(append(f.Name.Validators(), forms.Required))
 	}
+	return f
 }
 
 func (f *collectionForm) setCollection(c *bookmarks.Collection) {
 	// Regular values
-	f.Get("name").Set(c.Name)
-	f.Get("is_pinned").Set(c.IsPinned)
+	f.Name.Set(c.Name)
+	f.IsPinned.Set(c.IsPinned)
 
-	c.Filters.UpdateForm(f)
+	// Filters
+	f.fromFilters(&c.Filters)
 }
 
 func (f *collectionForm) createCollection(userID int) (*bookmarks.Collection, error) {
 	var err error
 	defer func() {
 		if err != nil {
-			f.AddErrors("", forms.ErrUnexpected)
+			f.AddErrors(forms.ErrUnexpected)
 		}
 	}()
 
@@ -87,8 +71,8 @@ func (f *collectionForm) createCollection(userID int) (*bookmarks.Collection, er
 
 	c := &bookmarks.Collection{
 		UserID:  &userID,
-		Name:    f.Get("name").String(),
-		Filters: bookmarks.NewFiltersFromForm(f),
+		Name:    f.Name.Value(),
+		Filters: f.toFilters(),
 	}
 
 	err = bookmarks.Collections.Create(c)
@@ -103,32 +87,50 @@ func (f *collectionForm) updateCollection(c *bookmarks.Collection) (res map[stri
 
 	res = map[string]any{}
 	updateMap := map[string]any{}
+	filtersA := f.toFilters().ToMap()
+	filtersB := c.Filters.ToMap()
 
 	needsFilters := false
-	for name, field := range f.Fields() {
-		switch name {
-		case "name", "is_pinned":
-			if field.IsBound() {
-				res[name] = field.Value()
-				updateMap[name] = field.Value()
+	if f.Name.IsBound() && f.Name.Value() != c.Name {
+		res["name"] = f.Name.Value()
+	}
+	if f.IsPinned.IsBound() && f.IsPinned.Value() != c.IsPinned {
+		res["is_pinned"] = f.IsPinned.Value()
+	}
+	maps.Copy(updateMap, res)
+
+	for k, v := range filtersA {
+		switch x := v.(type) {
+		case string:
+			if x == filtersB[k] {
+				continue
 			}
-		default:
-			if field.IsBound() {
-				res[name] = field.Value()
-				needsFilters = true
+		case []string:
+			if slices.Equal(x, filtersB[k].([]string)) {
+				continue
+			}
+		case *bool:
+			y := filtersB[k].(*bool)
+			if x == nil && y == nil {
+				continue
+			}
+			if x != nil && y != nil && *x == *y {
+				continue
 			}
 		}
+		needsFilters = true
+		res[k] = v
 	}
 
 	if needsFilters {
-		updateMap["filters"] = bookmarks.NewFiltersFromForm(f)
+		updateMap["filters"] = f.toFilters() // bookmarks.NewFiltersFromForm(f)
 	}
 
 	if len(res) > 0 {
 		res["updated"] = time.Now().UTC()
 		updateMap["updated"] = res["updated"]
 		if err = c.Update(updateMap); err != nil {
-			f.AddErrors("", forms.ErrUnexpected)
+			f.AddErrors(forms.ErrUnexpected)
 			return
 		}
 	}

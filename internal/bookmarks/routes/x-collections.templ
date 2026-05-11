@@ -127,13 +127,13 @@ templ (v Views) collectionCreate(f *collectionForm, bl *dataset.BookmarkList) {
 				<div class="bookmark-filters">
 					<form action={ URL(ctx) } method="post">
 						@F.Errors(f)
-						@F.TextField(f.Get("name"),
+						@F.TextField(&f.Name,
 							F.Label(L(ctx).Gettext("Name")),
 							F.Required(true),
 							F.Classes("mb-2"),
 							F.InputAttr("autofocus", true),
 						)
-						@FilterComponents{}.filters(f)
+						@FilterComponents{}.filters(&f.FilterForm)
 						<div class="bookmark-filters--actions">
 							<button class="btn btn-primary" type="submit">{ L(ctx).Gettext("Save") }</button>
 						</div>
@@ -192,7 +192,7 @@ templ (v Views) collectionInfo(item *dataset.Collection, f *collectionForm, bl *
 							{{
 								q := url.Values{"collection": {item.ID}}
 								if of, ok := checkOrderForm(ctx); ok {
-									q[of.fieldName] = of.value()
+									q[of.Sort.Name()] = of.Sort.Value()
 								}
 							}}
 							@Components{}.exportMenu(q)
@@ -223,11 +223,11 @@ templ (v Views) collectionInfo(item *dataset.Collection, f *collectionForm, bl *
 						}}
 						<form action={ URL(ctx, "?"+q.Encode()) } method="post">
 							@F.Errors(f)
-							@F.TextField(f.Get("name"),
+							@F.TextField(&f.Name,
 								F.Label(L(ctx).Gettext("Name")),
 								F.Required(true),
 							)
-							@FilterComponents{}.filters(f)
+							@FilterComponents{}.filters(&f.FilterForm)
 							<input type="hidden" name="bf" value="1"/>
 							<div class="bookmark-filters--actions mt-4">
 								<button class="btn btn-primary">{ L(ctx).Gettext("Save") }</button>
