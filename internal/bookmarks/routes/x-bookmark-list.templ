@@ -13,7 +13,6 @@ import (
 	"codeberg.org/readeck/readeck/internal/server"
 	"codeberg.org/readeck/readeck/internal/server/urls"
 	"codeberg.org/readeck/readeck/pkg/forms"
-	"codeberg.org/readeck/readeck/pkg/utils"
 
 	. "codeberg.org/readeck/readeck/components"
 )
@@ -490,7 +489,7 @@ templ (c Components) card(b *dataset.Bookmark) {
 							href={ bURL }
 							data-turbo-frame="_top"
 						>
-							{ utils.ShortText(Tern(func() bool { return b.Title != ""}, b.Title, "untitled"), 90) }
+							{ Tern(func() bool { return b.Title != ""}, b.Title, "untitled") }
 						</a>
 					</h3>
 				</div>
@@ -499,7 +498,7 @@ templ (c Components) card(b *dataset.Bookmark) {
 						title={ b.SiteName }
 						dir={ Tern(func() bool { return b.TextDirection != "" }, b.TextDirection, "ltr") }
 					>
-						{ utils.ShortText(b.SiteName, 50) }
+						{ b.SiteName }
 					</strong>
 					if b.ReadingTime > 0 {
 						<span>{ " " }•&nbsp;{ L(ctx).Npgettext("abbr", "%d min", "%d min", b.ReadingTime, b.ReadingTime) }</span>
