@@ -24,8 +24,6 @@ import (
 	"time"
 
 	"github.com/cristalhq/acmd"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 
 	"codeberg.org/readeck/readeck/components"
 	"codeberg.org/readeck/readeck/configs"
@@ -136,7 +134,11 @@ func runServer(_ context.Context, args []string) error { // nolint:gocognit,gocy
 		Handler:           s,
 		MaxHeaderBytes:    1 << 20,
 		ReadHeaderTimeout: time.Second * 5,
+		Protocols:         new(http.Protocols),
 	}
+	srv.Protocols.SetHTTP1(true)
+	srv.Protocols.SetHTTP2(true)
+
 	var listenURL *url.URL
 	serverURL := &url.URL{
 		Scheme: "http",
@@ -225,13 +227,8 @@ func runServer(_ context.Context, args []string) error { // nolint:gocognit,gocy
 			serverURL.Scheme = "https"
 			err = srv.ServeTLS(ln, "", "")
 		} else {
-			// Wrap http/2 h2c
-			h2 := &http2.Server{}
-			srv.Handler = h2c.NewHandler(srv.Handler, h2)
-			if err := http2.ConfigureServer(srv, h2); err != nil {
-				fatal("cannot configure server", err)
-			}
-
+			// Enable h2c on plain server
+			srv.Protocols.SetUnencryptedHTTP2(true)
 			err = srv.Serve(ln)
 		}
 
