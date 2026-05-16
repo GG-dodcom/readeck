@@ -106,19 +106,17 @@ templ (c Components) contentBlock(item *dataset.Bookmark, html io.Reader) {
 //                      description; the x.com page Readeck scraped is
 //                      just a "Something went wrong / privacy extensions
 //                      may cause issues" bot wall.
-//   - #medium/video  — autosave_tg fetched a clean transcript via yt-dlp
-//                      captions (or frame-extracted via Qwen-VL); the
-//                      YouTube page Readeck scraped also has a "Transcript"
-//                      section but with cumulative cue duplication that
-//                      makes it hard to read. Showing both confuses the
-//                      user — they see the same content twice.
 //   - #medium/error  — Readeck's scrape produced no usable content
 //                      (SPA / JS redirect / 404 / paywall).
 //   - #status/no-content — paired with #medium/error.
+//
+// NOTE: #medium/video is intentionally NOT included — user wants to keep
+// the YouTube page chapters / description / socials in the article body
+// even though the transcript section duplicates with our cleaner version.
 func descriptionIsCanonical(labels []string) bool {
 	for _, l := range labels {
 		switch l {
-		case "#medium/tweet", "#medium/video", "#medium/error", "#status/no-content":
+		case "#medium/tweet", "#medium/error", "#status/no-content":
 			return true
 		}
 	}

@@ -88,6 +88,15 @@ func Readability(options ...func(*readability.Parser)) extract.Processor {
 		convertPictureNodes(m.Dom, m)
 		convertObjectImageEmbeds(m.Dom)
 
+		// Snapshot all <img> URLs from the source DOM BEFORE readability
+		// mutates it. Readability aggressively drops images outside its
+		// chosen "main content" block, which loses inline figures the user
+		// expects to see (e.g., XDA-style image-heavy pages). We re-inject
+		// the missing ones below as a "## Additional images" section so
+		// they're at least browsable in the reader UI. The vision pass in
+		// autosave_tg.py separately judges relevance for the AI summary.
+		preReadabilityImages := collectImageURLs(m.Dom)
+
 		var doc *html.Node
 		var body *html.Node
 
@@ -147,10 +156,112 @@ func Readability(options ...func(*readability.Parser)) extract.Processor {
 		// Replaces id attributes in content
 		setIDs(body)
 
+		// Re-inject images that readability dropped. See preReadabilityImages
+		// snapshot at the top. We compare the final body's <img> set against
+		// the pre-readability set and append any missing ones as a clearly-
+		// labeled "Additional images" section so the user can still see
+		// figures Readeck would have otherwise discarded.
+		injectMissingImages(body, preReadabilityImages)
+
 		m.Dom = doc
 
 		return next
 	}
+}
+
+// collectImageURLs walks the DOM and returns the unique src URLs of all
+// reasonably-sized <img> tags, in document order. Filters out things that
+// are obviously chrome (icons, logos, avatars, 1x1 tracking pixels) so
+// they don't bloat the re-injected section.
+func collectImageURLs(root *html.Node) []string {
+	if root == nil {
+		return nil
+	}
+	seen := make(map[string]bool)
+	var out []string
+	for _, img := range dom.QuerySelectorAll(root, "img") {
+		src := dom.GetAttribute(img, "src")
+		if src == "" {
+			src = dom.GetAttribute(img, "data-src")
+		}
+		if src == "" || seen[src] {
+			continue
+		}
+		if isLikelyChromeImage(src, img) {
+			continue
+		}
+		seen[src] = true
+		out = append(out, src)
+	}
+	return out
+}
+
+// isLikelyChromeImage returns true for images that are almost certainly
+// site chrome / tracking / icons — anything we don't want to re-inject
+// even if readability also dropped them. The vision pass in autosave
+// already does relevance judgment; this is a pre-filter for clearly junk.
+func isLikelyChromeImage(src string, node *html.Node) bool {
+	s := strings.ToLower(src)
+	for _, junk := range []string{
+		"favicon", "icon-", "/icons/", "logo", "avatar",
+		"1x1", "pixel.gif", "spacer.gif", "tracker",
+		"badge", "share-button",
+	} {
+		if strings.Contains(s, junk) {
+			return true
+		}
+	}
+	// 1×1 or very small tracking pixels declared via width/height
+	if w := dom.GetAttribute(node, "width"); w == "1" || w == "0" {
+		return true
+	}
+	if h := dom.GetAttribute(node, "height"); h == "1" || h == "0" {
+		return true
+	}
+	return false
+}
+
+// injectMissingImages compares the pre-readability image set against
+// what's currently in body. Any URL that was in the original DOM but
+// not in body is appended in a labeled section at the end.
+func injectMissingImages(body *html.Node, preList []string) {
+	if body == nil || len(preList) == 0 {
+		return
+	}
+	present := make(map[string]bool)
+	for _, img := range dom.QuerySelectorAll(body, "img") {
+		if src := dom.GetAttribute(img, "src"); src != "" {
+			present[src] = true
+		}
+		if src := dom.GetAttribute(img, "data-src"); src != "" {
+			present[src] = true
+		}
+	}
+	var missing []string
+	for _, src := range preList {
+		if !present[src] {
+			missing = append(missing, src)
+		}
+	}
+	if len(missing) == 0 {
+		return
+	}
+
+	section := dom.CreateElement("section")
+	dom.SetAttribute(section, "class", "readeck-extra-images")
+	heading := dom.CreateElement("h2")
+	dom.AppendChild(heading, dom.CreateTextNode("Additional images"))
+	dom.AppendChild(section, heading)
+
+	for _, src := range missing {
+		fig := dom.CreateElement("figure")
+		img := dom.CreateElement("img")
+		dom.SetAttribute(img, "src", src)
+		dom.SetAttribute(img, "loading", "lazy")
+		dom.AppendChild(fig, img)
+		dom.AppendChild(section, fig)
+	}
+	dom.AppendChild(body, section)
 }
 
 // Text is a processor that sets the pure text content of the final HTML.
