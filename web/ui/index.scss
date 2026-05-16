@@ -27,6 +27,7 @@
 @include meta.load-css("styles/pagination");
 
 @include meta.load-css("styles/bookmark");
+@include meta.load-css("styles/readeck-description");
 @include meta.load-css("styles/docs");
 
 @import "tailwindcss/utilities.css";

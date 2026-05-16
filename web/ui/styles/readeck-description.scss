@@ -1,0 +1,63 @@
+// SPDX-FileCopyrightText: © 2026 personal-info-system fork
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Styles for the bookmark description block (which now renders markdown
+// via the Markdown() templ component in components/components.go).
+// Without these rules, raw <h2>, <ul>, <p> children sit flush against
+// each other and look cramped.
+
+@layer components {
+  .readeck-description {
+    // Vertical rhythm: every block child gets top margin against its
+    // previous sibling.
+    > * + * {
+      @apply mt-3;
+    }
+
+    // Section headings (##) get a bit more breathing room above and
+    // a subtle weight so they pop without dominating.
+    > h2,
+    > h3 {
+      @apply mt-5 mb-2 text-xl font-bold;
+    }
+
+    // Bullet lists: proper indent + disc marker + tight spacing within.
+    > ul,
+    > ol {
+      @apply pl-6 my-2 space-y-1;
+    }
+    > ul {
+      @apply list-disc;
+    }
+    > ol {
+      @apply list-decimal;
+    }
+
+    // Nested lists tighter still.
+    ul ul,
+    ol ol,
+    ul ol,
+    ol ul {
+      @apply pl-5 my-1 space-y-0.5;
+    }
+
+    // Paragraphs render with a comfortable line-height and don't get
+    // the italic styling the original Readeck description had (which
+    // looked weird for markdown content).
+    > p {
+      @apply leading-relaxed;
+    }
+
+    // Inline code and code blocks (rare in summaries but possible).
+    code {
+      @apply px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-sm font-mono;
+    }
+    pre {
+      @apply p-3 rounded bg-gray-100 dark:bg-gray-800 overflow-x-auto my-3;
+    }
+    pre code {
+      @apply p-0 bg-transparent;
+    }
+  }
+}
