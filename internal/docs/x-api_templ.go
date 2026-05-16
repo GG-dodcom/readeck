@@ -164,7 +164,7 @@ func (v Views) api(schemaURL string, hideBadges []string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">\n    if (window.innerWidth < 814) {\n      document.querySelector(\"rapi-doc\").setAttribute(\"render-style\", \"view\")\n    }\n    </script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">\r\n    if (window.innerWidth < 814) {\r\n      document.querySelector(\"rapi-doc\").setAttribute(\"render-style\", \"view\")\r\n    }\r\n    </script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

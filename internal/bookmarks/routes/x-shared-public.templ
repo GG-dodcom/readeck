@@ -201,9 +201,9 @@ templ (v PublicViews) bookmark(user *users.User, b *dataset.Bookmark, html io.Re
 			</p>
 			<hr/>
 			if b.Description != "" {
-				<p class="my-4 text-lg leading-tight text-justify font-lora italic" dir={ dir }>
-					{ b.Description }
-				</p>
+				<div class="readeck-description my-4 text-lg leading-tight font-lora" dir={ dir }>
+					@Markdown(b.Description)
+				</div>
 			}
 		</div>
 		{{ img, ok := b.Resources["image"] }}

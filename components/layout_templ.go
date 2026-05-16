@@ -140,7 +140,7 @@ func (c *Layout) BasePage(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">\n\t\t\t\tif (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {\n\t\t\t\t\tdocument.documentElement.classList.add('dark')\n\t\t\t\t} else {\n\t\t\t\t\tdocument.documentElement.classList.remove('dark')\n\t\t\t\t}\n\t\t\t</script><link rel=\"icon\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">\r\n\t\t\t\tif (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {\r\n\t\t\t\t\tdocument.documentElement.classList.add('dark')\r\n\t\t\t\t} else {\r\n\t\t\t\t\tdocument.documentElement.classList.remove('dark')\r\n\t\t\t\t}\r\n\t\t\t</script><link rel=\"icon\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -217,7 +217,7 @@ func (c *Layout) BasePage(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\">\n\t\t\t\tif ('noModule' in HTMLScriptElement.prototype) {\n\t\t\t\t\tdocument.body.classList.remove(\"no-js\")\n\t\t\t\t\tdocument.body.classList.add(\"js\")\n\t\t\t\t}\n\t\t\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\">\r\n\t\t\t\tif ('noModule' in HTMLScriptElement.prototype) {\r\n\t\t\t\t\tdocument.body.classList.remove(\"no-js\")\r\n\t\t\t\t\tdocument.body.classList.add(\"js\")\r\n\t\t\t\t}\r\n\t\t\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

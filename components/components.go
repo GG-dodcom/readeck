@@ -17,6 +17,9 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/renderer/html"
 
 	"codeberg.org/readeck/readeck/internal/profile/preferences"
 	"codeberg.org/readeck/readeck/internal/server"
@@ -24,6 +27,14 @@ import (
 	"codeberg.org/readeck/readeck/locales"
 	"codeberg.org/readeck/readeck/pkg/glob"
 	"codeberg.org/readeck/readeck/pkg/strftime"
+)
+
+// markdownRenderer renders bookmark description text. Configured for
+// safe rendering: no raw HTML in source (goldmark default), strikethrough
+// + GFM tables supported, hard-wrap turns single newlines into <br>.
+var markdownRenderer = goldmark.New(
+	goldmark.WithExtensions(extension.GFM),
+	goldmark.WithRendererOptions(html.WithHardWraps()),
 )
 
 // S is a shortcut to [fmt.Sprintf].
@@ -131,5 +142,23 @@ func HTML(r io.Reader) templ.Component {
 		}
 		_, err := io.Copy(w, r)
 		return err
+	})
+}
+
+// Markdown renders the input string as markdown -> HTML for display in
+// templates. Used by bookmark description rendering so users (or scripts
+// like personal-info-system's autosave_tg.py) can write rich summaries
+// that actually render in the Readeck reader UI instead of showing
+// **literal** asterisks.
+//
+// Safety: goldmark's default config does NOT allow raw HTML in markdown
+// source, so a malicious description cannot inject <script>. Strikethrough
+// + GFM tables + hard-wraps enabled. Empty input renders nothing.
+func Markdown(md string) templ.Component {
+	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		if md == "" {
+			return nil
+		}
+		return markdownRenderer.Convert([]byte(md), w)
 	})
 }
