@@ -9,6 +9,33 @@
 
 @layer components {
   .readeck-description {
+    // Visual callout: distinguishes the AI-generated summary block from
+    // the original article body below it.
+    position: relative;
+    @apply pl-5 pr-4 py-4 my-3 rounded-md;
+    border-left: 4px solid #6366f1; // indigo-500
+    background: rgba(99, 102, 241, 0.06);
+
+    // Dark mode tint
+    @media (prefers-color-scheme: dark) {
+      background: rgba(129, 140, 248, 0.10);
+      border-left-color: #818cf8; // indigo-400
+    }
+
+    // "AI Summary" label at the top so the user knows this block is
+    // distilled by autosave_tg.py, not the article author.
+    &::before {
+      content: "✨ AI summary";
+      display: block;
+      @apply text-xs font-semibold uppercase tracking-wider mb-2;
+      color: #4f46e5; // indigo-600
+      letter-spacing: 0.08em;
+
+      @media (prefers-color-scheme: dark) {
+        color: #a5b4fc; // indigo-300
+      }
+    }
+
     // Vertical rhythm: every block child gets top margin against its
     // previous sibling.
     > * + * {
