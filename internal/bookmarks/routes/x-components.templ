@@ -19,12 +19,21 @@ templ (c Components) titleBlock(item *dataset.Bookmark) {
 	<turbo-frame id={ "bookmark-title-" + item.ID } class="print:hidden leading-normal">
 		<h1 class="text-3xl max-sm:text-2xl">{ item.Title }</h1>
 		if item.Description != "" && (item.OmitDescription == nil || *item.OmitDescription == false) {
+			{{ aiSummary, sourceAttach := SplitDescription(item.Description) }}
 			<div
 				class="readeck-description mt-3 text-lg"
 				dir={ Tern(func() bool { return item.TextDirection != "" }, item.TextDirection, "ltr") }
 			>
-				@Markdown(item.Description)
+				@Markdown(aiSummary)
 			</div>
+			if sourceAttach != "" {
+				<div
+					class="readeck-source-attachment mt-4 text-base"
+					dir={ Tern(func() bool { return item.TextDirection != "" }, item.TextDirection, "ltr") }
+				>
+					@Markdown(sourceAttach)
+				</div>
+			}
 		}
 		@c.editDialog(item)
 	</turbo-frame>

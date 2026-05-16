@@ -87,4 +87,40 @@
       @apply p-0 bg-transparent;
     }
   }
+
+  // Source attachment: the section appended below the AI summary callout
+  // (raw tweet text, video transcript, etc.). Plain visual styling — no
+  // box, no label — so it's clearly distinct from the AI digest above.
+  .readeck-source-attachment {
+    @apply text-gray-700 dark:text-gray-300;
+
+    > * + * {
+      @apply mt-2;
+    }
+
+    > h2,
+    > h3 {
+      @apply mt-4 mb-1 text-base font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider;
+    }
+
+    > ul,
+    > ol {
+      @apply pl-6 my-2;
+    }
+    > ul {
+      @apply list-disc;
+    }
+
+    > p {
+      @apply leading-relaxed;
+    }
+
+    a {
+      @apply text-blue-600 dark:text-blue-400 underline;
+    }
+
+    code {
+      @apply px-1 rounded bg-gray-100 dark:bg-gray-800 text-sm font-mono;
+    }
+  }
 }

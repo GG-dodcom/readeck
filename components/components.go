@@ -162,3 +162,23 @@ func Markdown(md string) templ.Component {
 		return markdownRenderer.Convert([]byte(md), w)
 	})
 }
+
+// SourceAttachmentMarker delimits the AI summary (rendered inside the
+// .readeck-description callout box) from the original source attachment
+// (transcript / tweet body / etc — rendered plainly below the callout).
+// autosave_tg.py writes the marker between the two sections; the templ
+// rendering site uses SplitDescription to separate them visually.
+const SourceAttachmentMarker = "<!-- pis-source-attachment -->"
+
+// SplitDescription separates the AI summary from any appended source
+// attachment. Returns (callout, attachment) where attachment is empty if
+// no marker was found.
+func SplitDescription(desc string) (string, string) {
+	idx := strings.Index(desc, SourceAttachmentMarker)
+	if idx < 0 {
+		return desc, ""
+	}
+	before := strings.TrimSpace(desc[:idx])
+	after := strings.TrimSpace(desc[idx+len(SourceAttachmentMarker):])
+	return before, after
+}
