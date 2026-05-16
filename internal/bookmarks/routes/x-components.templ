@@ -19,12 +19,21 @@ templ (c Components) titleBlock(item *dataset.Bookmark) {
 	<turbo-frame id={ "bookmark-title-" + item.ID } class="print:hidden leading-normal">
 		<h1 class="text-3xl max-sm:text-2xl">{ item.Title }</h1>
 		if item.Description != "" && (item.OmitDescription == nil || *item.OmitDescription == false) {
-			<p
-				class="mt-2 text-lg leading-tight text-justify italic"
+			{{ aiSummary, sourceAttach := SplitDescription(item.Description) }}
+			<div
+				class="readeck-description mt-3 text-lg"
 				dir={ Tern(func() bool { return item.TextDirection != "" }, item.TextDirection, "ltr") }
 			>
-				{ item.Description }
-			</p>
+				@Markdown(aiSummary)
+			</div>
+			if sourceAttach != "" {
+				<div
+					class="readeck-source-attachment mt-4 text-base"
+					dir={ Tern(func() bool { return item.TextDirection != "" }, item.TextDirection, "ltr") }
+				>
+					@Markdown(sourceAttach)
+				</div>
+			}
 		}
 		@c.editDialog(item)
 	</turbo-frame>
@@ -89,8 +98,33 @@ templ (c Components) contentBlock(item *dataset.Bookmark, html io.Reader) {
 	@c.qrCode(item)
 }
 
+// descriptionIsCanonical reports whether the AI summary in the description
+// field is the canonical content for this bookmark, meaning Readeck's
+// scraped article body should be HIDDEN to avoid visual competition.
+// True for:
+//   - #medium/tweet  — autosave_tg fetched the tweet via oEmbed into
+//                      description; the x.com page Readeck scraped is
+//                      just a "Something went wrong / privacy extensions
+//                      may cause issues" bot wall.
+//   - #medium/error  — Readeck's scrape produced no usable content
+//                      (SPA / JS redirect / 404 / paywall).
+//   - #status/no-content — paired with #medium/error.
+//
+// NOTE: #medium/video is intentionally NOT included — user wants to keep
+// the YouTube page chapters / description / socials in the article body
+// even though the transcript section duplicates with our cleaner version.
+func descriptionIsCanonical(labels []string) bool {
+	for _, l := range labels {
+		switch l {
+		case "#medium/tweet", "#medium/error", "#status/no-content":
+			return true
+		}
+	}
+	return false
+}
+
 templ (c Components) articleContent(item *dataset.Bookmark, html io.Reader) {
-	if item.HasArticle {
+	if item.HasArticle && !descriptionIsCanonical(item.Labels) {
 		{{ prefs := Preferences(ctx) }}
 		<turbo-frame
 			id={ "bookmark-content-" + item.ID }

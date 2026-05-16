@@ -139,6 +139,43 @@ func NormalizeSpaces(text string) string {
 	return strings.TrimSpace(b.String())
 }
 
+// NormalizeSpacesKeepNewlines collapses runs of horizontal whitespace to a single
+// space, but preserves newlines (collapsing 3+ consecutive newlines down to 2 so
+// markdown paragraph breaks survive without inflating). Used for fields that
+// carry rich text like bookmark descriptions written in markdown.
+func NormalizeSpacesKeepNewlines(text string) string {
+	var b strings.Builder
+	b.Grow(len(text))
+
+	wasHSpace := false
+	newlineRun := 0
+	for _, r := range text {
+		if r == '\n' {
+			// flush any pending horizontal space (don't emit before a newline)
+			wasHSpace = false
+			newlineRun++
+			// cap consecutive newlines at 2 (one blank line) so we get clean
+			// markdown paragraph breaks without arbitrary vertical space.
+			if newlineRun <= 2 {
+				b.WriteByte('\n')
+			}
+			continue
+		}
+		newlineRun = 0
+		if unicode.IsSpace(r) || unicode.IsControl(r) {
+			if !wasHSpace {
+				b.WriteRune(' ')
+				wasHSpace = true
+			}
+			continue
+		}
+		b.WriteRune(r)
+		wasHSpace = false
+	}
+
+	return strings.TrimSpace(b.String())
+}
+
 // ToLowerTextOnly returns a lowercased string with all spaces, punctuation and control
 // characters removed.
 func ToLowerTextOnly(text string) string {

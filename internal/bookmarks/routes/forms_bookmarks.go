@@ -303,7 +303,9 @@ func (f *updateForm) update(b *bookmarks.Bookmark) (updated map[string]any, err 
 	}
 
 	if f.Description.IsBound() {
-		b.Description = utils.NormalizeSpaces(f.Description.Value())
+		// Use NormalizeSpacesKeepNewlines so markdown paragraph breaks + bullet
+		// lists survive — Markdown() in templates renders them to <p>/<ul>/<h2>.
+		b.Description = utils.NormalizeSpacesKeepNewlines(f.Description.Value())
 		updated["description"] = b.Description
 	}
 

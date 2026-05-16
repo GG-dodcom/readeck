@@ -1,0 +1,126 @@
+// SPDX-FileCopyrightText: © 2026 personal-info-system fork
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Styles for the bookmark description block (which now renders markdown
+// via the Markdown() templ component in components/components.go).
+// Without these rules, raw <h2>, <ul>, <p> children sit flush against
+// each other and look cramped.
+
+@layer components {
+  .readeck-description {
+    // Visual callout: distinguishes the AI-generated summary block from
+    // the original article body below it.
+    position: relative;
+    @apply pl-5 pr-4 py-4 my-3 rounded-md;
+    border-left: 4px solid #6366f1; // indigo-500
+    background: rgba(99, 102, 241, 0.06);
+
+    // Dark mode tint
+    @media (prefers-color-scheme: dark) {
+      background: rgba(129, 140, 248, 0.10);
+      border-left-color: #818cf8; // indigo-400
+    }
+
+    // "AI Summary" label at the top so the user knows this block is
+    // distilled by autosave_tg.py, not the article author.
+    &::before {
+      content: "✨ AI summary";
+      display: block;
+      @apply text-xs font-semibold uppercase tracking-wider mb-2;
+      color: #4f46e5; // indigo-600
+      letter-spacing: 0.08em;
+
+      @media (prefers-color-scheme: dark) {
+        color: #a5b4fc; // indigo-300
+      }
+    }
+
+    // Vertical rhythm: every block child gets top margin against its
+    // previous sibling.
+    > * + * {
+      @apply mt-3;
+    }
+
+    // Section headings (##) get a bit more breathing room above and
+    // a subtle weight so they pop without dominating.
+    > h2,
+    > h3 {
+      @apply mt-5 mb-2 text-xl font-bold;
+    }
+
+    // Bullet lists: proper indent + disc marker + tight spacing within.
+    > ul,
+    > ol {
+      @apply pl-6 my-2 space-y-1;
+    }
+    > ul {
+      @apply list-disc;
+    }
+    > ol {
+      @apply list-decimal;
+    }
+
+    // Nested lists tighter still.
+    ul ul,
+    ol ol,
+    ul ol,
+    ol ul {
+      @apply pl-5 my-1 space-y-0.5;
+    }
+
+    // Paragraphs render with a comfortable line-height and don't get
+    // the italic styling the original Readeck description had (which
+    // looked weird for markdown content).
+    > p {
+      @apply leading-relaxed;
+    }
+
+    // Inline code and code blocks (rare in summaries but possible).
+    code {
+      @apply px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-sm font-mono;
+    }
+    pre {
+      @apply p-3 rounded bg-gray-100 dark:bg-gray-800 overflow-x-auto my-3;
+    }
+    pre code {
+      @apply p-0 bg-transparent;
+    }
+  }
+
+  // Source attachment: the section appended below the AI summary callout
+  // (raw tweet text, video transcript, etc.). Plain visual styling — no
+  // box, no label — so it's clearly distinct from the AI digest above.
+  .readeck-source-attachment {
+    @apply text-gray-700 dark:text-gray-300;
+
+    > * + * {
+      @apply mt-2;
+    }
+
+    > h2,
+    > h3 {
+      @apply mt-4 mb-1 text-base font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider;
+    }
+
+    > ul,
+    > ol {
+      @apply pl-6 my-2;
+    }
+    > ul {
+      @apply list-disc;
+    }
+
+    > p {
+      @apply leading-relaxed;
+    }
+
+    a {
+      @apply text-blue-600 dark:text-blue-400 underline;
+    }
+
+    code {
+      @apply px-1 rounded bg-gray-100 dark:bg-gray-800 text-sm font-mono;
+    }
+  }
+}

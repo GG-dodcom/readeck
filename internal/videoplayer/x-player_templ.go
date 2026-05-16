@@ -177,7 +177,7 @@ func (_ Views) player(src, embedType string, w, h int) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\">\n          const video = document.getElementById('video')\n          const src = video.dataset.manifest\n\n          if (Hls.isSupported()) {\n            var hls = new Hls();\n            hls.on(Hls.Events.MEDIA_ATTACHED, function () {\n              video.play()\n            });\n            hls.loadSource(src)\n            hls.attachMedia(video)\n          }\n        </script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\">\r\n          const video = document.getElementById('video')\r\n          const src = video.dataset.manifest\r\n\r\n          if (Hls.isSupported()) {\r\n            var hls = new Hls();\r\n            hls.on(Hls.Events.MEDIA_ATTACHED, function () {\r\n              video.play()\r\n            });\r\n            hls.loadSource(src)\r\n            hls.attachMedia(video)\r\n          }\r\n        </script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
